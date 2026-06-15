@@ -52,7 +52,16 @@ async function main() {
 
   const electron = spawn(
     "pnpm",
-    ["exec", "electron", path.join(desktopDir, "dist/main/main.cjs")],
+    [
+      "exec",
+      "electron",
+      "--disable-gpu",
+      "--disable-gpu-sandbox",
+      "--disable-software-rasterizer",
+      "--no-sandbox",
+      "--no-zygote",
+      path.join(desktopDir, "dist/main/main.cjs"),
+    ],
     {
       cwd: desktopDir,
       stdio: "inherit",

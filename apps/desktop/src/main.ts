@@ -1,6 +1,7 @@
 import { app, BrowserWindow, ipcMain } from "electron";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { initDatabase } from "./db/connection";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -28,7 +29,9 @@ function createWindow() {
   }
 }
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
+  await initDatabase();
+
   ipcMain.handle("ping", () => "pong");
   createWindow();
 
