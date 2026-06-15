@@ -1,0 +1,35 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "OwlOS 主窗口默认权限",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    "core:window:allow-set-title",
+    "core:window:allow-minimize",
+    "core:window:allow-maximize",
+    "core:window:allow-close",
+    "core:window:allow-start-dragging",
+    "shell:allow-open",
+    "fs:default",
+    "fs:allow-read-file",
+    "fs:allow-write-file",
+    "fs:allow-read-dir",
+    "fs:allow-copy-file",
+    "fs:allow-remove",
+    "fs:allow-create",
+    "fs:allow-mkdir",
+    {
+      "identifier": "fs:scope",
+      "allow": ["$APPDATA/**", "$DOCUMENT/**", "$DOWNLOAD/**", "$TEMP/**"]
+    },
+    "dialog:allow-open",
+    "dialog:allow-save",
+    "store:default",
+    "notification:default",
+    "os:default",
+    "process:default",
+    "clipboard-manager:default",
+    "http:default"
+  ]
+}

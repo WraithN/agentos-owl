@@ -15,6 +15,11 @@ output
 package-lock.json
 playwright-report
 test-results
+.turbo
+apps/*/dist
+apps/*/.dist-test
+packages/*/dist
+apps/*/src-tauri/target
 
 # Editor directories and files
 .vscode/*
@@ -32,3 +37,4 @@ history/*.json
 .vite_cache
 /.skills
 /tasks
+.opencode

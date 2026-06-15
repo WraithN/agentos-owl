@@ -1,35 +1,33 @@
 #!/bin/bash
 
-ast-grep scan -r .rules/SelectItem.yml
+pnpm exec ast-grep scan -r ../../.rules/SelectItem.yml
 
-ast-grep scan -r .rules/contrast.yml
+pnpm exec ast-grep scan -r ../../.rules/contrast.yml
 
-ast-grep scan -r .rules/supabase-google-sso.yml
+pnpm exec ast-grep scan -r ../../.rules/toast-hook.yml
 
-ast-grep scan -r .rules/toast-hook.yml
+pnpm exec ast-grep scan -r ../../.rules/slot-nesting.yml
 
-ast-grep scan -r .rules/slot-nesting.yml
+pnpm exec ast-grep scan -r ../../.rules/require-button-interaction.yml
 
-ast-grep scan -r .rules/require-button-interaction.yml
+pnpm exec ast-grep scan -r ../../.rules/supabase-edge-function-get-body.yml
 
-ast-grep scan -r .rules/supabase-edge-function-get-body.yml
-
-useauth_output=$(ast-grep scan -r .rules/useAuth.yml 2>/dev/null)
+useauth_output=$(pnpm exec ast-grep scan -r ../../.rules/useAuth.yml 2>/dev/null)
 
 if [ -z "$useauth_output" ]; then
     exit 0
 fi
 
-authprovider_output=$(ast-grep scan -r .rules/authProvider.yml 2>/dev/null)
+authprovider_output=$(pnpm exec ast-grep scan -r ../../.rules/authProvider.yml 2>/dev/null)
 
 if [ -n "$authprovider_output" ]; then
     exit 0
 fi
 
-echo "=== ast-grep scan -r .rules/useAuth.yml output ==="
+echo "=== pnpm exec ast-grep scan -r ../../.rules/useAuth.yml output ==="
 echo "$useauth_output"
 echo ""
-echo "=== ast-grep scan -r .rules/authProvider.yml output ==="
+echo "=== pnpm exec ast-grep scan -r ../../.rules/authProvider.yml output ==="
 echo "$authprovider_output"
 echo ""
 echo "⚠️  Issue detected:"

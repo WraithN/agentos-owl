@@ -1,0 +1,21 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "globalDependencies": [".env"],
+  "globalEnv": ["NODE_ENV", "VITE_SENTRY_DSN"],
+  "tasks": {
+    "dev": {
+      "cache": false,
+      "persistent": true
+    },
+    "build": {
+      "dependsOn": ["^build"],
+      "outputs": ["dist/**", "release/**"]
+    },
+    "lint": {
+      "cache": false
+    },
+    "typecheck": {
+      "cache": false
+    }
+  }
+}

@@ -6,8 +6,8 @@
   },
   "files": {
     "includes": [
-      "src/**/*.{js,jsx,ts,tsx,css,scss}",
-      "tailwind.config.js"
+      "apps/web/src/**/*.{js,jsx,ts,tsx,css,scss}",
+      "apps/web/tailwind.config.js"
     ]
   },
   "linter": {

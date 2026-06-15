@@ -1,0 +1,50 @@
+{
+  "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
+  "productName": "OwlOS",
+  "version": "0.0.1",
+  "identifier": "com.owl.os",
+  "mainBinaryName": "OwlOS",
+  "build": {
+    "beforeDevCommand": "pnpm dev",
+    "beforeBuildCommand": "pnpm build",
+    "devUrl": "http://localhost:5173",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "withGlobalTauri": false,
+    "windows": [
+      {
+        "label": "main",
+        "title": "OwlOS",
+        "width": 1440,
+        "height": 900,
+        "minWidth": 1024,
+        "minHeight": 700,
+        "resizable": true,
+        "fullscreen": false,
+        "center": true,
+        "visible": true,
+        "decorations": false,
+        "transparent": false
+      }
+    ],
+    "security": {
+      "csp": null,
+      "capabilities": ["default"]
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["deb", "rpm"],
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "category": "DeveloperTool",
+    "shortDescription": "OwlOS Agent Runtime",
+    "longDescription": "OwlOS 是一个意图驱动的 Agent 运行时系统，支持单聊、群聊与自动化工作流。"
+  }
+}
