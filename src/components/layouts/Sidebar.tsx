@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   MessageSquare, Database, Puzzle, Settings,
   ChevronLeft, ChevronRight,
-  Zap, PanelLeftOpen,
+  Zap,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useApp } from '@/contexts/AppContext';
@@ -26,17 +26,20 @@ export default function Sidebar() {
     <motion.aside
       animate={{ width: w }}
       transition={{ type: 'spring', stiffness: 260, damping: 28 }}
-      className="relative flex flex-col h-screen shrink-0 overflow-hidden"
+      className="relative flex flex-col h-screen shrink-0"
       style={{
         background: 'var(--glass-l1)',
         backdropFilter: 'var(--glass-blur-l1)',
         WebkitBackdropFilter: 'var(--glass-blur-l1)',
         borderRight: '1px solid var(--border-l2)',
         boxShadow: '2px 0 24px rgba(0,0,0,0.18)',
+        overflow: 'visible',
+        // 右侧 tooltip 可溢出，但左/上/下裁剪
+        clipPath: 'none',
       }}
     >
       {/* Logo 区 */}
-      <div className="flex items-center gap-3 h-14 px-4 shrink-0"
+      <div className="flex items-center gap-3 h-14 px-3 shrink-0"
         style={{ borderBottom: '1px solid var(--border-l1)' }}>
         {/* 极光 A 图标 */}
         <div className="flex items-center justify-center w-8 h-8 rounded-xl shrink-0 btn-aurora">
@@ -49,50 +52,33 @@ export default function Sidebar() {
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -8 }}
               transition={{ duration: 0.2 }}
-              className="aurora-text font-semibold text-base whitespace-nowrap"
+              className="aurora-text font-semibold text-base whitespace-nowrap flex-1 min-w-0"
             >
               ActaOS
             </motion.span>
           )}
         </AnimatePresence>
-        {/* 折叠/展开 按钮 */}
+        {/* 折叠/展开 按钮 — 收起时更醒目 */}
         <motion.button
           onClick={toggleSidebar}
-          className="ml-auto p-1.5 rounded-lg transition-colors btn-lift"
-          style={{ background: 'var(--surface-hover)', color: 'var(--text-tertiary)' }}
-          whileHover={{ scale: 1.08 }}
-          whileTap={{ scale: 0.92 }}
+          className={cn(
+            'ml-auto p-1.5 rounded-lg transition-all btn-lift shrink-0',
+            !sidebarExpanded && 'ring-1 ring-cyan-400/40 shadow-[0_0_8px_rgba(0,242,195,0.25)]'
+          )}
+          style={sidebarExpanded
+            ? { background: 'var(--surface-hover)', color: 'var(--text-tertiary)' }
+            : { background: 'rgba(0,212,170,0.12)', color: '#00f2c3' }
+          }
+          whileHover={{ scale: 1.1 }}
+          whileTap={{ scale: 0.9 }}
           title={sidebarExpanded ? '收起侧边栏' : '展开侧边栏'}
         >
           {sidebarExpanded ? <ChevronLeft className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
         </motion.button>
       </div>
 
-      {/* 收起时一键展开浮动提示 */}
-      {!sidebarExpanded && (
-        <motion.button
-          initial={{ opacity: 0, x: -4 }}
-          animate={{ opacity: 1, x: 0 }}
-          exit={{ opacity: 0, x: -4 }}
-          onClick={toggleSidebar}
-          title="展开侧边栏"
-          className="absolute -right-3 top-1/2 -translate-y-1/2 z-20 w-6 h-6 rounded-full flex items-center justify-center btn-lift"
-          style={{
-            background: 'var(--glass-l4)',
-            backdropFilter: 'var(--glass-blur-l4)',
-            border: '1px solid var(--border-l2)',
-            boxShadow: 'var(--shadow-sm)',
-            color: 'var(--text-tertiary)',
-          }}
-          whileHover={{ scale: 1.15, x: 1 }}
-          whileTap={{ scale: 0.9 }}
-        >
-          <PanelLeftOpen className="w-3 h-3" />
-        </motion.button>
-      )}
-
       {/* 主导航 */}
-      <nav className="flex-1 py-3 px-2 space-y-0.5 overflow-y-auto min-h-0">
+      <nav className="flex-1 py-3 px-2 space-y-0.5 overflow-y-auto overflow-x-visible min-h-0 scrollbar-none">
         {NAV_ITEMS.map(item => {
           const active = activeModule === item.id;
           const Icon = item.icon;
@@ -138,17 +124,27 @@ export default function Sidebar() {
               </AnimatePresence>
               {/* 收起状态 hover tooltip */}
               {!sidebarExpanded && (
-                <span className="absolute left-full ml-2.5 top-1/2 -translate-y-1/2 z-30 px-2.5 py-1 rounded-lg text-xs font-medium whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-150"
-                  style={{
-                    background: 'var(--glass-l4)',
-                    backdropFilter: 'var(--glass-blur-l4)',
-                    WebkitBackdropFilter: 'var(--glass-blur-l4)',
-                    border: '1px solid var(--border-l2)',
-                    boxShadow: 'var(--shadow-md)',
-                    color: 'var(--text-primary)',
-                  }}>
-                  {item.label}
-                </span>
+                <>
+                  <span className="absolute left-full ml-2 top-1/2 -translate-y-1/2 z-30 px-2.5 py-1 rounded-lg text-xs font-medium whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-150"
+                    style={{
+                      background: 'var(--glass-l4)',
+                      backdropFilter: 'var(--glass-blur-l4)',
+                      WebkitBackdropFilter: 'var(--glass-blur-l4)',
+                      border: '1px solid var(--border-l2)',
+                      boxShadow: 'var(--shadow-md)',
+                      color: 'var(--text-primary)',
+                    }}>
+                    {item.label}
+                  </span>
+                  {/* tooltip 小箭头 */}
+                  <span className="absolute left-full top-1/2 -translate-y-1/2 z-30 w-1.5 h-1.5 rotate-45 opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-150"
+                    style={{
+                      background: 'var(--glass-l4)',
+                      borderLeft: '1px solid var(--border-l2)',
+                      borderBottom: '1px solid var(--border-l2)',
+                      marginLeft: '1.5px',
+                    }} />
+                </>
               )}
             </motion.button>
           );

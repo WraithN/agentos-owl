@@ -264,6 +264,13 @@
     background: hsl(var(--border));
     border-radius: 3px;
   }
+  .scrollbar-none {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
+  }
 
   html, body {
     font-family: 'Inter', 'SF Pro Display', system-ui, sans-serif;

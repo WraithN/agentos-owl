@@ -101,25 +101,25 @@ const MODE_META: Record<CollabMode, {
 }> = {
   pipeline: {
     icon: <GitBranch className="w-4 h-4" />,
-    label: 'Pipeline',
+    label: '流水线 Pipeline',
     desc: '智能体按选择顺序依次执行，上一步输出传给下一步',
     color: 'text-cyan-400', accent: 'border-cyan-500/40 bg-cyan-500/10',
   },
   supervisor: {
     icon: <Eye className="w-4 h-4" />,
-    label: 'Supervisor',
+    label: '监督者 Supervisor',
     desc: '监督者分配任务，协作者并行工作后汇报给监督者',
     color: 'text-violet-400', accent: 'border-violet-500/40 bg-violet-500/10',
   },
   brainstorming: {
     icon: <MessageCircle className="w-4 h-4" />,
-    label: 'Brainstorming',
+    label: '头脑风暴 Brainstorm',
     desc: '智能体自由讨论，互相启发，产生创意与多样观点',
     color: 'text-amber-400', accent: 'border-amber-500/40 bg-amber-500/10',
   },
   swarm: {
     icon: <Network className="w-4 h-4" />,
-    label: 'Swarm',
+    label: '层级模式 Hierarchy',
     desc: '一位 CTO 统筹若干项目组，每组有组长和组员并行作战',
     color: 'text-rose-400', accent: 'border-rose-500/40 bg-rose-500/10',
   },
