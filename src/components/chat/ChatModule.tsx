@@ -12,7 +12,6 @@ import { MESSAGES_SQUAD, CONVERSATIONS, AGENTS, getAgent } from '@/data/mockData
 import type { Message, Conversation } from '@/types';
 import { LayoutGrid, Plus, History, Search, Users, Bot, Zap, Activity } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import MonitorModule from '@/components/monitor/MonitorModule';
 
 /* ─── 流式模拟引擎 ────────────────────────────────────────────────────── */
@@ -469,6 +468,30 @@ export default function ChatModule() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const stopStreamRef = useRef<(() => void) | null>(null);
 
+  /* ── 可拖拽面板宽度 ──────────────────────────────────────────── */
+  const monitorRef = useRef<HTMLDivElement>(null);
+  const [monitorWidth, setMonitorWidth] = useState<number | null>(null);
+  const [dragging, setDragging] = useState(false);
+
+  useEffect(() => {
+    if (!monitorOpen) return;
+    function onMove(e: MouseEvent) {
+      if (!dragging) return;
+      const vw = window.innerWidth;
+      const minPx = Math.min(320, vw * 0.4);
+      const maxPx = vw * 0.85;
+      const newW = Math.max(minPx, Math.min(maxPx, vw - e.clientX));
+      setMonitorWidth(newW);
+    }
+    function onUp() { setDragging(false); }
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+    return () => {
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+    };
+  }, [dragging, monitorOpen]);
+
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
@@ -677,19 +700,54 @@ export default function ChatModule() {
           )}
         </AnimatePresence>
 
-        {/* 运行监控 Sheet 抽屉 */}
-        <Sheet open={monitorOpen} onOpenChange={setMonitorOpen}>
-          <SheetContent
-            side="right"
-            className="w-full md:w-[65%] min-w-[320px] p-0 border-l"
-            style={{
-              background: 'var(--panel-bg-solid)',
-              borderColor: 'var(--border-l2)',
-            }}
-          >
-            <MonitorModule />
-          </SheetContent>
-        </Sheet>
+        {/* 可拖拽运行监控面板 */}
+        <AnimatePresence>
+          {monitorOpen && (
+            <motion.div
+              ref={monitorRef}
+              key="monitor-panel"
+              initial={{ x: '100%', opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              exit={{ x: '100%', opacity: 0 }}
+              transition={{ type: 'spring', stiffness: 260, damping: 28, delay: 0.08 }}
+              className="absolute right-0 top-0 bottom-0 z-30 flex overflow-hidden w-full md:w-[60%]"
+              style={{
+                width: monitorWidth ?? undefined,
+                minWidth: 320,
+                maxWidth: '85vw',
+              }}
+            >
+              {/* 拖拽手柄 */}
+              <div
+                className={cn(
+                  'w-1.5 shrink-0 cursor-col-resize transition-colors',
+                  dragging ? 'bg-cyan-400/60' : 'bg-transparent hover:bg-cyan-400/30'
+                )}
+                style={{
+                  background: dragging
+                    ? 'linear-gradient(180deg, rgba(0,242,195,0.5), rgba(14,165,233,0.5))'
+                    : undefined,
+                }}
+                onMouseDown={() => {
+                  if (monitorRef.current) {
+                    setMonitorWidth(monitorRef.current.offsetWidth);
+                  }
+                  setDragging(true);
+                }}
+                title="拖拽调整宽度"
+              />
+              <div
+                className="flex-1 overflow-hidden"
+                style={{
+                  background: 'var(--panel-bg-solid)',
+                  borderLeft: '1px solid var(--border-l2)',
+                }}
+              >
+                <MonitorModule />
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
       </div>
     </div>
