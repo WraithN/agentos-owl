@@ -10,8 +10,10 @@ import TaskBoard from '@/components/squad/TaskBoard';
 import ExecutionLog from '@/components/automation/ExecutionLog';
 import { MESSAGES_SQUAD, CONVERSATIONS, AGENTS, getAgent } from '@/data/mockData';
 import type { Message, Conversation } from '@/types';
-import { LayoutGrid, Plus, History, Search, Users, Bot, Zap } from 'lucide-react';
+import { LayoutGrid, Plus, History, Search, Users, Bot, Zap, Activity } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import MonitorModule from '@/components/monitor/MonitorModule';
 
 /* ─── 流式模拟引擎 ────────────────────────────────────────────────────── */
 /** 把全文按字符逐步追加，返回 stop 函数 */
@@ -360,8 +362,10 @@ interface ChatHeaderProps {
   onNew: () => void;
   taskBoardOpen: boolean;
   onToggleTaskBoard: () => void;
+  monitorOpen: boolean;
+  onToggleMonitor: () => void;
 }
-function ChatHeader({ title, currentId, onSelect, onNew, taskBoardOpen, onToggleTaskBoard }: ChatHeaderProps) {
+function ChatHeader({ title, currentId, onSelect, onNew, taskBoardOpen, onToggleTaskBoard, monitorOpen, onToggleMonitor }: ChatHeaderProps) {
   const [historyOpen, setHistoryOpen] = useState(false);
   const [agentOpen, setAgentOpen] = useState(false);
 
@@ -437,6 +441,18 @@ function ChatHeader({ title, currentId, onSelect, onNew, taskBoardOpen, onToggle
         >
           <LayoutGrid className="w-4 h-4" />
         </button>
+
+        {/* 5. 运行监控 */}
+        <button
+          onClick={() => { onToggleMonitor(); setHistoryOpen(false); setAgentOpen(false); }}
+          className={cn(
+            'p-2 rounded-lg transition-colors',
+            monitorOpen ? 'text-cyan-400 bg-cyan-500/15' : 'text-slate-500 hover:text-slate-300 hover:bg-white/5'
+          )}
+          title="运行监控"
+        >
+          <Activity className="w-4 h-4" />
+        </button>
       </div>
     </div>
   );
@@ -448,6 +464,7 @@ export default function ChatModule() {
   const [messages, setMessages] = useState<Message[]>(MESSAGES_SQUAD);
   const [showUpgradeBar, setShowUpgradeBar] = useState(false);
   const [taskBoardOpen, setTaskBoardOpen] = useState(false);
+  const [monitorOpen, setMonitorOpen] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const stopStreamRef = useRef<(() => void) | null>(null);
@@ -587,6 +604,8 @@ export default function ChatModule() {
         onNew={handleNewConv}
         taskBoardOpen={taskBoardOpen}
         onToggleTaskBoard={() => setTaskBoardOpen(v => !v)}
+        monitorOpen={monitorOpen}
+        onToggleMonitor={() => setMonitorOpen(v => !v)}
       />
 
       {/* ── 升级提示条 ── */}
@@ -657,6 +676,20 @@ export default function ChatModule() {
             </motion.div>
           )}
         </AnimatePresence>
+
+        {/* 运行监控 Sheet 抽屉 */}
+        <Sheet open={monitorOpen} onOpenChange={setMonitorOpen}>
+          <SheetContent
+            side="right"
+            className="w-full md:w-[65%] min-w-[320px] p-0 border-l"
+            style={{
+              background: 'var(--panel-bg-solid)',
+              borderColor: 'var(--border-l2)',
+            }}
+          >
+            <MonitorModule />
+          </SheetContent>
+        </Sheet>
 
       </div>
     </div>

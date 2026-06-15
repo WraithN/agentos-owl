@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   MessageSquare, Database, Puzzle, Settings,
   ChevronLeft, ChevronRight,
-  Zap, Activity, PanelLeftOpen,
+  Zap, PanelLeftOpen,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useApp } from '@/contexts/AppContext';
@@ -17,7 +17,6 @@ export default function Sidebar() {
     { id: 'chat',      icon: MessageSquare, label: t('nav.chat'),      highlight: true },
     { id: 'knowledge', icon: Database,      label: t('nav.knowledge'), highlight: false },
     { id: 'tools',     icon: Puzzle,        label: t('nav.tools'),     highlight: false },
-    { id: 'monitor',   icon: Activity,      label: '运行监控',          highlight: false },
     { id: 'settings',  icon: Settings,      label: t('nav.settings'),  highlight: false },
   ];
 
@@ -102,7 +101,7 @@ export default function Sidebar() {
               key={item.id}
               onClick={() => setActiveModule(item.id)}
               className={cn(
-                'relative w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200',
+                'group relative w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200',
                 active
                   ? 'text-white'
                   : 'hover:bg-white/5'
@@ -137,6 +136,20 @@ export default function Sidebar() {
                   </motion.span>
                 )}
               </AnimatePresence>
+              {/* 收起状态 hover tooltip */}
+              {!sidebarExpanded && (
+                <span className="absolute left-full ml-2.5 top-1/2 -translate-y-1/2 z-30 px-2.5 py-1 rounded-lg text-xs font-medium whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-150"
+                  style={{
+                    background: 'var(--glass-l4)',
+                    backdropFilter: 'var(--glass-blur-l4)',
+                    WebkitBackdropFilter: 'var(--glass-blur-l4)',
+                    border: '1px solid var(--border-l2)',
+                    boxShadow: 'var(--shadow-md)',
+                    color: 'var(--text-primary)',
+                  }}>
+                  {item.label}
+                </span>
+              )}
             </motion.button>
           );
         })}

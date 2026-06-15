@@ -12,7 +12,6 @@ import ChatModule from '@/components/chat/ChatModule';
 import KnowledgeModule from '@/components/knowledge/KnowledgeModule';
 import ToolsModule from '@/components/tools/ToolsModule';
 import SettingsModule from '@/components/settings/SettingsModule';
-import MonitorModule from '@/components/monitor/MonitorModule';
 
 /* 内层布局 — 必须在 AppProvider 内部渲染 */
 function AppLayoutInner() {
@@ -24,7 +23,6 @@ function AppLayoutInner() {
     knowledge: <KnowledgeModule />,
     tools:     <ToolsModule />,
     settings:  <SettingsModule />,
-    monitor:   <MonitorModule />,
   };
 
   useEffect(() => {
