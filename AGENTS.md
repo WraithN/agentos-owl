@@ -18,7 +18,7 @@
   - `single`：单聊模式
   - `squad`：群聊/多 Agent 协作模式
   - `auto`：自动化工作流模式
-- **核心功能模块**（对应 `src/components/` 下目录）：
+- **核心功能模块**（对应 `apps/web/src/components/` 下目录）：
   - 对话模块（`chat`）
   - 群聊协作（`squad`）
   - 自动化执行日志（`automation`）
@@ -27,9 +27,12 @@
   - 设置中心（`settings`）
   - 全局浮层/命令面板/通知中心（`global`）
 - **当前状态**：
-  - 当前为**纯前端 Mock 驱动**实现，业务数据主要来自 `src/data/mockData.ts`。
-  - 后端/API 层尚未接入，`src/services/` 目录下留有 Tauri 本地认证相关服务。
-  - 认证当前走 Tauri 本地服务（`src/services/tauri`），未接入 Supabase。
+  - 当前为**纯前端 Mock 驱动**实现，业务数据主要来自 `apps/web/src/data/mockData.ts`。
+  - 项目正在进行 **Tauri → Electron + Turborepo** 架构迁移：
+    - 前端代码已迁入 `apps/web/`
+    - Electron 主进程/预加载脚本在 `apps/desktop/src/`
+    - Tauri Rust 后端代码暂存在 `apps/web/src-tauri/`，迁移完成后删除
+  - 认证当前走 Tauri 本地服务（`apps/web/src/services/tauri.ts`），后续将迁移到 Electron IPC。
 
 ## 2. 技术栈与运行时架构
 
@@ -49,23 +52,26 @@
 | 通知 Toast | sonner |
 | 表单校验 | react-hook-form + zod + @hookform/resolvers |
 | HTTP 客户端 | axios / ky（已声明依赖，当前代码中未实际接入） |
-| 后端 SDK | @supabase/supabase-js（`2.103.1`） |
+| 后端 SDK | @supabase/supabase-js（`2.103.1`），后续将移除 |
+| 桌面运行时 | Electron 34 |
+| 数据库 | better-sqlite3（迁移中） |
+| Monorepo | Turborepo 2 + pnpm workspaces |
 
 ### 2.1 入口与路由
 
-- **HTML 入口**：`index.html` → `/src/main.tsx`
-- **应用根组件**：`src/App.tsx`
+- **HTML 入口**：`apps/web/index.html` → `/apps/web/src/main.tsx`
+- **应用根组件**：`apps/web/src/App.tsx`
   - 使用 `BrowserRouter`，仅配置一条根路由 `/`，其余路径重定向到 `/`。
   - 全局挂载 `Toaster`（来自 `sonner`）。
-- **实际布局渲染**：`src/components/layouts/AppLayout.tsx`
+- **实际布局渲染**：`apps/web/src/components/layouts/AppLayout.tsx`
   - 内部提供 `AppProvider`，并通过 `moduleMap` 根据 `activeModule` 切换四大模块：`chat`、`knowledge`、`tools`、`settings`。
   - 所有模块 JSX 在组件内部定义，避免 HMR 时模块级 JSX 绕过 Provider 导致 Context 丢失。
 
 ### 2.2 设计系统（Aurora）
 
 - 主题采用 **Aurora 设计系统**，以深空背景 + 极光渐变（`#00f2c3 → #38bdf8 → #7c3aed`）+ 玻璃拟态为视觉核心。
-- 深色/浅色切换通过 `html.dark` class 实现（`tailwind.config.js` 中 `darkMode: ['class']`）。
-- 主要变量与工具类定义在 `src/index.css`：
+- 深色/浅色切换通过 `html.dark` class 实现（`apps/web/tailwind.config.js` 中 `darkMode: ['class']`）。
+- 主要变量与工具类定义在 `apps/web/src/index.css`：
   - `glass-l1` ~ `glass-l4`：分层玻璃拟态
   - `aurora-text` / `aurora-border` / `btn-aurora`：极光渐变文字、边框、按钮
   - `badge-*` / `table-*`：状态徽章、表格高亮
@@ -77,89 +83,72 @@
 ```
 .
 ├── .rules/                # ast-grep 自定义规则（见“代码规范”）
+├── apps/
+│   ├── desktop/           # Electron 桌面应用
+│   │   ├── src/
+│   │   │   ├── main.ts    # 主进程入口
+│   │   │   ├── preload.ts # 预加载脚本（暴露 electron API）
+│   │   │   └── renderer/  # 生产环境 renderer 入口 HTML
+│   │   ├── scripts/       # 开发/构建辅助脚本
+│   │   ├── vite.*.config.ts # 主进程/预加载/renderer 构建配置
+│   │   └── package.json
+│   └── web/               # 前端 React 应用（原根目录内容）
+│       ├── index.html
+│       ├── src/           # React 源码、组件、样式、服务
+│       ├── public/        # 静态资源
+│       ├── src-tauri/     # Tauri Rust 后端（迁移中，完成后删除）
+│       ├── components.json
+│       ├── tailwind.config.js
+│       ├── postcss.config.js
+│       ├── vite.config.ts
+│       ├── tsconfig*.json
+│       └── package.json
 ├── docs/
 │   └── prd.md             # 产品需求文档（PRD）
-├── public/                # 静态资源（favicon、图片）
-├── src/
-│   ├── App.tsx            # 路由与全局 Toast
-│   ├── main.tsx           # React 根渲染 + Sentry 初始化
-│   ├── routes.tsx         # 路由配置（当前仅根路由）
-│   ├── index.css          # 全局样式、Aurora 设计系统
-│   ├── components/
-│   │   ├── agent/         # Agent 相关展示组件
-│   │   ├── automation/    # 自动化执行日志
-│   │   ├── chat/          # 对话模块：消息流、会话列表、输入区、升级提示
-│   │   ├── common/        # 通用包装：PageMeta、RouteGuard、IntersectObserver
-│   │   ├── global/        # 命令面板、通知中心
-│   │   ├── knowledge/     # 知识库：列表、编辑、检索、上传、切片规则
-│   │   ├── layouts/       # 侧边栏、顶部栏、AppLayout
-│   │   ├── monitor/       # 运行监控面板
-│   │   ├── settings/      # 设置中心各子页面
-│   │   ├── squad/         # 群聊：团队面板、任务看板
-│   │   ├── tools/         # 工具市场
-│   │   └── ui/            # shadcn/ui 基础组件（Button、Dialog、Select 等）
-│   ├── contexts/
-│   │   ├── AppContext.tsx # 全局应用状态（主题、模块、会话、通知等）
-│   │   └── AuthContext.tsx# 认证状态（当前未接入真实 Supabase 客户端）
-│   ├── data/
-│   │   └── mockData.ts    # 全部 Mock 数据
-│   ├── hooks/             # 通用 Hooks
-│   ├── lib/               # 工具函数、i18n、全局 UI 样式常量
-│   ├── pages/             # 页面级组件（当前使用较少）
-│   ├── services/          # 预留服务目录（当前为空）
-│   └── types/
-│       └── index.ts       # TypeScript 类型定义
-├── components.json        # shadcn/ui 配置
-├── package.json           # 依赖与脚本
+├── packages/              # 预留共享包目录（当前为空）
+├── turbo.json             # Turborepo 流水线配置
+├── pnpm-workspace.yaml    # pnpm workspace 配置
+├── biome.json             # Biome 静态检查配置（根目录共享）
+├── package.json           # monorepo 根依赖与脚本
 ├── pnpm-lock.yaml         # pnpm 锁文件
-├── tailwind.config.js     # Tailwind 配置（含 Aurora 扩展）
-├── postcss.config.js      # PostCSS 配置
-├── tsconfig*.json         # TypeScript 工程引用配置
-├── vite.config.ts         # Vite 配置（含 @ 别名、SVGR）
-├── biome.json             # Biome 静态检查配置
-├── sgconfig.yml           # ast-grep 配置
 ├── TODO.md                # 基于 PRD 的当前缺陷/待办清单
 └── README.md              # 面向用户的说明文档
 ```
 
 ### 3.1 路径别名
 
-- Vite 与 TypeScript 均配置 `@/` 指向 `./src/`。
+- Vite 与 TypeScript 均配置 `@/` 指向 `./apps/web/src/`（在 `apps/web` 包内）。
 - shadcn/ui 组件统一使用 `@/components/ui/*`、`@/lib/utils` 等别名导入。
 
 ## 4. 构建、验证与运行命令
 
-> **重要**：`package.json` 中的 `dev` 与 `build` 脚本被显式替换为提示信息，**不要直接运行 `npm run dev` 或 `npm run build`**。项目采用 `lint` 脚本作为统一验证入口。
+> **重要**：根 `package.json` 的 `dev`/`build`/`lint` 通过 Turborepo 调用各 app 脚本。`apps/web` 仍保留原有 `lint` 脚本作为统一验证入口。
 
 ### 4.1 推荐验证命令
 
 ```bash
-# 安装依赖（当前环境可能因 registry 问题失败，需留意）
+# 安装依赖
 pnpm install
 
-# 统一检查入口
-npm run lint
-# 或
+# 启动 Electron 桌面开发环境（同时启动 web dev server 与 Electron）
+pnpm --filter @owl-os/desktop dev
+
+# 仅启动前端 web dev server
+pnpm --filter @owl-os/web dev
+
+# 统一检查入口（Turborepo 会调用 apps/web 的 lint）
 pnpm lint
 ```
 
-`lint` 脚本实际执行的内容（来自 `package.json`）：
+`apps/web` 的 `lint` 脚本实际执行的内容：
 
 ```bash
 tsgo -p tsconfig.check.json;
-npx biome lint;
-.rules/check.sh;
-npx tailwindcss -i ./src/index.css -o /dev/null 2>&1 | grep -E '^(CssSyntaxError|Error):.*' || true;
-.rules/testBuild.sh
+(cd ../.. && pnpm --filter @owl-os/web exec biome lint);
+../../.rules/check.sh;
+npx tailwindcss -i ./apps/web/src/index.css -o /dev/null 2>&1 | grep -E '^(CssSyntaxError|Error):.*' || true;
+../../.rules/testBuild.sh
 ```
-
-即依次执行：
-
-1. `tsgo -p tsconfig.check.json`：基于 `tsconfig.check.json` 的类型检查（排除 `src/components/ui` 与测试文件）。
-2. `npx biome lint`：使用 Biome 做 JS/TS/CSS 静态检查。
-3. `.rules/check.sh`：调用 ast-grep 执行 `.rules/` 下的自定义规则扫描。
-4. `npx tailwindcss ...`：编译 Tailwind CSS 到 `/dev/null`，仅捕获 `CssSyntaxError` / `Error`。
-5. `.rules/testBuild.sh`：执行一次 Vite 生产构建验证（输出到 `/workspace/.dist`，`--minify false`）。
 
 ### 4.2 环境要求
 
@@ -169,13 +158,8 @@ npx tailwindcss -i ./src/index.css -o /dev/null 2>&1 | grep -E '^(CssSyntaxError
 
 ### 4.3 开发服务器
 
-> 目前没有可用的本地开发服务器脚本。若需启动，理论上应运行：
->
-> ```bash
-> npx vite --host 127.0.0.1
-> ```
->
-> 但请先确保依赖安装成功。
+- `pnpm --filter @owl-os/web dev`：启动 Vite dev server（端口 5173）。
+- `pnpm --filter @owl-os/desktop dev`：启动完整桌面开发环境（web dev server + Electron）。
 
 ## 5. 代码规范与约束
 
@@ -190,8 +174,8 @@ npx tailwindcss -i ./src/index.css -o /dev/null 2>&1 | grep -E '^(CssSyntaxError
 - 必须遵守的规则：
   - `correctness/noUndeclaredDependencies`：不能引用未在 `package.json` 中声明的依赖。
   - `suspicious/noRedeclare`：禁止重复声明。
-  - `style/noCommonJs`：禁止 CommonJS（`tailwind.config.js` 已单独豁免）。
-- 扫描范围：`src/**/*.{js,jsx,ts,tsx,css,scss}`、`tailwind.config.js`。
+  - `style/noCommonJs`：禁止 CommonJS（`apps/web/tailwind.config.js` 已单独豁免）。
+- 扫描范围：`apps/web/src/**/*.{js,jsx,ts,tsx,css,scss}`、`apps/web/tailwind.config.js`。
 
 ### 5.3 ast-grep 自定义规则（`.rules/`）
 
@@ -208,8 +192,8 @@ npx tailwindcss -i ./src/index.css -o /dev/null 2>&1 | grep -E '^(CssSyntaxError
 
 ### 5.4 类型检查
 
-- 使用 `tsconfig.check.json` 进行生产类型检查，注意：
-  - **排除 `src/components/ui/`**：该目录下的 shadcn/ui 组件不参与此检查。
+- 使用 `apps/web/tsconfig.check.json` 进行生产类型检查，注意：
+  - **排除 `apps/web/src/components/ui/`**：该目录下的 shadcn/ui 组件不参与此检查。
   - **排除 `*.test.ts` / `*.spec.ts`**：项目当前没有测试文件。
   - `strictNullChecks` 开启，`noEmit: true`。
 
@@ -218,7 +202,7 @@ npx tailwindcss -i ./src/index.css -o /dev/null 2>&1 | grep -E '^(CssSyntaxError
 - 颜色优先使用 CSS 变量（`hsl(var(--primary))` 等），不要写死深色值。
 - 玻璃拟态使用 `glass-l1` ~ `glass-l4` 工具类。
 - 极光渐变按钮使用 `btn-aurora`。
-- 浅色模式覆盖了大量 Tailwind 工具类（见 `src/index.css` 底部 `html:not(.dark) ...`），新增自定义颜色时需同步检查浅色表现。
+- 浅色模式覆盖了大量 Tailwind 工具类（见 `apps/web/src/index.css` 底部 `html:not(.dark) ...`），新增自定义颜色时需同步检查浅色表现。
 
 ### 5.6 HMR 与 Context 安全
 
@@ -254,8 +238,8 @@ npx tailwindcss -i ./src/index.css -o /dev/null 2>&1 | grep -E '^(CssSyntaxError
 ## 9. 给其他 AI 代理的工作建议
 
 - 修改前优先查看 `docs/prd.md` 与 `TODO.md`，确认功能是否属于“本期不实现”。
-- 保持中文注释风格；新增 UI 文案优先走 `src/lib/i18n.ts` 的 `useT`，但当前大量组件仍为硬编码中文，短期可保持现状。
+- 保持中文注释风格；新增 UI 文案优先走 `apps/web/src/lib/i18n.ts` 的 `useT`，但当前大量组件仍为硬编码中文，短期可保持现状。
 - 新增依赖必须在 `package.json` 中声明，否则 Biome `noUndeclaredDependencies` 会报错。
 - 新增 Button 必须满足可交互约束；新增 SelectItem 避免空字符串 value。
-- 需要网络请求时，优先在 `src/services/` 下新建模块，再逐步替换 `src/data/mockData.ts` 的调用点。
+- 需要网络请求时，优先在 `apps/web/src/services/` 下新建模块，再逐步替换 `apps/web/src/data/mockData.ts` 的调用点。
 - 提交前必须运行 `npm run lint`（或等价的分步命令）并确保通过。
