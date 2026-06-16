@@ -19,7 +19,8 @@ test-results
 apps/*/dist
 apps/*/.dist-test
 packages/*/dist
-apps/*/src-tauri/target
+apps/desktop/dist
+apps/desktop/out
 
 # Editor directories and files
 .vscode/*
@@ -38,3 +39,4 @@ history/*.json
 /.skills
 /tasks
 .opencode
+.worktrees
