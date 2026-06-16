@@ -1,4 +1,6 @@
 /* stylelint-disable */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Noto+Sans+SC:wght@400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -273,7 +275,7 @@
   }
 
   html, body {
-    font-family: 'Inter', 'SF Pro Display', system-ui, sans-serif;
+    font-family: 'Inter', 'Noto Sans SC', 'Noto Sans CJK SC', 'Source Han Sans SC', 'PingFang SC', 'Microsoft YaHei', sans-serif;
   }
 
   body {
@@ -294,7 +296,7 @@
 
   /* 等宽字体 */
   .font-mono {
-    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    font-family: 'JetBrains Mono', 'Fira Code', 'Noto Sans SC', monospace;
   }
 }
 

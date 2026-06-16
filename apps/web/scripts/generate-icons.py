@@ -3,7 +3,7 @@ import os
 from PIL import Image, ImageDraw, ImageFont
 
 root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-out_dir = os.path.join(root, "src-tauri", "icons")
+out_dir = os.path.join(root, "public")
 os.makedirs(out_dir, exist_ok=True)
 
 size = 1240

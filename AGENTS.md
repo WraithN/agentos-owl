@@ -28,11 +28,11 @@
   - 全局浮层/命令面板/通知中心（`global`）
 - **当前状态**：
   - 当前为**纯前端 Mock 驱动**实现，业务数据主要来自 `apps/web/src/data/mockData.ts`。
-  - 项目正在进行 **Tauri → Electron + Turborepo** 架构迁移：
+  - 项目已完成 **Tauri → Electron + Turborepo** 架构迁移：
     - 前端代码已迁入 `apps/web/`
     - Electron 主进程/预加载脚本在 `apps/desktop/src/`
-    - Tauri Rust 后端代码暂存在 `apps/web/src-tauri/`，迁移完成后删除
-  - 认证当前走 Tauri 本地服务（`apps/web/src/services/tauri.ts`），后续将迁移到 Electron IPC。
+    - 原 Tauri Rust 代码已删除
+  - 认证与数据持久化已迁移到 Electron IPC（`apps/web/src/services/electron.ts` ↔ `apps/desktop/src/ipc/`），默认用户/Agent/会话等数据由 `better-sqlite3` 持久化。
 
 ## 2. 技术栈与运行时架构
 
@@ -96,7 +96,7 @@
 │       ├── index.html
 │       ├── src/           # React 源码、组件、样式、服务
 │       ├── public/        # 静态资源
-│       ├── src-tauri/     # Tauri Rust 后端（迁移中，完成后删除）
+│       ├── services/      # Electron IPC 服务封装
 │       ├── components.json
 │       ├── tailwind.config.js
 │       ├── postcss.config.js
@@ -105,7 +105,7 @@
 │       └── package.json
 ├── docs/
 │   └── prd.md             # 产品需求文档（PRD）
-├── packages/              # 预留共享包目录（当前为空）
+├── packages/              # 共享包目录（core / chat / knowledge / tools / workflow）
 ├── turbo.json             # Turborepo 流水线配置
 ├── pnpm-workspace.yaml    # pnpm workspace 配置
 ├── biome.json             # Biome 静态检查配置（根目录共享）
@@ -175,7 +175,7 @@ npx tailwindcss -i ./apps/web/src/index.css -o /dev/null 2>&1 | grep -E '^(CssSy
   - `correctness/noUndeclaredDependencies`：不能引用未在 `package.json` 中声明的依赖。
   - `suspicious/noRedeclare`：禁止重复声明。
   - `style/noCommonJs`：禁止 CommonJS（`apps/web/tailwind.config.js` 已单独豁免）。
-- 扫描范围：`apps/web/src/**/*.{js,jsx,ts,tsx,css,scss}`、`apps/web/tailwind.config.js`。
+- 扫描范围：`apps/web/src/**/*.{js,jsx,ts,tsx,css,scss}`、`apps/web/tailwind.config.js`、`apps/desktop/src/**/*.ts`。
 
 ### 5.3 ast-grep 自定义规则（`.rules/`）
 
@@ -225,7 +225,7 @@ npx tailwindcss -i ./apps/web/src/index.css -o /dev/null 2>&1 | grep -E '^(CssSy
 - 项目根目录存在 `.env` 文件，用于存放敏感环境变量（如 `VITE_SENTRY_DSN` 等）。
 - `.env` 已加入敏感文件保护，AI 代理无法直接读取。
 - **不要**在代码中硬编码 API 密钥、数据库 URL、Sentry DSN 等敏感信息；应通过 `import.meta.env['VITE_*']` 读取。
-- `AuthContext.tsx` 当前使用 Tauri 本地认证服务，未采用邮箱拼接约定。
+- `AuthContext.tsx` 已改用 Electron IPC 本地认证服务（`apps/web/src/services/electron.ts`），未采用邮箱拼接约定。
 
 ## 8. 当前已知问题（来自 `TODO.md`）
 
@@ -233,7 +233,8 @@ npx tailwindcss -i ./apps/web/src/index.css -o /dev/null 2>&1 | grep -E '^(CssSy
 
 1. `AppContext` 默认进入 `squad` 模式并选中第一条会话，与 PRD 要求的“默认展示对话模块空状态”不符。
 2. 模式自动切换链路不完整，缺少单聊 → 自动化的升级路径。
-3. 所有业务数据为 Mock，真实后端/API 层待接入。
+3. 业务数据已通过 Electron IPC 接入本地 SQLite，但 LLM 调用、文档解析、Shell 执行等能力仍需接入真实服务/模型。
+4. Electron 二进制在某些容器环境可能异常（`require('electron')` 解析为 npm 包），需确保 `node_modules/electron/dist/electron` 为正确 Electron 二进制。
 
 ## 9. 给其他 AI 代理的工作建议
 

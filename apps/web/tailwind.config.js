@@ -10,6 +10,11 @@ export default {
         './components/**/*.{ts,tsx}',
         './app/**/*.{ts,tsx}',
         './src/**/*.{ts,tsx}',
+        '../../packages/chat/src/**/*.{ts,tsx}',
+        '../../packages/core/src/**/*.{ts,tsx}',
+        '../../packages/knowledge/src/**/*.{ts,tsx}',
+        '../../packages/tools/src/**/*.{ts,tsx}',
+        '../../packages/workflow/src/**/*.{ts,tsx}',
         './node_modules/streamdown/dist/**/*.js'
     ],
     safelist: ['border', 'border-border'],
@@ -76,6 +81,10 @@ export default {
                     '4': 'hsl(var(--chart-4))',
                     '5': 'hsl(var(--chart-5))'
                 }
+            },
+            fontFamily: {
+                sans: ['Inter', 'Noto Sans SC', 'Noto Sans CJK SC', 'Source Han Sans SC', 'PingFang SC', 'Microsoft YaHei', 'sans-serif'],
+                mono: ['JetBrains Mono', 'Fira Code', 'Noto Sans SC', 'monospace'],
             },
             borderRadius: {
                 lg: 'var(--radius)',

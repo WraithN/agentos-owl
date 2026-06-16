@@ -1,7 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { type FileError, type FileRejection, useDropzone } from 'react-dropzone'
-import { appDataDir } from '@tauri-apps/api/path'
-import { writeFile, mkdir } from '@tauri-apps/plugin-fs'
 
 interface FileWithPreview extends File {
   preview?: string
@@ -77,6 +75,11 @@ const useSupabaseUpload = (options: UseSupabaseUploadOptions) => {
   })
 
   const onUpload = useCallback(async () => {
+    if (!window.electron) {
+      setErrors([{ name: 'global', message: '当前不在 Electron 环境中，无法保存文件' }])
+      return
+    }
+
     setLoading(true)
 
     const filesWithErrors = errors.map((x) => x.name)
@@ -91,12 +94,14 @@ const useSupabaseUpload = (options: UseSupabaseUploadOptions) => {
     const responses = await Promise.all(
       filesToUpload.map(async (file) => {
         try {
-          const dataDir = await appDataDir()
-          const uploadDir = path ? `${dataDir}/uploads/${bucketName}/${path}` : `${dataDir}/uploads/${bucketName}`
-          await mkdir(uploadDir, { recursive: true })
-          const filePath = `${uploadDir}/${file.name}`
           const arrayBuffer = await file.arrayBuffer()
-          await writeFile(filePath, new Uint8Array(arrayBuffer))
+          await window.electron.invoke<string>(
+            'save_upload_file',
+            bucketName,
+            path ?? '',
+            file.name,
+            arrayBuffer
+          )
           return { name: file.name, message: undefined }
         } catch (error) {
           return { name: file.name, message: error instanceof Error ? error.message : String(error) }

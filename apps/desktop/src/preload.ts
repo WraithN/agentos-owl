@@ -1,13 +1,21 @@
 import { contextBridge, ipcRenderer } from "electron";
 
-export interface ElectronAPI {
-  invoke: (channel: string, ...args: unknown[]) => Promise<unknown>;
-  platform: string;
-}
+console.log("[preload] preload script executing");
 
-const api: ElectronAPI = {
-  invoke: (channel, ...args) => ipcRenderer.invoke(channel, ...args),
-  platform: process.platform,
-};
+contextBridge.exposeInMainWorld("electron", {
+  invoke: <T>(channel: string, ...args: unknown[]): Promise<T> => {
+    console.log("[preload] invoke:", channel, args.length, "args");
+    return ipcRenderer.invoke(channel, ...args);
+  },
+  on: (channel: string, callback: (...args: unknown[]) => void) => {
+    console.log("[preload] subscribe:", channel);
+    const subscription = (_event: Electron.IpcRendererEvent, ...args: unknown[]) => callback(...args);
+    ipcRenderer.on(channel, subscription);
+    return () => {
+      console.log("[preload] unsubscribe:", channel);
+      ipcRenderer.removeListener(channel, subscription);
+    };
+  },
+});
 
-contextBridge.exposeInMainWorld("electron", api);
+console.log("[preload] electron API exposed");

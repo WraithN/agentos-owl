@@ -1,19 +1,19 @@
 # OwlOS v1.0 功能 TODO 列表
 
-> 基于 PRD（`docs/prd.md`）与当前代码（`apps/web/src/`、`apps/web/src-tauri/`）review 结果整理。
+> 基于 PRD（`docs/prd.md`）与当前代码（`apps/web/src/`、`apps/desktop/src/`）review 结果整理。
 > 按 **优先级 P0 → P3** 与 **模块** 双重维度分类，P0 为阻塞/核心缺陷，需立即处理。
 
 ---
 
-## 架构迁移：Tauri → Electron + Turborepo
+## 架构迁移：Tauri → Electron + Turborepo（已完成）
 
 | 阶段 | 目标 | 状态 | 关键文件 |
 |------|------|------|----------|
 | **阶段 1** | 搭建 Turborepo 骨架，前端移入 `apps/web/`，创建 `apps/desktop/` Electron 空壳并验证 `pnpm dev` | ✅ 已完成 | `turbo.json`、`pnpm-workspace.yaml`、`apps/desktop/*` |
-| **阶段 2** | 迁移 SQLite 到 Electron 主进程（`better-sqlite3`），移植 schema/migrations/queries/seed | 🚧 进行中 | `apps/desktop/src/db/*` |
-| **阶段 3** | 迁移 IPC 命令：将 Rust commands 重写为 Node.js IPC handlers | ⏳ 待开始 | `apps/desktop/src/ipc/*` |
-| **阶段 4** | 前端接入 Electron IPC，替换 Tauri 调用，移除 `@tauri-apps/*` 依赖 | ⏳ 待开始 | `apps/web/src/services/electron.ts` |
-| **阶段 5** | Electron 生产构建打包，删除 `apps/web/src-tauri/`，完善 CI | ⏳ 待开始 | `apps/desktop/electron-builder.yml` |
+| **阶段 2** | 迁移 SQLite 到 Electron 主进程（`better-sqlite3`），移植 schema/migrations/queries/seed | ✅ 已完成 | `apps/desktop/src/db/*` |
+| **阶段 3** | 迁移 IPC 命令：将 Rust commands 重写为 Node.js IPC handlers | ✅ 已完成 | `apps/desktop/src/ipc/*` |
+| **阶段 4** | 前端接入 Electron IPC，替换 Tauri 调用，移除 `@tauri-apps/*` 依赖 | ✅ 已完成 | `apps/web/src/services/electron.ts`、`apps/web/src/contexts/AppContext.tsx`、`apps/web/src/contexts/AuthContext.tsx` |
+| **阶段 5** | Electron 生产构建打包，完善 CI | ⏳ 待开始 | `apps/desktop/electron-builder.yml` |
 
 > 当前分支：`feat/electron-migration`。阶段 1 已提交到 `master` 作为基线。
 
@@ -26,8 +26,8 @@
 | # | 功能点 | 现状 | 问题/差距 | 预期交付 | 负责文件 |
 |---|--------|------|-----------|----------|----------|
 | P0-1 | 前端默认状态 | `AppContext` 中 `chatMode = 'squad'`、`currentConversation = conversations[0]` | PRD 验收标准 1 要求「默认展示对话模块空状态」 | 默认 `chatMode='single'`、`currentConversation = null`；刷新后首页渲染 `<EmptyState />` | `apps/web/src/contexts/AppContext.tsx` |
-| P0-2 | 后端数据接入 | 前端全部使用 `apps/web/src/data/mockData.ts`；`AppContext` 虽调用 `listConversations`/`listNotifications`，但业务逻辑仍读 mock | Tauri 后端已实现 SQLite 存储，但前端未真正使用 | 将 `AppContext` 及核心模块切换为调用 `apps/web/src/services/tauri.ts`；mock 仅作为 fallback/开发模式 | `apps/web/src/contexts/AppContext.tsx`、各模块入口 |
-| P0-3 | 会话持久化 | 当前会话与消息为内存状态，刷新丢失 | 用户发送的消息无法保存 | 通过 `saveConversation`/`saveMessage`/`listMessages` 持久化到 Tauri SQLite | `apps/web/src/components/chat/ChatModule.tsx`、`apps/web/src/services/tauri.ts` |
+| P0-2 | 后端数据接入 | `AppContext`/`AuthContext` 已切换为 `apps/web/src/services/electron.ts`，但各模块业务仍大量读 mock | 前端未在所有模块使用真实数据 | 将各模块入口切换为 `electron.ts` 对应 API；mock 仅作为 fallback/开发模式 | `apps/web/src/contexts/AppContext.tsx`、各模块入口 |
+| P0-3 | 会话持久化 | 当前会话与消息为内存状态，刷新丢失 | 用户发送的消息无法保存 | 通过 `saveConversation`/`saveMessage`/`listMessages` 持久化到 Electron SQLite | `apps/web/src/components/chat/ChatModule.tsx`、`apps/web/src/services/electron.ts` |
 
 ### 1.2 对话模块
 
@@ -75,7 +75,7 @@
 
 | # | 功能点 | 现状 | 问题/差距 | 预期交付 | 负责文件 |
 |---|--------|------|-----------|----------|----------|
-| P1-9 | 文件上传真实流程 | 输入区与知识库拖拽上传均为本地状态/占位 | PRD 异常处理要求上传失败提示 | 接入后端上传接口；显示进度、错误、处理中状态；与 Tauri 后端 `saveDoc`/`saveChunks` 联动 | `apps/web/src/components/chat/InputArea.tsx`、`apps/web/src/components/knowledge/KBUploadDialog.tsx` |
+| P1-9 | 文件上传真实流程 | 输入区与知识库拖拽上传均为本地状态/占位 | PRD 异常处理要求上传失败提示 | 接入后端上传接口；显示进度、错误、处理中状态；与 Electron 后端 `saveDoc`/`saveChunks` 联动 | `apps/web/src/components/chat/InputArea.tsx`、`apps/web/src/components/knowledge/KBUploadDialog.tsx` |
 | P1-10 | 向量检索真实化 | `KBSearchPage` 使用固定 mock chunks | PRD 4.5 要求按相似度排序、展示来源文档与得分 | 对接 Embedding/向量库搜索 API；前端展示得分与来源 | `apps/web/src/components/knowledge/KnowledgeModule.tsx` |
 
 ### 2.5 设置
@@ -83,7 +83,7 @@
 | # | 功能点 | 现状 | 问题/差距 | 预期交付 | 负责文件 |
 |---|--------|------|-----------|----------|----------|
 | P1-11 | 主题/样式一致性 | `WorkflowSettings` 画布背景为硬编码浅色渐变；多处组件在深色模式下使用 `text-slate-100` 但未适配 | 深色/浅色切换后部分页面视觉不一致 | 统一使用 CSS 变量或 Tailwind `dark:`；画布背景随主题切换 | `apps/web/src/components/settings/WorkflowSettings.tsx`、`apps/web/src/index.css` |
-| P1-12 | 设置持久化 | 外观设置仅在内存中修改 CSS 变量 | 刷新后恢复默认 | 通过 `getSetting`/`setSetting` 持久化主题、强调色、字体大小、语言等 | `apps/web/src/contexts/AppContext.tsx`、`apps/web/src/components/settings/AppearanceSettings.tsx` |
+| P1-12 | 设置持久化 | 外观设置仅在内存中修改 CSS 变量 | 刷新后恢复默认 | 通过 `getSettings`/`saveSettings` 持久化主题、强调色、字体大小、语言等 | `apps/web/src/contexts/AppContext.tsx`、`apps/web/src/components/settings/AppearanceSettings.tsx` |
 
 ---
 
@@ -95,7 +95,7 @@
 |---|--------|------|-----------|----------|----------|
 | P2-1 | Orchestrator 真实复杂度判断 | 当前为关键词匹配（`增长/方案/分析...`） | PRD 4.1 要求「系统内置 Orchestrator 判断任务复杂度」 | 设计轻量规则引擎或调用 LLM 进行意图分类，返回建议模式与置信度 | `apps/web/src/services/orchestrator.ts`、`apps/web/src/components/chat/ChatModule.tsx` |
 | P2-2 | 通用 API 层 | 无统一网络请求层 | 异常处理、重试、错误码无法统一 | 抽象 API 层（ky/axios），定义错误码与重试策略；支持 mock/真实接口切换 | `apps/web/src/services/api.ts`、`apps/web/src/hooks/*.ts` |
-| P2-3 | 状态持久化 | 主题语言仅存 localStorage，会话/工作流等状态为内存 | 刷新页面数据丢失 | 关键配置持久化；会话/工作流/任务考虑 IndexedDB/Tauri 存储快照 | `apps/web/src/contexts/AppContext.tsx`、各模块 |
+| P2-3 | 状态持久化 | 主题语言仅存 localStorage，会话/工作流等状态为内存 | 刷新页面数据丢失 | 关键配置持久化；会话/工作流/任务考虑 SQLite/IndexedDB 存储快照 | `apps/web/src/contexts/AppContext.tsx`、各模块 |
 
 ### 3.2 全局组件
 
@@ -108,14 +108,14 @@
 
 | # | 功能点 | 现状 | 问题/差距 | 预期交付 | 负责文件 |
 |---|--------|------|-----------|----------|----------|
-| P2-6 | 工具安装/卸载持久化 | 工具 market 状态为本地 useState | 刷新后恢复初始状态 | 与后端 `saveMarketTool` 联动；安装状态持久化 | `apps/web/src/components/tools/ToolsModule.tsx`、`apps/web/src/services/tauri.ts` |
+| P2-6 | 工具安装/卸载持久化 | 工具 market 状态为本地 useState | 刷新后恢复初始状态 | 与后端 `saveMarketTool` 联动；安装状态持久化 | `apps/web/src/components/tools/ToolsModule.tsx`、`apps/web/src/services/electron.ts` |
 | P2-7 | 技能与提示词管理 | 技能/提示词市场为静态列表，支持本地新建/删除 | 缺少后端同步 | 将用户自定义技能/提示词持久化；支持编辑 | `apps/web/src/components/tools/ToolsModule.tsx` |
 
 ### 3.4 设置
 
 | # | 功能点 | 现状 | 问题/差距 | 预期交付 | 负责文件 |
 |---|--------|------|-----------|----------|----------|
-| P2-8 | 安全审计日志 | `SecuritySettings` 展示静态 mock 日志 | PRD 3.8.7 要求操作日志列表、筛选、导出 | 接入后端审计日志查询；支持筛选与导出 | `apps/web/src/components/settings/SecuritySettings.tsx`、`apps/web/src/services/tauri.ts` |
+| P2-8 | 安全审计日志 | `SecuritySettings` 展示静态 mock 日志 | PRD 3.8.7 要求操作日志列表、筛选、导出 | 接入后端审计日志查询；支持筛选与导出 | `apps/web/src/components/settings/SecuritySettings.tsx`、`apps/web/src/services/electron.ts` |
 | P2-9 | API 开发者管理 | `ApiSettings` 为静态展示 | PRD 3.8.9 要求 API 密钥管理、调用统计 | 实现密钥生成/删除/复制；展示真实调用统计 | `apps/web/src/components/settings/ApiSettings.tsx` |
 | P2-10 | 通知集成配置 | `NotificationSettings` 为静态表单 | PRD 3.8.6 要求配置通知渠道与规则 | 表单校验与持久化；测试连接 | `apps/web/src/components/settings/NotificationSettings.tsx` |
 
@@ -171,22 +171,25 @@
 | **知识库** | 列表页（搜索/筛选/排序/新建/编辑/删除）、切片规则 CRUD、知识库编辑页（文档列表/知识块展示）、AI 检索对话页（静态 mock） |
 | **工具市场** | 技能市场、提示词市场、工具市场（网格/详情/安装/卸载/新建工具弹窗） |
 | **设置** | 外观主题（深浅/强调色/字体大小/动画等级）、智能体配置、智能体团队、工作流画布（节点/连线/配置/自动布局/fit-to-view）、计费中心（图表+明细）、通知设置表单、安全审计展示、API 开发者展示 |
-| **Tauri 后端** | SQLite 数据库、Auth（注册/登录/Profile）、Setting/Agent/Conversation/Message/Task/Workflow/Knowledge/MarketTool/Team/Notification 等 CRUD 接口 |
+| **Electron 后端** | SQLite 数据库、Auth（注册/登录/Profile）、Setting/Agent/Conversation/Message/Task/Workflow/Knowledge/MarketTool/Team/Notification 等 CRUD 接口 |
 
 ---
 
 ## 七、关键未接入后端接口清单
 
-当前前端未实际调用以下已实现的 Tauri 命令，需按优先级逐步接入：
+`AppContext`/`AuthContext` 已接入 Electron IPC，以下接口仍需按优先级在各业务模块逐步接入：
 
 - `list_conversations` / `save_conversation` / `delete_conversation`
 - `list_messages` / `save_message` / `delete_message`
 - `list_tasks` / `save_task` / `delete_task`
 - `list_workflows` / `save_workflow` / `delete_workflow`
-- `list_docs` / `save_doc` / `delete_doc` / `list_chunks` / `save_chunks`
+- `list_knowledge_docs` / `save_knowledge_doc` / `delete_knowledge_doc` / `list_doc_chunks` / `save_doc_chunks`
 - `list_market_tools` / `save_market_tool`
-- `list_settings` / `set_setting` / `get_setting`
-- `list_notifications` / `mark_notification_read`
+- `get_settings` / `save_settings`
+- `list_notifications` / `mark_notification_read` / `save_notification`
+- `list_api_keys` / `save_api_key` / `delete_api_key`
+- `list_webhooks` / `save_webhook` / `delete_webhook`
+- `llm_chat` / `parse_document` / `run_shell`
 
 ---
 

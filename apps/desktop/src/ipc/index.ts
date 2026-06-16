@@ -1,0 +1,45 @@
+import { registerAgentHandlers } from "./agents.js";
+import { registerAgentPromptHandlers } from "./agent.js";
+import { registerApiKeyHandlers } from "./apiKeys.js";
+import { registerAuthHandlers } from "./auth.js";
+import { registerBillingHandlers } from "./billing.js";
+import { registerFileHandlers } from "./files.js";
+import { registerConversationHandlers } from "./conversations.js";
+import { registerKnowledgeHandlers } from "./knowledge.js";
+import { registerLlmHandlers } from "./llm.js";
+import { registerMarketToolHandlers } from "./marketTools.js";
+import { registerMessageHandlers } from "./messages.js";
+import { registerNotificationHandlers } from "./notifications.js";
+import { registerParseDocumentHandlers } from "./parseDocument.js";
+import { registerSecretHandlers } from "./secrets.js";
+import { registerSettingsHandlers } from "./settings.js";
+import { registerShellHandlers } from "./shell.js";
+import { registerTaskHandlers } from "./tasks.js";
+import { registerTeamHandlers } from "./teams.js";
+import { registerWebhookHandlers } from "./webhooks.js";
+import { registerWindowHandlers } from "./window.js";
+import { registerWorkflowHandlers } from "./workflows.js";
+
+export function registerIpcHandlers(): void {
+  registerAuthHandlers();
+  registerSettingsHandlers();
+  registerSecretHandlers();
+  registerAgentHandlers();
+  registerAgentPromptHandlers();
+  registerConversationHandlers();
+  registerMessageHandlers();
+  registerTaskHandlers();
+  registerWorkflowHandlers();
+  registerKnowledgeHandlers();
+  registerMarketToolHandlers();
+  registerTeamHandlers();
+  registerBillingHandlers();
+  registerNotificationHandlers();
+  registerApiKeyHandlers();
+  registerWebhookHandlers();
+  registerFileHandlers();
+  registerShellHandlers();
+  registerLlmHandlers();
+  registerParseDocumentHandlers();
+  registerWindowHandlers();
+}

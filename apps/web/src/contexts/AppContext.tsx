@@ -1,7 +1,7 @@
 /* 全局应用状态 Context（Tauri 后端） */
 import React, { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from 'react';
 import type { AppMode, Conversation, Notification } from '../types';
-import { listConversations, listNotifications, markNotificationRead as tauriMarkNotificationRead } from '../services/tauri';
+import { listConversations, listNotifications, markNotificationRead as electronMarkNotificationRead } from '../services/electron';
 
 export type Language = 'zh' | 'en' | 'ja' | 'ko';
 export type FontSize = 'sm' | 'md' | 'lg';
@@ -103,7 +103,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const markNotificationRead = useCallback(async (id: string) => {
     setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
     try {
-      await tauriMarkNotificationRead(id);
+      await electronMarkNotificationRead(id);
     } catch (error) {
       console.error('标记通知已读失败:', error);
     }

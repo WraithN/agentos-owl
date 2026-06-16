@@ -2,7 +2,7 @@ import Database from "better-sqlite3";
 import { app } from "electron";
 import fs from "node:fs";
 import path from "node:path";
-import { seedIfEmpty } from "./seed.js";
+import { seedIfEmpty } from "./seed/index.js";
 
 let db: Database.Database | null = null;
 

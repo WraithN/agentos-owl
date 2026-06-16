@@ -159,6 +159,7 @@ export interface ApiKeyEntry {
   id: string;
   provider: string;
   alias?: string;
+  encryptedKey?: string;
   createdAt: number;
 }
 
@@ -166,6 +167,7 @@ export interface Webhook {
   id: string;
   name: string;
   url: string;
+  secretRef?: string;
   eventTypes: string[];
   active: boolean;
   createdAt: number;

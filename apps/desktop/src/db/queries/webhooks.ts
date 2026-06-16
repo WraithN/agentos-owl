@@ -5,7 +5,7 @@ import { fromJson, toJson } from "./_json.js";
 export function listWebhooks(db: Database.Database): Webhook[] {
   const rows = db
     .prepare(
-      "SELECT id, name, url, active, event_types, created_at, updated_at FROM webhooks ORDER BY created_at"
+      "SELECT id, name, url, secret_ref, event_types, active, created_at, updated_at FROM webhooks ORDER BY created_at"
     )
     .all() as Record<string, unknown>[];
   return rows.map(mapWebhook);
@@ -13,17 +13,18 @@ export function listWebhooks(db: Database.Database): Webhook[] {
 
 export function upsertWebhook(db: Database.Database, hook: Webhook): void {
   db.prepare(
-    `INSERT INTO webhooks (id, name, url, active, event_types, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?)
+    `INSERT INTO webhooks (id, name, url, secret_ref, event_types, active, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
      ON CONFLICT(id) DO UPDATE SET
-        name = excluded.name, url = excluded.url, active = excluded.active,
-        event_types = excluded.event_types, updated_at = excluded.updated_at`
+        name = excluded.name, url = excluded.url, secret_ref = excluded.secret_ref,
+        event_types = excluded.event_types, active = excluded.active, updated_at = excluded.updated_at`
   ).run(
     hook.id,
     hook.name,
     hook.url,
-    hook.active ? 1 : 0,
+    hook.secretRef ?? null,
     toJson(hook.eventTypes),
+    hook.active ? 1 : 0,
     hook.createdAt,
     hook.updatedAt
   );
@@ -38,6 +39,7 @@ function mapWebhook(row: Record<string, unknown>): Webhook {
     id: String(row.id),
     name: String(row.name),
     url: String(row.url),
+    secretRef: row.secret_ref ? String(row.secret_ref) : undefined,
     eventTypes: fromJson(String(row.event_types), []),
     active: Number(row.active) !== 0,
     createdAt: Number(row.created_at),

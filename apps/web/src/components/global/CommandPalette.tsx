@@ -2,8 +2,10 @@
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, MessageSquare, Bot, Database, GitBranch, X } from 'lucide-react';
+
 import { useApp } from '@/contexts/AppContext';
-import { CONVERSATIONS, AGENTS, KNOWLEDGE_DOCS, WORKFLOW_TEMPLATES } from '@/data/mockData';
+import { CONVERSATIONS, AGENTS, WORKFLOW_TEMPLATES } from '@/data/mockData';
+import { KNOWLEDGE_DOCS } from '@owl-os/knowledge';
 
 export default function CommandPalette() {
   const { commandPaletteOpen, setCommandPaletteOpen, setActiveModule, setCurrentConversation } = useApp();

@@ -21,6 +21,7 @@ CREATE TABLE IF NOT EXISTS api_keys (
     id TEXT PRIMARY KEY,
     provider TEXT NOT NULL,
     alias TEXT,
+    encrypted_key TEXT,
     created_at INTEGER NOT NULL
 );
 

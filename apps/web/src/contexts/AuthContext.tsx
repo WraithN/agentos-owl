@@ -1,7 +1,7 @@
 /* 本地认证 Context（Tauri） */
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
-import { signIn as tauriSignIn, signUp as tauriSignUp, getProfile } from '@/services/tauri';
-import type { AuthInfo } from '@/services/tauri';
+import { signIn as electronSignIn, signUp as electronSignUp, getProfile } from '@/services/electron';
+import type { AuthInfo } from '@/services/electron';
 import { toast } from 'sonner';
 
 interface AuthContextType {
@@ -50,7 +50,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signInWithUsername = async (username: string, password: string) => {
     try {
-      const auth = await tauriSignIn({ username, password });
+      const auth = await electronSignIn({ username, password });
       setUser(auth);
       localStorage.setItem(STORAGE_KEY, JSON.stringify(auth));
       return { error: null };
@@ -63,7 +63,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signUpWithUsername = async (username: string, password: string) => {
     try {
-      const auth = await tauriSignUp({ username, password });
+      const auth = await electronSignUp({ username, password });
       setUser(auth);
       localStorage.setItem(STORAGE_KEY, JSON.stringify(auth));
       return { error: null };

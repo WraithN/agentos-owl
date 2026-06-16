@@ -50,23 +50,21 @@ async function main() {
   await build("vite.main.config.ts");
   await build("vite.preload.config.ts");
 
+  const { ELECTRON_RUN_AS_NODE: _, ...baseEnv } = process.env;
+  const electronArgs = ["exec", "electron"];
+  if (process.env.ELECTRON_ENABLE_LOGGING === "1") {
+    electronArgs.push("--enable-logging");
+  }
+  electronArgs.push(path.join(desktopDir, "dist/main/main.cjs"));
+
   const electron = spawn(
     "pnpm",
-    [
-      "exec",
-      "electron",
-      "--disable-gpu",
-      "--disable-gpu-sandbox",
-      "--disable-software-rasterizer",
-      "--no-sandbox",
-      "--no-zygote",
-      path.join(desktopDir, "dist/main/main.cjs"),
-    ],
+    electronArgs,
     {
       cwd: desktopDir,
       stdio: "inherit",
       env: {
-        ...process.env,
+        ...baseEnv,
         VITE_DEV_SERVER_URL: DEV_SERVER_URL,
       },
     }

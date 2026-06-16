@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Palette, Cpu, GitBranch, Bell,
   Shield, CreditCard, Code, ChevronRight, ChevronLeft,
-  Settings2,
+  Settings2, Bot,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import AppearanceSettings from './AppearanceSettings';
@@ -14,6 +14,7 @@ import BillingSettings from './BillingSettings';
 import NotificationSettings from './NotificationSettings';
 import SecuritySettings from './SecuritySettings';
 import ApiSettings from './ApiSettings';
+import LlmAgentSettings from './LlmAgentSettings';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useT } from '@/lib/i18n';
 
@@ -24,6 +25,7 @@ export default function SettingsModule() {
   const SUB_NAV = [
     { id: 'appearance',    icon: Palette,    label: t('settings.appearance') },
     { id: 'agentDesign',   icon: Cpu,        label: t('settings.agent') },
+    { id: 'agentLlm',      icon: Bot,        label: 'Agent LLM' },
     { id: 'workflows',     icon: GitBranch,  label: '工作流编排' },
     { id: 'api',           icon: Code,       label: t('settings.api') },
     { id: 'billing',       icon: CreditCard, label: t('settings.billing') },
@@ -35,6 +37,7 @@ export default function SettingsModule() {
   const PAGE_MAP: Record<string, React.ReactElement> = {
     appearance:    <AppearanceSettings />,
     agentDesign:   <AgentDesignSettings />,
+    agentLlm:      <LlmAgentSettings />,
     workflows:     <WorkflowSettings />,
     api:           <ApiSettings />,
     billing:       <BillingSettings />,
