@@ -1,7 +1,14 @@
-/* 全局应用状态 Context（Tauri 后端） */
+/* 全局应用状态 Context（Electron 后端） */
 import React, { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from 'react';
+import { toast } from 'sonner';
 import type { AppMode, Conversation, Notification } from '../types';
-import { listConversations, listNotifications, markNotificationRead as electronMarkNotificationRead } from '../services/electron';
+import {
+  listConversations,
+  listNotifications,
+  markNotificationRead as electronMarkNotificationRead,
+  getSettings,
+  saveSettings,
+} from '../services/electron';
 
 export type Language = 'zh' | 'en' | 'ja' | 'ko';
 export type FontSize = 'sm' | 'md' | 'lg';
@@ -51,6 +58,11 @@ interface AppContextValue {
   conversations: Conversation[];
   refreshConversations: () => Promise<void>;
   refreshNotifications: () => Promise<void>;
+
+  // 设置持久化
+  settings: Record<string, unknown>;
+  setSetting: (key: string, value: unknown) => Promise<void>;
+  saveSettingsBatch: (payload: Record<string, unknown>) => Promise<void>;
 }
 
 const AppContext = createContext<AppContextValue | null>(null);
@@ -68,9 +80,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [primaryColor, setPrimaryColorState] = useState('#00b89a');
   const [fontSize, setFontSizeState] = useState<FontSize>('md');
   const [animationLevel, setAnimationLevelState] = useState(80);
-  const [language, setLanguageState] = useState<Language>(() => {
-    try { return (localStorage.getItem('acta_language') as Language) || 'zh'; } catch { return 'zh'; }
-  });
+  const [language, setLanguageState] = useState<Language>('zh');
+  const [settings, setSettingsState] = useState<Record<string, unknown>>({});
 
   const refreshConversations = useCallback(async () => {
     try {
@@ -109,17 +120,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const toggleDarkMode = useCallback(() => {
-    setDarkMode(p => {
-      const next = !p;
-      if (next) document.documentElement.classList.add('dark');
-      else document.documentElement.classList.remove('dark');
-      return next;
-    });
+  const applyDarkMode = useCallback((value: boolean) => {
+    if (value) document.documentElement.classList.add('dark');
+    else document.documentElement.classList.remove('dark');
   }, []);
 
-  const setPrimaryColor = useCallback((c: string) => {
-    setPrimaryColorState(c);
+  const applyPrimaryColor = useCallback((c: string) => {
     const toHsl = (hex: string) => {
       const r = parseInt(hex.slice(1, 3), 16) / 255;
       const g = parseInt(hex.slice(3, 5), 16) / 255;
@@ -145,28 +151,104 @@ export function AppProvider({ children }: { children: ReactNode }) {
     } catch { /* ignore */ }
   }, []);
 
-  const setFontSize = useCallback((s: FontSize) => {
-    setFontSizeState(s);
+  const applyFontSize = useCallback((s: FontSize) => {
     const sizeMap: Record<FontSize, string> = { sm: '13px', md: '15px', lg: '17px' };
     document.documentElement.style.fontSize = sizeMap[s];
   }, []);
 
-  const setAnimationLevel = useCallback((v: number) => {
-    setAnimationLevelState(v);
+  const applyAnimationLevel = useCallback((v: number) => {
     document.documentElement.style.setProperty('--animation-speed', `${1 + (100 - v) / 100}`);
     document.documentElement.style.setProperty('--animation-opacity', `${v / 100}`);
   }, []);
 
-  const setLanguage = useCallback((l: Language) => {
-    setLanguageState(l);
+  const applyLanguage = useCallback((l: Language) => {
     document.documentElement.lang = l;
-    try { localStorage.setItem('acta_language', l); } catch { /* ignore */ }
   }, []);
 
-  React.useEffect(() => {
-    document.documentElement.classList.remove('dark');
-    document.documentElement.style.setProperty('--aurora-from', primaryColor);
+  const setSetting = useCallback(async (key: string, value: unknown) => {
+    setSettingsState(prev => ({ ...prev, [key]: value }));
+    try {
+      await saveSettings({ [key]: value });
+    } catch (error) {
+      console.error(`保存设置 ${key} 失败:`, error);
+      toast.error('设置保存失败，请重试');
+    }
   }, []);
+
+  const saveSettingsBatch = useCallback(async (payload: Record<string, unknown>) => {
+    setSettingsState(prev => ({ ...prev, ...payload }));
+    try {
+      await saveSettings(payload);
+    } catch (error) {
+      console.error('批量保存设置失败:', error);
+      toast.error('设置保存失败，请重试');
+    }
+  }, []);
+
+  const toggleDarkMode = useCallback(() => {
+    setDarkMode(prev => {
+      const next = !prev;
+      applyDarkMode(next);
+      setSetting('darkMode', next).catch(() => {});
+      return next;
+    });
+  }, [applyDarkMode, setSetting]);
+
+  const setPrimaryColor = useCallback((c: string) => {
+    setPrimaryColorState(c);
+    applyPrimaryColor(c);
+    setSetting('primaryColor', c).catch(() => {});
+  }, [applyPrimaryColor, setSetting]);
+
+  const setFontSize = useCallback((s: FontSize) => {
+    setFontSizeState(s);
+    applyFontSize(s);
+    setSetting('fontSize', s).catch(() => {});
+  }, [applyFontSize, setSetting]);
+
+  const setAnimationLevel = useCallback((v: number) => {
+    setAnimationLevelState(v);
+    applyAnimationLevel(v);
+    setSetting('animationLevel', v).catch(() => {});
+  }, [applyAnimationLevel, setSetting]);
+
+  const setLanguage = useCallback((l: Language) => {
+    setLanguageState(l);
+    applyLanguage(l);
+    setSetting('language', l).catch(() => {});
+  }, [applyLanguage, setSetting]);
+
+  useEffect(() => {
+    getSettings()
+      .then(data => {
+        setSettingsState(data);
+
+        const nextDarkMode = typeof data.darkMode === 'boolean' ? data.darkMode : false;
+        setDarkMode(nextDarkMode);
+        applyDarkMode(nextDarkMode);
+
+        const nextPrimaryColor = typeof data.primaryColor === 'string' ? data.primaryColor : '#00b89a';
+        setPrimaryColorState(nextPrimaryColor);
+        applyPrimaryColor(nextPrimaryColor);
+
+        const validFontSizes: FontSize[] = ['sm', 'md', 'lg'];
+        const nextFontSize = validFontSizes.includes(data.fontSize as FontSize) ? (data.fontSize as FontSize) : 'md';
+        setFontSizeState(nextFontSize);
+        applyFontSize(nextFontSize);
+
+        const nextAnimationLevel = typeof data.animationLevel === 'number' ? data.animationLevel : 80;
+        setAnimationLevelState(nextAnimationLevel);
+        applyAnimationLevel(nextAnimationLevel);
+
+        const validLanguages: Language[] = ['zh', 'en', 'ja', 'ko'];
+        const nextLanguage = validLanguages.includes(data.language as Language) ? (data.language as Language) : 'zh';
+        setLanguageState(nextLanguage);
+        applyLanguage(nextLanguage);
+      })
+      .catch(error => {
+        console.error('加载设置失败:', error);
+      });
+  }, [applyDarkMode, applyPrimaryColor, applyFontSize, applyAnimationLevel, applyLanguage]);
 
   React.useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -194,6 +276,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       animationLevel, setAnimationLevel,
       language, setLanguage,
       conversations, refreshConversations, refreshNotifications,
+      settings, setSetting, saveSettingsBatch,
     }}>
       {children}
     </AppContext.Provider>
@@ -219,6 +302,10 @@ export function useApp() {
           if (prop === 'language') return 'zh';
           if (prop === 'currentConversation') return null;
           if (prop === 'conversations') return [];
+          if (prop === 'settings') return {};
+          if (prop === 'setSetting' || prop === 'saveSettingsBatch' || prop === 'refreshConversations' || prop === 'refreshNotifications' || prop === 'markNotificationRead') {
+            return async () => {};
+          }
           return () => {};
         },
       });

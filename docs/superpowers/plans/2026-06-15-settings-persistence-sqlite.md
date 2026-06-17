@@ -4,7 +4,7 @@
 
 **Goal:** 把外观、通知、API（LLM 管理）三类设置项持久化到 SQLite，启动时统一加载到内存，并按混合策略保存（外观实时保存，通知/API 手动保存）。
 
-**Architecture：** 在 `AppContext` 中维护一份 `settings` 内存缓存，启动时通过现有 `get_settings` IPC 拉取；外观 setter 直接调用 `setSetting` 实时写库；通知/API 页面在本地维护表单状态，点击保存时批量调用 `saveSettingsBatch`。API Key 等敏感字段走 `electron.safeStorage`，不进入 SQLite。
+**Architecture：** 在 `AppContext` 中维护一份 `settings` 内存缓存，启动时通过现有 `get_settings` IPC 拉取并立即应用外观；外观 setter 先乐观更新 state / DOM，再异步调用 `setSetting` 实时写库；通知/API 页面在本地维护表单状态，点击保存时先更新内存再批量调用 `saveSettingsBatch`。API Key 等敏感字段走 `electron.safeStorage`，不进入 SQLite。
 
 **Tech Stack：** React 18 + TypeScript + Electron IPC + better-sqlite3 + sonner toast
 
@@ -158,7 +158,6 @@
   const setLanguage = useCallback((l: Language) => {
     setLanguageState(l);
     applyLanguage(l);
-    try { localStorage.setItem('acta_language', l); } catch { /* ignore */ }
     setSetting('language', l).catch(() => {});
   }, [applyLanguage, setSetting]);
   ```
@@ -181,7 +180,8 @@
         setPrimaryColorState(color);
         applyPrimaryColor(color);
 
-        const size = (data.fontSize as FontSize) || 'md';
+        const validFontSizes: FontSize[] = ['sm', 'md', 'lg'];
+        const size = validFontSizes.includes(data.fontSize as FontSize) ? (data.fontSize as FontSize) : 'md';
         setFontSizeState(size);
         applyFontSize(size);
 
@@ -189,7 +189,8 @@
         setAnimationLevelState(level);
         applyAnimationLevel(level);
 
-        const lang = (data.language as Language) || 'zh';
+        const validLanguages: Language[] = ['zh', 'en', 'ja', 'ko'];
+        const lang = validLanguages.includes(data.language as Language) ? (data.language as Language) : 'zh';
         setLanguageState(lang);
         applyLanguage(lang);
       })
@@ -209,7 +210,18 @@
   }, []);
   ```
 
-- [ ] **Step 6: 把新方法暴露到 Provider value**
+- [ ] **Step 6: 更新 DEV 模式下的 `useApp` Proxy stub**
+
+  在 `useApp` 的 DEV fallback Proxy 中补充新字段，避免 HMR 时消费 `settings` / `setSetting` / `saveSettingsBatch` 的组件报错：
+
+  ```ts
+  if (prop === 'settings') return {};
+  if (prop === 'setSetting' || prop === 'saveSettingsBatch' || prop === 'refreshConversations' || prop === 'refreshNotifications' || prop === 'markNotificationRead') {
+    return async () => {};
+  }
+  ```
+
+- [ ] **Step 7: 把新方法暴露到 Provider value**
 
   在 `AppContext.Provider` 的 value 对象中加入：
 
@@ -217,7 +229,7 @@
   settings, setSetting, saveSettingsBatch,
   ```
 
-- [ ] **Step 7: 验证编译**
+- [ ] **Step 8: 验证编译**
 
   运行：
 
@@ -227,7 +239,7 @@
 
   预期：无类型错误。
 
-- [ ] **Step 8: Commit**
+- [ ] **Step 9: Commit**
 
   ```bash
   git add apps/web/src/contexts/AppContext.tsx
