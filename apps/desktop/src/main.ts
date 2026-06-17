@@ -44,8 +44,9 @@ function createWindow() {
   });
 
   if (isDev) {
-    console.log("[main] loading http://localhost:5173");
-    win.loadURL("http://localhost:5173");
+    const devServerUrl = process.env.VITE_DEV_SERVER_URL ?? "http://localhost:5173";
+    console.log(`[main] loading ${devServerUrl}`);
+    win.loadURL(devServerUrl);
     if (process.env.OWL_OPEN_DEVTOOLS === "1") {
       win.webContents.openDevTools();
     }

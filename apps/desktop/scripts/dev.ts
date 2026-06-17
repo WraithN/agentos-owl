@@ -10,7 +10,7 @@ const DEV_PORT = 5173;
 const DEV_SERVER_URL = `http://localhost:${DEV_PORT}`;
 
 function runWebDev() {
-  return spawn("pnpm", ["--filter", "@owl-os/web", "exec", "vite", "--port", String(DEV_PORT)], {
+  return spawn("pnpm", ["--filter", "@owl-os/web", "exec", "vite", "--port", String(DEV_PORT), "--strictPort"], {
     cwd: rootDir,
     stdio: "inherit",
   });

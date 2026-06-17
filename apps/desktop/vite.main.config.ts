@@ -3,6 +3,9 @@ import { viteStaticCopy } from "vite-plugin-static-copy";
 import path from "node:path";
 
 export default defineConfig({
+  ssr: {
+    noExternal: ["@earendil-works/pi-agent-core", "@earendil-works/pi-ai"],
+  },
   build: {
     ssr: true,
     lib: {
