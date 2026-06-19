@@ -1,15 +1,21 @@
 import { Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { AGENTS } from '@/data/mockData';
+import { useAgents } from '@/hooks/use-agents';
 
 export function AgentPicker({ memberIds, setMemberIds, excludeId, compact }: {
   memberIds: string[]; setMemberIds: (ids: string[]) => void;
   excludeId?: string; compact?: boolean;
 }) {
+  const { agents: allAgents } = useAgents();
   function toggle(id: string) {
     setMemberIds(memberIds.includes(id) ? memberIds.filter(m => m !== id) : [...memberIds, id]);
   }
-  const agents = AGENTS.filter(a => a.id !== excludeId);
+  const agents = allAgents.filter(a => a.id !== excludeId);
+  if (agents.length === 0) {
+    return (
+      <p className="text-[11px] text-slate-500">尚无可选智能体，请先在「智能体配置」中创建。</p>
+    );
+  }
   return (
     <div className={cn('grid gap-1.5', compact ? 'grid-cols-3' : 'grid-cols-2')}>
       {agents.map(a => {

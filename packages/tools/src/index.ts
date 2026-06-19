@@ -1,6 +1,7 @@
 export { default as ToolsModule } from './components/ToolsModule.js';
 export { default } from './components/ToolsModule.js';
 export { default as CreateToolModal } from './components/CreateToolModal.js';
+export type { ToolsModuleDataSource } from './components/ToolsModule.js';
 
 export type {
   NewToolType,

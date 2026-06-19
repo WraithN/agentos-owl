@@ -12,7 +12,11 @@ function secretsDir(): string {
 
 function secretFile(key: string): string {
   const safe = key.replace(/[^a-zA-Z0-9_/.\-]/g, "_");
-  return path.join(secretsDir(), `${safe}.enc`);
+  const file = path.join(secretsDir(), `${safe}.enc`);
+  // 确保父目录存在（key 可以包含子路径，如 llm_model_key/xxx）
+  const parent = path.dirname(file);
+  fs.mkdirSync(parent, { recursive: true });
+  return file;
 }
 
 function isAvailable(): boolean {

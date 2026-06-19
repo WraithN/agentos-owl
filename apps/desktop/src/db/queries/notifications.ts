@@ -17,13 +17,14 @@ export function upsertNotification(
   db: Database.Database,
   n: Notification
 ): void {
+  const timestamp = n.timestamp instanceof Date ? n.timestamp.getTime() : n.timestamp;
   db.prepare(
     `INSERT INTO notifications (id, title, content, notif_type, read, timestamp)
      VALUES (?, ?, ?, ?, ?, ?)
      ON CONFLICT(id) DO UPDATE SET
         title = excluded.title, content = excluded.content, notif_type = excluded.notif_type,
         read = excluded.read`
-  ).run(n.id, n.title, n.content, n.notifType, n.read ? 1 : 0, n.timestamp);
+  ).run(n.id, n.title, n.content, n.type, n.read ? 1 : 0, timestamp);
 }
 
 export function deleteNotification(db: Database.Database, id: string): void {
@@ -42,8 +43,8 @@ function mapNotification(row: Record<string, unknown>): Notification {
     id: String(row.id),
     title: String(row.title),
     content: String(row.content),
-    notifType: String(row.notif_type),
+    type: String(row.notif_type) as 'info' | 'success' | 'warning' | 'error',
     read: Number(row.read) !== 0,
-    timestamp: Number(row.timestamp),
+    timestamp: new Date(Number(row.timestamp)),
   };
 }

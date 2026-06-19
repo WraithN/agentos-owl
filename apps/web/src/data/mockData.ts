@@ -346,8 +346,12 @@ export const WORKFLOW_TEMPLATES: WorkflowTemplate[] = [
     id: 'wf-1',
     name: '每日竞品监控',
     description: '每天 9:00 自动抓取竞品动态，AI 分析后推送摘要报告',
-    nodes: WORKFLOW_NODES,
+    // mock：仅供 CommandPalette 搜索使用，画布节点/连线交由 SQLite + packages/workflow 维护
+    nodes: [],
+    edges: [],
+    viewport: { x: 0, y: 0, scale: 1 },
     createdAt: new Date('2026-05-01'),
+    updatedAt: new Date('2026-05-01'),
     lastRun: new Date(Date.now() - 1000 * 60 * 23),
   },
 ];

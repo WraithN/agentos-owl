@@ -1,6 +1,6 @@
 import { ChevronUp, ChevronDown, Plus, Crown } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { AGENTS, getAgent } from '@/data/mockData';
+import { useAgents } from '@/hooks/use-agents';
 import { FieldGroup } from './FieldGroup';
 import { AgentPicker } from './AgentPicker';
 import { AgentAvatar } from './AgentAvatar';
@@ -10,6 +10,7 @@ import type { CollabMode, SwarmGroup } from './constants';
 function PipelineConfig({ memberIds, setMemberIds }: {
   memberIds: string[]; setMemberIds: (ids: string[]) => void;
 }) {
+  const { getAgent } = useAgents();
   function move(i: number, dir: -1 | 1) {
     const arr = [...memberIds];
     const j = i + dir;
@@ -47,6 +48,7 @@ function SupervisorConfig({ memberIds, setMemberIds, supervisorId, setSupervisor
   memberIds: string[]; setMemberIds: (ids: string[]) => void;
   supervisorId: string; setSupervisorId: (id: string) => void;
 }) {
+  const { agents: AGENTS } = useAgents();
   const workers = memberIds.filter(id => id !== supervisorId);
   return (
     <div className="space-y-3">
@@ -100,6 +102,7 @@ function SwarmConfig({ ctoId, setCtoId, groups, setGroups }: {
   ctoId: string; setCtoId: (id: string) => void;
   groups: SwarmGroup[]; setGroups: (g: SwarmGroup[]) => void;
 }) {
+  const { agents: AGENTS } = useAgents();
   function addGroup() {
     setGroups([...groups, { id: `g${Date.now()}`, leaderId: '', memberIds: [] }]);
   }

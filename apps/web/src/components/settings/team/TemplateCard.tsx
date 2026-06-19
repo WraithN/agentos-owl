@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion';
 import { Users, Pencil, Copy, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { getAgent } from '@/data/mockData';
+import { useAgents } from '@/hooks/use-agents';
 import type { TeamTemplate } from '@/types';
 
 interface TemplateCardProps {
@@ -16,6 +16,7 @@ interface TemplateCardProps {
 
 // ── 团队模板卡片 ───────────────────────────────────────────────────────────────
 export function TemplateCard({ team, index, enabled, onEdit, onCopy, onDelete, onToggle }: TemplateCardProps) {
+  const { getAgent } = useAgents();
   const members = team.memberIds.map(id => getAgent(id)).filter(Boolean);
   return (
     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.04 }}

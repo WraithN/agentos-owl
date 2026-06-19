@@ -1,7 +1,7 @@
 /* 扩展模块 — 技能市场 / 提示词市场 / 工具市场 */
 import { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, Plus, Upload, Puzzle, Zap, Wand2 } from 'lucide-react';
+import { CirclePlus, LayoutGrid, Plus, Search, Upload } from 'lucide-react';
 import { cn } from '@owl-os/core';
 import {
   INIT_SKILLS,
@@ -25,23 +25,55 @@ import CreateSkillDialog from './CreateSkillDialog.js';
 import CreatePromptDialog from './CreatePromptDialog.js';
 import CreateToolModal from './CreateToolModal.js';
 
-export default function ToolsModule() {
+/**
+ * 数据源：当上层（apps/web）提供 dataSource 时，所有读写都走它（实际通过 SQLite 持久化）；
+ * 不提供时回退到 in-memory 常量，保持纯前端 demo 场景可用。
+ */
+export interface ToolsModuleDataSource {
+  skills: SkillItem[];
+  prompts: PromptItem[];
+  tools: MarketTool[];
+  skillCategories: string[];
+  promptCategories: string[];
+  toolCategories: string[];
+
+  onCreateSkill: (skill: SkillItem) => void;
+  onUpdateSkill: (skill: SkillItem) => void;
+  onDeleteSkill: (id: string) => void;
+
+  onCreatePrompt: (prompt: PromptItem) => void;
+  onUpdatePrompt: (prompt: PromptItem) => void;
+  onDeletePrompt: (id: string) => void;
+
+  onCreateTool: (tool: MarketTool) => void;
+  onUpdateTool: (tool: MarketTool) => void;
+  onDeleteTool: (id: string) => void;
+
+  onCreateCategory: (scope: 'skill' | 'prompt' | 'tool', name: string) => void;
+}
+
+interface ToolsModuleProps {
+  dataSource?: ToolsModuleDataSource;
+}
+
+export default function ToolsModule({ dataSource }: ToolsModuleProps = {}) {
   const [activeTab, setActiveTab] = useState<TabId>('skills');
   const [category, setCategory] = useState('全部');
   const [toolType, setToolType] = useState<'all' | 'mcp' | 'cli'>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [page, setPage] = useState(0);
 
-  const [skillsList, setSkillsList] = useState<SkillItem[]>(INIT_SKILLS);
+  // ===== 本地兜底状态：无 dataSource 时启用 =====
+  const [localSkills, setLocalSkills] = useState<SkillItem[]>(INIT_SKILLS);
   const [favSkills, setFavSkills] = useState<Set<string>>(new Set());
   const [createSkillOpen, setCreateSkillOpen] = useState(false);
   const importSkillRef = useRef<HTMLInputElement>(null);
 
-  const [promptsList, setPromptsList] = useState<PromptItem[]>(INIT_PROMPTS);
+  const [localPrompts, setLocalPrompts] = useState<PromptItem[]>(INIT_PROMPTS);
   const [favPrompts, setFavPrompts] = useState<Set<string>>(new Set());
   const [createPromptOpen, setCreatePromptOpen] = useState(false);
 
-  const [toolsList, setToolsList] = useState<MarketTool[]>(
+  const [localTools, setLocalTools] = useState<MarketTool[]>(
     MARKET_TOOLS.filter(t => t.toolType === 'mcp' || t.toolType === 'cli')
   );
   const [installedTools, setInstalledTools] = useState<Set<string>>(
@@ -49,11 +81,18 @@ export default function ToolsModule() {
   );
   const [toolModalOpen, setToolModalOpen] = useState(false);
 
-  // 分类列表（支持新增）
-  const [skillCats, setSkillCats] = useState(SKILL_CATEGORIES_DEFAULT);
-  const [promptCats, setPromptCats] = useState(PROMPT_CATEGORIES_DEFAULT);
-  const [toolCats, setToolCats] = useState(TOOL_CATEGORIES_DEFAULT);
+  const [localSkillCats, setLocalSkillCats] = useState(SKILL_CATEGORIES_DEFAULT);
+  const [localPromptCats, setLocalPromptCats] = useState(PROMPT_CATEGORIES_DEFAULT);
+  const [localToolCats, setLocalToolCats] = useState(TOOL_CATEGORIES_DEFAULT);
   const [addCatOpen, setAddCatOpen] = useState(false);
+
+  // ===== 实际数据：dataSource 优先 =====
+  const skillsList   = dataSource?.skills          ?? localSkills;
+  const promptsList  = dataSource?.prompts         ?? localPrompts;
+  const toolsList    = dataSource?.tools           ?? localTools;
+  const skillCats    = dataSource?.skillCategories ?? localSkillCats;
+  const promptCats   = dataSource?.promptCategories?? localPromptCats;
+  const toolCats     = dataSource?.toolCategories  ?? localToolCats;
 
   function handleTabChange(tab: TabId) {
     setActiveTab(tab);
@@ -81,7 +120,11 @@ export default function ToolsModule() {
           icon: 'Zap',
           tags: data.tags ?? [],
         };
-        setSkillsList(prev => [item, ...prev]);
+        if (dataSource) {
+          dataSource.onCreateSkill(item);
+        } else {
+          setLocalSkills(prev => [item, ...prev]);
+        }
       } catch {
         /* ignore */
       }
@@ -91,11 +134,62 @@ export default function ToolsModule() {
   }
 
   function handleAddCategory(name: string) {
-    if (activeTab === 'skills') setSkillCats(prev => (prev.includes(name) ? prev : [...prev, name]));
-    else if (activeTab === 'prompts') setPromptCats(prev => (prev.includes(name) ? prev : [...prev, name]));
-    else setToolCats(prev => (prev.includes(name) ? prev : [...prev, name]));
+    if (dataSource) {
+      const scope = activeTab === 'skills' ? 'skill' : activeTab === 'prompts' ? 'prompt' : 'tool';
+      dataSource.onCreateCategory(scope, name);
+    } else {
+      if (activeTab === 'skills') setLocalSkillCats(prev => (prev.includes(name) ? prev : [...prev, name]));
+      else if (activeTab === 'prompts') setLocalPromptCats(prev => (prev.includes(name) ? prev : [...prev, name]));
+      else setLocalToolCats(prev => (prev.includes(name) ? prev : [...prev, name]));
+    }
     setAddCatOpen(false);
   }
+
+  // ===== 对外触发的增删改 =====
+  const createSkill = (s: SkillItem) => {
+    dataSource ? dataSource.onCreateSkill(s) : setLocalSkills(prev => [s, ...prev]);
+  };
+  const updateSkill = (s: SkillItem) => {
+    dataSource ? dataSource.onUpdateSkill(s) : setLocalSkills(prev => prev.map(x => (x.id === s.id ? s : x)));
+  };
+  const deleteSkill = (id: string) => {
+    dataSource ? dataSource.onDeleteSkill(id) : setLocalSkills(prev => prev.filter(x => x.id !== id));
+  };
+
+  const createPrompt = (p: PromptItem) => {
+    dataSource ? dataSource.onCreatePrompt(p) : setLocalPrompts(prev => [p, ...prev]);
+  };
+  const updatePrompt = (p: PromptItem) => {
+    dataSource ? dataSource.onUpdatePrompt(p) : setLocalPrompts(prev => prev.map(x => (x.id === p.id ? p : x)));
+  };
+  const deletePrompt = (id: string) => {
+    dataSource ? dataSource.onDeletePrompt(id) : setLocalPrompts(prev => prev.filter(x => x.id !== id));
+  };
+
+  const createTool = (t: MarketTool) => {
+    dataSource ? dataSource.onCreateTool(t) : setLocalTools(prev => [t, ...prev]);
+  };
+  const updateTool = (t: MarketTool) => {
+    dataSource ? dataSource.onUpdateTool(t) : setLocalTools(prev => prev.map(x => (x.id === t.id ? t : x)));
+  };
+  const deleteTool = (id: string) => {
+    dataSource ? dataSource.onDeleteTool(id) : setLocalTools(prev => prev.filter(x => x.id !== id));
+  };
+
+  const toggleInstall = (t: MarketTool) => {
+    if (dataSource) {
+      dataSource.onUpdateTool({ ...t, installed: !t.installed });
+    } else {
+      setInstalledTools(prev => {
+        const n = new Set(prev);
+        n.has(t.id) ? n.delete(t.id) : n.add(t.id);
+        return n;
+      });
+    }
+  };
+
+  const isInstalled = (t: MarketTool): boolean =>
+    dataSource ? Boolean(t.installed) : installedTools.has(t.id);
 
   const categories = activeTab === 'skills' ? skillCats : activeTab === 'prompts' ? promptCats : toolCats;
 
@@ -126,6 +220,7 @@ export default function ToolsModule() {
           {TABS.map(tab => (
             <button
               key={tab.id}
+              type="button"
               onClick={() => handleTabChange(tab.id)}
               className={cn(
                 'flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold transition-all',
@@ -159,6 +254,7 @@ export default function ToolsModule() {
           {activeTab === 'skills' && (
             <>
               <button
+                type="button"
                 onClick={() => setCreateSkillOpen(true)}
                 className="flex items-center gap-1.5 px-3.5 py-2 btn-aurora rounded-xl text-sm font-medium text-white shrink-0"
               >
@@ -166,6 +262,7 @@ export default function ToolsModule() {
                 新建技能
               </button>
               <button
+                type="button"
                 onClick={() => importSkillRef.current?.click()}
                 className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-sm font-medium text-slate-600 dark:text-slate-300 border border-[var(--border-subtle)] hover:bg-black/8 dark:hover:bg-white/8 transition-colors shrink-0"
               >
@@ -177,6 +274,7 @@ export default function ToolsModule() {
           )}
           {activeTab === 'prompts' && (
             <button
+              type="button"
               onClick={() => setCreatePromptOpen(true)}
               className="flex items-center gap-1.5 px-3.5 py-2 btn-aurora rounded-xl text-sm font-medium text-white shrink-0"
             >
@@ -186,6 +284,7 @@ export default function ToolsModule() {
           )}
           {activeTab === 'tools' && (
             <button
+              type="button"
               onClick={() => setToolModalOpen(true)}
               className="flex items-center gap-1.5 px-3.5 py-2 btn-aurora rounded-xl text-sm font-medium text-white shrink-0"
             >
@@ -200,6 +299,7 @@ export default function ToolsModule() {
             {TOOL_TYPES.map(t => (
               <button
                 key={t.value}
+                type="button"
                 onClick={() => {
                   setToolType(t.value);
                   setPage(0);
@@ -218,31 +318,38 @@ export default function ToolsModule() {
           </div>
         )}
 
-        {/* 分类筛选 + 新增分类 */}
+        {/* 标签筛选 + 新增标签 */}
         <div className="flex gap-2 overflow-x-auto whitespace-nowrap pb-0.5">
-          {categories.map(c => (
-            <button
-              key={c}
-              onClick={() => {
-                setCategory(c);
-                setPage(0);
-              }}
-              className={cn(
-                'px-3 py-1.5 rounded-lg text-xs font-medium transition-all shrink-0',
-                category === c
-                  ? 'bg-cyan-500/20 text-cyan-600 dark:text-cyan-400 border border-cyan-500/30'
-                  : 'text-slate-500 dark:text-slate-400 border border-[var(--border-subtle)] hover:border-slate-400/30 dark:hover:border-white/15 hover:text-slate-700 dark:hover:text-slate-200'
-              )}
-            >
-              {c}
-            </button>
-          ))}
+          {categories.map(c => {
+            const isAll = c === '全部';
+            return (
+              <button
+                key={c}
+                type="button"
+                onClick={() => {
+                  setCategory(c);
+                  setPage(0);
+                }}
+                className={cn(
+                  'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all shrink-0',
+                  category === c
+                    ? 'bg-cyan-500/20 text-cyan-600 dark:text-cyan-400 border border-cyan-500/30'
+                    : 'text-slate-500 dark:text-slate-400 border border-[var(--border-subtle)] hover:border-slate-400/30 dark:hover:border-white/15 hover:text-slate-700 dark:hover:text-slate-200'
+                )}
+              >
+                {isAll && <LayoutGrid className="w-3.5 h-3.5" />}
+                {c}
+              </button>
+            );
+          })}
           <button
+            type="button"
             onClick={() => setAddCatOpen(true)}
-            className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium shrink-0 text-slate-400 border border-dashed border-[var(--border-subtle)] hover:text-cyan-500 hover:border-cyan-500/40 transition-all"
+            title="新增标签"
+            aria-label="新增标签"
+            className="flex items-center justify-center w-8 h-8 rounded-lg shrink-0 text-slate-400 border border-dashed border-[var(--border-subtle)] hover:text-cyan-500 hover:border-cyan-500/40 hover:bg-cyan-500/10 transition-all"
           >
-            <Plus className="w-3 h-3" />
-            新增分类
+            <CirclePlus className="w-4 h-4" />
           </button>
         </div>
       </div>
@@ -269,7 +376,7 @@ export default function ToolsModule() {
                   <SkillCard
                     key={s.id}
                     item={s}
-                    onDelete={() => setSkillsList(prev => prev.filter(x => x.id !== s.id))}
+                    onDelete={() => deleteSkill(s.id)}
                     onFav={() =>
                       setFavSkills(prev => {
                         const n = new Set(prev);
@@ -277,7 +384,7 @@ export default function ToolsModule() {
                         return n;
                       })
                     }
-                    onSave={updated => setSkillsList(prev => prev.map(x => (x.id === updated.id ? updated : x)))}
+                    onSave={updateSkill}
                     faved={favSkills.has(s.id)}
                     index={i}
                   />
@@ -287,7 +394,7 @@ export default function ToolsModule() {
                   <PromptCard
                     key={p.id}
                     item={p}
-                    onDelete={() => setPromptsList(prev => prev.filter(x => x.id !== p.id))}
+                    onDelete={() => deletePrompt(p.id)}
                     onFav={() =>
                       setFavPrompts(prev => {
                         const n = new Set(prev);
@@ -295,7 +402,7 @@ export default function ToolsModule() {
                         return n;
                       })
                     }
-                    onSave={updated => setPromptsList(prev => prev.map(x => (x.id === updated.id ? updated : x)))}
+                    onSave={updatePrompt}
                     faved={favPrompts.has(p.id)}
                     index={i}
                   />
@@ -305,16 +412,10 @@ export default function ToolsModule() {
                   <ToolCard
                     key={t.id}
                     tool={t}
-                    installed={installedTools.has(t.id)}
-                    onToggle={() =>
-                      setInstalledTools(prev => {
-                        const n = new Set(prev);
-                        n.has(t.id) ? n.delete(t.id) : n.add(t.id);
-                        return n;
-                      })
-                    }
-                    onDelete={() => setToolsList(prev => prev.filter(x => x.id !== t.id))}
-                    onSave={updated => setToolsList(prev => prev.map(x => (x.id === updated.id ? updated : x)))}
+                    installed={isInstalled(t)}
+                    onToggle={() => toggleInstall(t)}
+                    onDelete={() => deleteTool(t.id)}
+                    onSave={updateTool}
                     index={i}
                   />
                 ))}
@@ -330,7 +431,7 @@ export default function ToolsModule() {
           <CreateSkillDialog
             onClose={() => setCreateSkillOpen(false)}
             onConfirm={s => {
-              setSkillsList(prev => [s, ...prev]);
+              createSkill(s);
               setCreateSkillOpen(false);
             }}
           />
@@ -341,7 +442,7 @@ export default function ToolsModule() {
           <CreatePromptDialog
             onClose={() => setCreatePromptOpen(false)}
             onConfirm={p => {
-              setPromptsList(prev => [p, ...prev]);
+              createPrompt(p);
               setCreatePromptOpen(false);
             }}
           />
@@ -353,7 +454,28 @@ export default function ToolsModule() {
       <CreateToolModal
         open={toolModalOpen}
         onClose={() => setToolModalOpen(false)}
-        onCreated={(_type: NewToolType, _name: string) => {}}
+        onCreated={(type: NewToolType, name: string, config: Record<string, string>) => {
+          const now = new Date();
+          createTool({
+            id: `tool-${Date.now()}`,
+            name,
+            description: config['description'] || config['desc'] || '暂无描述',
+            category: config['category'] || '通用',
+            toolType: type,
+            icon: type === 'mcp' ? 'Shield' : 'Code2',
+            iconBg: type === 'mcp' ? 'from-violet-500/30 to-indigo-500/30' : 'from-emerald-500/30 to-cyan-500/30',
+            version: '1.0.0',
+            developer: '当前用户',
+            rating: 0,
+            installs: 0,
+            tags: [type.toUpperCase()],
+            installed: false,
+            needsApiKey: Boolean(config['token']),
+            official: false,
+            createdAt: now,
+            updatedAt: now,
+          });
+        }}
       />
     </div>
   );

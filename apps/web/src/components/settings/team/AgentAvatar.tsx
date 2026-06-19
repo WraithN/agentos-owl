@@ -1,9 +1,10 @@
 import { cn } from '@/lib/utils';
-import { getAgent } from '@/data/mockData';
+import { useAgents } from '@/hooks/use-agents';
 
 export function AgentAvatar({ id, size = 8, showName = false, role = '' }: {
   id: string; size?: number; showName?: boolean; role?: string;
 }) {
+  const { getAgent } = useAgents();
   const a = getAgent(id);
   if (!a) return null;
   return (

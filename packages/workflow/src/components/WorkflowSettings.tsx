@@ -14,7 +14,14 @@ import {
   PRESET_WORKFLOWS,
 } from "../constants.js";
 import { computeAutoLayout, computeFitView } from "../layout.js";
-import type { NodeType, CanvasNode, CanvasEdge, Transform } from "../types.js";
+import type {
+  NodeType,
+  CanvasNode,
+  CanvasEdge,
+  Transform,
+  SavedWorkflow,
+  WorkflowStore,
+} from "../types.js";
 import { WorkflowToolbar } from "./WorkflowToolbar.js";
 import { WorkflowCanvas } from "./WorkflowCanvas.js";
 import { WorkflowDrawer } from "./WorkflowDrawer.js";
@@ -23,11 +30,19 @@ import { WorkflowFAB } from "./WorkflowFAB.js";
 import { WorkflowSidebar } from "./WorkflowSidebar.js";
 
 const LIST_PAGE_SIZE = 5;
+const DEFAULT_VIEWPORT: Transform = { x: 0, y: 0, scale: 1 };
 
-export default function WorkflowSettings() {
+interface WorkflowSettingsProps {
+  /**
+   * 持久化数据源；未提供时使用预置 mock，仅本次会话有效（用于 Storybook / 独立预览）。
+   */
+  store?: WorkflowStore;
+}
+
+export default function WorkflowSettings({ store }: WorkflowSettingsProps = {}) {
   const [nodes, setNodes] = useState<CanvasNode[]>(INIT_NODES);
   const [edges, setEdges] = useState<CanvasEdge[]>(INIT_EDGES);
-  const [transform, setTransform] = useState<Transform>({ x: 0, y: 0, scale: 1 });
+  const [transform, setTransform] = useState<Transform>(DEFAULT_VIEWPORT);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
   const [configValues, setConfigValues] = useState<Record<string, string>>({});
@@ -36,8 +51,12 @@ export default function WorkflowSettings() {
   const [layouting, setLayouting] = useState(false);
 
   // 工作流列表 & 保存状态
-  const [savedWorkflows, setSavedWorkflows] = useState(PRESET_WORKFLOWS);
-  const [currentWorkflowId, setCurrentWorkflowId] = useState("wf-preset-1");
+  const [savedWorkflows, setSavedWorkflows] = useState<SavedWorkflow[]>(
+    store ? [] : PRESET_WORKFLOWS
+  );
+  const [currentWorkflowId, setCurrentWorkflowId] = useState(
+    store ? "" : "wf-preset-1"
+  );
   const [isDirty, setIsDirty] = useState(false);
   const [listDrawerOpen, setListDrawerOpen] = useState(false);
   const [listPage, setListPage] = useState(0);
@@ -275,10 +294,11 @@ export default function WorkflowSettings() {
   const resetView = () => setTransform({ x: 0, y: 0, scale: 1 });
 
   // 加载已有工作流
-  const loadWorkflow = useCallback((wf: typeof savedWorkflows[number]) => {
+  const loadWorkflow = useCallback((wf: SavedWorkflow) => {
     setNodes(wf.nodes);
     setEdges(wf.edges);
-    setTransform({ x: 0, y: 0, scale: 1 });
+    // 恢复上次离开时的视口；老数据缺省时回到原点
+    setTransform(wf.viewport ?? DEFAULT_VIEWPORT);
     setCurrentWorkflowId(wf.id);
     setIsDirty(false);
     setSelectedNodeId(null);
@@ -286,31 +306,74 @@ export default function WorkflowSettings() {
     setConfigPanelOpen(false);
   }, []);
 
+  // 首次加载：从 store 拉取列表，并选中最近一条
+  useEffect(() => {
+    if (!store) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const list = await store.list();
+        if (cancelled) return;
+        setSavedWorkflows(list);
+        if (list.length > 0) {
+          loadWorkflow(list[0]);
+        } else {
+          // 空库：保留 INIT 节点作为新建草稿
+          setCurrentWorkflowId("");
+          setIsDirty(false);
+        }
+      } catch (err) {
+        console.error("[workflow] 加载列表失败:", err);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [store, loadWorkflow]);
+
+  // 离开页面前提示未保存（仅 dirty 时启用）
+  useEffect(() => {
+    if (!isDirty) return;
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [isDirty]);
+
   // 删除工作流
   const deleteWorkflow = useCallback(
     (id: string) => {
+      // 先在内存里移除以提供即时反馈
       setSavedWorkflows((prev) => {
         const next = prev.filter((w) => w.id !== id);
-        // 如果删除的是当前工作流，切换到第一个或清空
         if (id === currentWorkflowId) {
           if (next.length > 0) {
-            setNodes(next[0].nodes);
-            setEdges(next[0].edges);
-            setCurrentWorkflowId(next[0].id);
+            // 切换到列表第一条（含 viewport）
+            loadWorkflow(next[0]);
           } else {
             setNodes(INIT_NODES);
             setEdges(INIT_EDGES);
+            setTransform(DEFAULT_VIEWPORT);
             setCurrentWorkflowId("");
+            setIsDirty(false);
+            setSelectedNodeId(null);
+            setConfigPanelOpen(false);
           }
-          setIsDirty(false);
-          setSelectedNodeId(null);
-          setConfigPanelOpen(false);
         }
         return next;
       });
       setDeleteConfirmId(null);
+
+      // 异步同步到持久层；失败时只记日志，不回滚 UI（避免列表抖动）
+      if (store) {
+        store.remove(id).catch((err) => {
+          console.error("[workflow] 删除失败:", err);
+        });
+      }
     },
-    [currentWorkflowId]
+    [currentWorkflowId, store, loadWorkflow]
   );
 
   // 打开内联标题编辑
@@ -333,21 +396,57 @@ export default function WorkflowSettings() {
         )
           .trim() || "未命名工作流";
       const now = new Date();
+      // 新建/已存在统一处理：先确定 id，再构造 SavedWorkflow
+      const isNew = !currentWorkflowId;
+      const id = isNew ? `wf-${Date.now()}` : currentWorkflowId;
+      const draft: SavedWorkflow = {
+        id,
+        name,
+        nodes,
+        edges,
+        viewport: transform,
+        savedAt: now,
+      };
+
+      // 先乐观更新本地 state，避免画布闪烁
       setSavedWorkflows((prev) => {
-        const idx = prev.findIndex((w) => w.id === currentWorkflowId);
+        const idx = prev.findIndex((w) => w.id === id);
         if (idx >= 0) {
           const updated = [...prev];
-          updated[idx] = { ...updated[idx], name, nodes, edges, savedAt: now };
+          updated[idx] = draft;
           return updated;
         }
-        const newId = `wf-${Date.now()}`;
-        setCurrentWorkflowId(newId);
-        return [...prev, { id: newId, name, nodes, edges, savedAt: now }];
+        return [draft, ...prev];
       });
+      if (isNew) setCurrentWorkflowId(id);
       setIsDirty(false);
       setEditingTitle(false);
+
+      // 持久化；后端可能调整 id（如 uuid 替换）或时间戳，按返回值回填
+      if (store) {
+        store
+          .save(draft)
+          .then((saved) => {
+            setSavedWorkflows((prev) =>
+              prev.map((w) => (w.id === id ? saved : w))
+            );
+            if (saved.id !== id) setCurrentWorkflowId(saved.id);
+          })
+          .catch((err) => {
+            console.error("[workflow] 保存失败:", err);
+            setIsDirty(true);
+          });
+      }
     },
-    [currentWorkflowId, nodes, edges, savedWorkflows, titleDraft]
+    [
+      currentWorkflowId,
+      nodes,
+      edges,
+      transform,
+      savedWorkflows,
+      titleDraft,
+      store,
+    ]
   );
 
   const handleTitleKeyDown = useCallback(

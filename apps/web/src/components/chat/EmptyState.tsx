@@ -1,24 +1,26 @@
 /* 空状态页面 */
 import { motion } from 'framer-motion';
-import { useApp } from '@/contexts/AppContext';
-import { CONVERSATIONS } from '@/data/mockData';
+import type { TeammateMode } from '@/types';
 
-const QUICK_ACTIONS = [
-  { label: '分析数据', emoji: '📊', prompt: '帮我分析用户增长数据，找出关键漏斗瓶颈' },
-  { label: '生成代码', emoji: '⚡', prompt: '帮我生成一个 React 拖拽排序组件' },
-  { label: '撰写文档', emoji: '📝', prompt: '帮我撰写一份产品需求文档' },
-  { label: '竞品监控', emoji: '🔍', prompt: '运行每日竞品监控，分析竞品最新动态' },
+interface QuickAction {
+  label: string;
+  emoji: string;
+  prompt: string;
+  teammateMode: TeammateMode;
+}
+
+const QUICK_ACTIONS: QuickAction[] = [
+  { label: '分析数据', emoji: '📊', prompt: '帮我分析用户增长数据，找出关键漏斗瓶颈', teammateMode: 'brainstorm' },
+  { label: '生成代码', emoji: '⚡', prompt: '帮我生成一个 React 拖拽排序组件', teammateMode: 'pipeline' },
+  { label: '撰写文档', emoji: '📝', prompt: '帮我撰写一份产品需求文档', teammateMode: 'supervisor' },
+  { label: '竞品监控', emoji: '🔍', prompt: '运行每日竞品监控，分析竞品最新动态', teammateMode: 'hierarchy' },
 ];
 
-export default function EmptyState({ onQuickAction }: { onQuickAction: (text: string) => void }) {
-  const { setCurrentConversation, setChatMode } = useApp();
-
-  function handleQuick(prompt: string) {
-    setCurrentConversation(CONVERSATIONS[2]);
-    setChatMode('single');
-    setTimeout(() => onQuickAction(prompt), 100);
-  }
-
+export default function EmptyState({
+  onQuickAction,
+}: {
+  onQuickAction: (text: string, teammateMode: TeammateMode) => void;
+}) {
   return (
     <div className="flex-1 flex flex-col items-center justify-center gap-8 px-6 py-12 overflow-y-auto">
       {/* 极光球 */}
@@ -40,7 +42,7 @@ export default function EmptyState({ onQuickAction }: { onQuickAction: (text: st
       {/* 标题 */}
       <div className="text-center">
         <h1 className="text-xl font-semibold text-slate-100 text-balance mb-3">
-          告诉我你的意图，剩下的交给 Acta
+          告诉我你的意图，剩下的交给 Owl
         </h1>
         <p className="text-sm text-slate-400 max-w-sm text-pretty leading-relaxed">
           简单任务即时响应，复杂项目自动协调团队，重复流程一键自动化
@@ -55,7 +57,7 @@ export default function EmptyState({ onQuickAction }: { onQuickAction: (text: st
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: i * 0.08 }}
-            onClick={() => handleQuick(action.prompt)}
+            onClick={() => onQuickAction(action.prompt, action.teammateMode)}
             className="glass glass-hover flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all duration-200"
           >
             <span className="text-xl">{action.emoji}</span>

@@ -5,6 +5,17 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Electron 窗口拖拽区域 */
+.drag-region {
+  -webkit-app-region: drag;
+  app-region: drag;
+}
+
+.no-drag-region {
+  -webkit-app-region: no-drag;
+  app-region: no-drag;
+}
+
 /* ============================================================
    Aurora 设计系统 - OwlOS v1.0
    深空背景 + 极光强调色 + 玻璃拟态
@@ -74,6 +85,7 @@
     --aurora-cyan: #00b89a;
     --aurora-blue: #0ea5e9;
     --aurora-purple: #7c3aed;
+    --aurora-primary-rgb: 0, 184, 154;
     --aurora-glow: rgba(0, 184, 154, 0.12);
 
     /* 渐变 */
@@ -225,6 +237,7 @@
     --aurora-cyan: #00f2c3;
     --aurora-blue: #38bdf8;
     --aurora-purple: #7c3aed;
+    --aurora-primary-rgb: 0, 242, 195;
     --aurora-glow: rgba(0, 242, 195, 0.15);
     --ring: 168 100% 47%;
 
@@ -360,7 +373,7 @@
 
   /* 极光渐变文字 */
   .aurora-text {
-    background: linear-gradient(135deg, #00f2c3 0%, #38bdf8 50%, #7c3aed 100%);
+    background: linear-gradient(135deg, var(--aurora-cyan) 0%, var(--aurora-blue) 50%, var(--aurora-purple) 100%);
     -webkit-background-clip: text;
     background-clip: text;
     -webkit-text-fill-color: transparent;
@@ -378,7 +391,7 @@
     inset: 0;
     border-radius: inherit;
     padding: 1px;
-    background: linear-gradient(135deg, #00f2c3, #38bdf8, #7c3aed);
+    background: linear-gradient(135deg, var(--aurora-cyan), var(--aurora-blue), var(--aurora-purple));
     -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
     -webkit-mask-composite: xor;
     mask-composite: exclude;
@@ -387,20 +400,20 @@
 
   /* 极光按钮渐变 */
   .btn-aurora {
-    background: linear-gradient(135deg, #00d4aa 0%, #0ea5e9 50%, #7c3aed 100%);
+    background: linear-gradient(135deg, var(--aurora-cyan) 0%, var(--aurora-blue) 50%, var(--aurora-purple) 100%);
     color: white;
     border: none;
     transition: filter 0.2s ease, transform 0.15s ease, box-shadow 0.2s ease;
-    box-shadow: 0 2px 8px rgba(0,212,170,0.25), 0 1px 3px rgba(0,0,0,0.15);
+    box-shadow: 0 2px 8px rgba(var(--aurora-primary-rgb), 0.25), 0 1px 3px rgba(0,0,0,0.15);
   }
   .btn-aurora:hover {
     filter: brightness(1.12);
     transform: translateY(-1px);
-    box-shadow: 0 4px 16px rgba(0,212,170,0.35), 0 2px 6px rgba(0,0,0,0.2);
+    box-shadow: 0 4px 16px rgba(var(--aurora-primary-rgb), 0.35), 0 2px 6px rgba(0,0,0,0.2);
   }
   .btn-aurora:active {
     transform: scale(0.97) translateY(0);
-    box-shadow: 0 1px 4px rgba(0,212,170,0.20);
+    box-shadow: 0 1px 4px rgba(var(--aurora-primary-rgb), 0.20);
   }
 
   /* 通用交互按钮 hover 提升效果 */
@@ -606,10 +619,10 @@ html:not(.dark) .table-cell-muted     { color: #94a3b8; }
 
 /* btn-aurora 阴影浅色微调 */
 html:not(.dark) .btn-aurora {
-  box-shadow: 0 2px 8px rgba(0,184,154,0.20), 0 1px 3px rgba(0,0,0,0.10);
+  box-shadow: 0 2px 8px rgba(var(--aurora-primary-rgb), 0.20), 0 1px 3px rgba(0,0,0,0.10);
 }
 html:not(.dark) .btn-aurora:hover {
-  box-shadow: 0 4px 16px rgba(0,184,154,0.28), 0 2px 6px rgba(0,0,0,0.12);
+  box-shadow: 0 4px 16px rgba(var(--aurora-primary-rgb), 0.28), 0 2px 6px rgba(0,0,0,0.12);
 }
 
 /* card-lift 浅色版阴影 */
@@ -697,4 +710,12 @@ html:not(.dark) .backdrop-blur-md { background-color: var(--node-bg); }
 }
 .bell-shake {
   animation: bell-shake 0.6s ease-in-out;
+}
+
+.ai-message-row + .ai-message-row .ai-avatar {
+  visibility: hidden;
+}
+
+.ai-message-row:has(+ .ai-message-row) .message-actions {
+  display: none;
 }

@@ -1,4 +1,4 @@
-/* 新建工具弹窗 - 支持技能 / MCP / CLI 三种工具类型 */
+/* 新建工具弹窗 - 支持 MCP / CLI 两种工具类型 */
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Server, Terminal, ChevronRight, Plus, Info } from 'lucide-react';
@@ -27,7 +27,7 @@ const TOOL_TYPES: ToolTypeOption[] = [
       { key: 'name', label: '服务名称', type: 'text', placeholder: 'filesystem-server', required: true },
       {
         key: 'category',
-        label: '分类',
+        label: '标签',
         type: 'select',
         options: ['搜索', '代码', '数据分析', '文档', '通信', '通用'],
         required: true,
@@ -58,7 +58,7 @@ const TOOL_TYPES: ToolTypeOption[] = [
       { key: 'name', label: '工具名称', type: 'text', placeholder: 'run_python_script', required: true },
       {
         key: 'category',
-        label: '分类',
+        label: '标签',
         type: 'select',
         options: ['搜索', '代码', '数据分析', '文档', '通信', '通用'],
         required: true,
@@ -83,7 +83,7 @@ const TOOL_TYPES: ToolTypeOption[] = [
 interface CreateToolModalProps {
   open: boolean;
   onClose: () => void;
-  onCreated?: (type: NewToolType, name: string) => void;
+  onCreated?: (type: NewToolType, name: string, config: Record<string, string>) => void;
 }
 
 export default function CreateToolModal({ open, onClose, onCreated }: CreateToolModalProps) {
@@ -117,7 +117,7 @@ export default function CreateToolModal({ open, onClose, onCreated }: CreateTool
     setSaving(true);
     await new Promise(r => setTimeout(r, 800));
     setSaving(false);
-    onCreated?.(selectedType.id, formData['name'] || selectedType.label);
+    onCreated?.(selectedType.id, formData['name'] || selectedType.label, formData);
     handleClose();
   }
 
@@ -285,7 +285,7 @@ function FormField({
   const confirm = () => {
     const v = draft.trim();
     if (!v) {
-      setErr('分类不能为空');
+      setErr('标签不能为空');
       return;
     }
     if (!opts.includes(v)) setOpts(prev => [...prev, v]);
@@ -343,7 +343,7 @@ function FormField({
                   if (e.key === 'Enter') confirm();
                   if (e.key === 'Escape') setAdding(false);
                 }}
-                placeholder="输入新分类名称"
+                placeholder="输入新标签名称"
                 className={cn(baseInput, 'flex-1')}
               />
               <button onClick={confirm} className="px-3 py-2 text-xs font-medium text-white bg-cyan-500 rounded-xl hover:bg-cyan-600 transition-colors">
@@ -378,7 +378,7 @@ function FormField({
                   {o}
                 </option>
               ))}
-              <option value="__new__">+ 新建分类</option>
+              <option value="__new__">+ 新建标签</option>
             </select>
             <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none">
               <Plus className="w-3 h-3 text-slate-400" />

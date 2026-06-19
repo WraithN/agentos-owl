@@ -189,12 +189,70 @@
 - `list_notifications` / `mark_notification_read` / `save_notification`
 - `list_api_keys` / `save_api_key` / `delete_api_key`
 - `list_webhooks` / `save_webhook` / `delete_webhook`
+- `list_workflow_templates` / `get_workflow_template` / `save_workflow_template` / `delete_workflow_template`（含 nodes/edges/viewport）
 - `llm_chat` / `parse_document` / `run_shell`
 
 ---
 
-## 八、备注
+## 八、[2026-06-17] 工作流持久化
+
+- [x] 工作流画布 ↔ SQLite 打通：DB schema 增量迁移 (`edges_json` / `viewport_json` / `updated_at`)、IPC channel 改名为 `*_template`、`packages/workflow` 暴露 `WorkflowStore` 注入接口、`apps/web` 注入 Electron 实现、保存/加载/删除/dirty 离开拦截/viewport 持久化全部接通 — 状态：`COMPLETED`
+- [ ] 工作流自动保存（去抖 1.5s + 状态指示） — 状态：`PENDING`
+- [ ] 工作流 JSON 导入/导出（走 Electron `dialog`） — 状态：`PENDING`
+- [ ] 工作流历史版本表 `workflow_versions` 与回滚 UI — 状态：`PENDING`
+- [ ] 工作流保存前静态校验（孤立节点 / 环路 / 必填配置） — 状态：`PENDING`
+
+---
+
+## 九、备注
 
 1. **PRD 明确本期不实现的功能**：移动端适配、完整多语言、语音输入/回复、视频通话、第三方应用集成、离线模式、数据导出/备份、高级权限 RBAC、自定义节点开发、实时协作、工作流撤销重做/分组/快捷键、知识块内容编辑、切片规则批量导入导出。这些已归入 P3 或暂不排期。
 
 2. **当前工作区存在大量 `.skills/` 删除记录**，建议在开始功能开发前先处理这些未跟踪/已删除文件，避免提交时混入无关变更。
+
+
+## 十、[2026-06-19] Owlery 会话/状态链路 Review 后续
+
+> 本次 review 覆盖 `webui → Elder → … → teammate` 会话链路、`teammate → CrystalBall → webui` 状态链路以及前端 `ChatModule` 信息流处理。以下问题需在后续迭代中跟进。
+
+### 10.1 模式与入口（P0 / P1）
+
+| # | 功能点 | 现状 | 问题/差距 | 预期交付 | 负责文件 |
+|---|--------|------|-----------|----------|----------|
+| P0-9 | 前端模式 → 后端 TeammateMode 映射 | `AppMode='single\|squad\|auto'`，后端 `TeammateMode='pipeline\|brainstorm\|supervisor\|hierarchy'`，映射未定义 | 模式切换后 Owlery 无法按预期选择协作模式 | 在 `startOwleryChat` / `saveConversation` 中传递模式，并在 desktop 侧完成映射 | `apps/web/src/services/electron.ts`、`apps/desktop/src/ipc/owlery.ts`、`packages/core/src/owlery/Owlery.ts` |
+| P1-13 | 新建会话跟随当前模式 | `handleNewConv` 写死 `mode: 'single'`、`agentIds: ['boss_agent']` | 用户在 squad/auto 下新建会话仍被切回 single | 按当前 `chatMode` 创建会话，并允许传入团队模板 | `apps/web/src/components/chat/ChatContainer.tsx` |
+
+### 10.2 招募与 Agent 调度（P1）
+
+| # | 功能点 | 现状 | 问题/差距 | 预期交付 | 负责文件 |
+|---|--------|------|-----------|----------|----------|
+| P1-14 | recruit 工具真实执行 | `toolFactory` 仅返回 `{ name: 'recruit', description }`，无 `execute` | Primary Sentinel 无法根据任务上下文招募 Worker/SubSentinel | 实现 `execute`：调用 LLM 评估任务并返回 `RecruitAgentSpec[]`，由 Owlery 创建 Agent | `apps/desktop/src/agent/owleryRuntime.ts`、`packages/core/src/owlery/Owlery.ts` |
+| P1-15 | modeEvaluator 真实实现 | `modeEvaluator` 恒返回 `"supervisor"` | 无法根据用户输入自动切换 brainstorm/pipeline/hierarchy | 接入规则引擎或 LLM 进行意图分类，返回建议模式与置信度 | `packages/core/src/owlery/Owlery.ts` |
+| P1-16 | 非 brainstorm 模式任务分发 | 普通模式下 Elder 直接流式回复，Primary Sentinel/Workers 闲置 | 团队未真正协作 | 实现 `TeammateManager.dispatch`（非 brainstorm）：由 Primary Sentinel 拆解任务并调度 Workers | `packages/core/src/owlery/TeammateManager.ts` |
+| P2-11 | MessageBox 持久化 | `MessageBox` 为纯内存队列 | 应用重启后 Agent 间消息丢失 | 将会话内 Agent 间消息持久化到 SQLite，重启后可恢复 | `packages/core/src/owlery/MessageBox.ts`、`apps/desktop/src/db/schema.sql` |
+| P2-12 | Agent 间消息消费 | `receiveFromSentinel` 返回 `AsyncIterable`，但 Elder 端未消费 | Agent 协作消息无法闭环 | 补全 Elder / Sentinel / Worker 间的消息消费与回复逻辑 | `packages/core/src/owlery/*` |
+
+### 10.3 状态链路（P1 / P2）
+
+| # | 功能点 | 现状 | 问题/差距 | 预期交付 | 负责文件 |
+|---|--------|------|-----------|----------|----------|
+| P1-17 | CrystalBall 子 Agent 状态更新 | Primary Sentinel / Workers 注册后始终 `not_started` | Bot 状态面板无法展示真实团队协作状态 | 在 Agent 启动、运行、完成、失败时调用 `CrystalBall.updateStatus` | `packages/core/src/owlery/TeammateManager.ts`、`packages/core/src/owlery/AgentPool.ts` |
+| P1-18 | 工具/任务级状态 | CrystalBall 仅感知 Agent 级状态 | 工具执行过程无法展示 | 扩展 `AgentWorkSnapshot` 或在 CrystalBall 中增加 tool/task 状态 | `packages/core/src/owlery/CrystalBall.ts` |
+| P2-13 | Session 级运行状态暴露 | `SessionSlot.runStatus` 未通过 IPC 暴露 | 前端无法精确知道会话是否运行中 | 在 `getTeammateStatus` 或新增通道中返回 `runStatus` | `packages/core/src/owlery/Owlery.ts`、`apps/desktop/src/ipc/owlery.ts` |
+
+### 10.4 前端信息流（P1 / P2）
+
+| # | 功能点 | 现状 | 问题/差距 | 预期交付 | 负责文件 |
+|---|--------|------|-----------|----------|----------|
+| P1-19 | 拆分 SingleAgentChat | `MessageFlow`/`MessageItem`/`InputArea` 不存在，功能全部内联在 `SingleAgentChat.tsx`（已超 600 行） | 可维护性差，不符合代码规范 | 拆分为独立组件/文件，按职责分离 UI 渲染与运行时适配 | `apps/web/src/components/chat/*` |
+| P1-20 | 取消与重新生成 | `useOwleryRuntime` 中 `onCancel` / `regenerateFromMessage` 仅 toast | 用户无法停止生成或重新生成 | 实现真正的取消（Owlery stop）与重新生成（清空 output buffer 重新运行） | `apps/web/src/components/chat/useOwleryRuntime.ts`、`packages/core/src/owlery/Owlery.ts` |
+| P1-21 | 输入区真实能力 | 附件、录音、命令、技能、团队选择仅修改输入框文本 | 这些入口未接入真实能力 | 分别接入文件上传、语音识别、快捷命令、技能选择、团队模板选择 | `apps/web/src/components/chat/SingleAgentChat.tsx` |
+| P1-22 | Monitor/TaskBoard/ExecutionLog 接真实数据 | 这些组件仍直接读取 `mockData.ts` | 用户看到的运行监控、任务看板、执行日志与真实会话无关 | 接入 `getTeammateStatus` / `listTasks` / 工作流运行事件等真实数据 | `apps/web/src/components/monitor/*`、`apps/web/src/components/squad/*`、`apps/web/src/components/automation/*` |
+| P2-14 | 历史消息进入 Elder prompt | `runSession` 中 `conversationContext` 恒为 `{ messages: [] }` | Elder 无法获得完整上下文，影响多轮对话质量 | 将 `listMessages` 恢复的历史消息按角色组装后传入 `conversationContext` | `packages/core/src/owlery/Owlery.ts`、`apps/desktop/src/agent/owleryRuntime.ts` |
+
+### 10.5 类型/模型一致性（P1）
+
+| # | 功能点 | 现状 | 问题/差距 | 预期交付 | 负责文件 |
+|---|--------|------|-----------|----------|----------|
+| P1-23 | 团队模板 mode 枚举统一 | 前端 `TeamTemplate.mode` 包含 `'brainstorming'`，后端为 `'brainstorm'` | 保存/加载团队模板时可能不一致 | 统一前后端枚举命名 | `apps/web/src/types/index.ts`、`packages/core/src/owlery/types.ts` |
+| P1-24 | Agent 角色模型对齐 | `AgentTitle` 硬编码 `boss\|cto\|planner\|supervisor\|operator` | 与 UI 中丰富的角色模型不同步 | 统一角色/职称定义，或增加 UI 到 core 的映射层 | `packages/core/src/agent/types.ts`、`apps/web/src/types/index.ts` |

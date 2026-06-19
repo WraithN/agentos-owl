@@ -64,7 +64,7 @@ export default function EditPromptDialog({
             <input value={name} onChange={e => setName(e.target.value)} className={inputCls} />
           </div>
           <div>
-            <label className="text-xs text-slate-500 font-medium mb-1 block">分类</label>
+            <label className="text-xs text-slate-500 font-medium mb-1 block">标签</label>
             <CategorySelect
               categories={['写作', '代码', '产品', 'HR', '分析', '通用']}
               value={category}

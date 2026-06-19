@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   MessageSquare, Database, Puzzle, Settings,
   ChevronLeft, ChevronRight,
-  Zap,
+  Zap, MoreHorizontal,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useApp } from '@/contexts/AppContext';
@@ -18,6 +18,7 @@ export default function Sidebar() {
     { id: 'knowledge', icon: Database,      label: t('nav.knowledge'), highlight: false },
     { id: 'tools',     icon: Puzzle,        label: t('nav.tools'),     highlight: false },
     { id: 'settings',  icon: Settings,      label: t('nav.settings'),  highlight: false },
+    { id: 'more',      icon: MoreHorizontal,label: '更多',              highlight: false },
   ];
 
   const w = sidebarExpanded ? 240 : 64;

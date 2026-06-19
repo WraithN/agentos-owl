@@ -30,7 +30,7 @@ export default function AddCategoryDialog({
           className="flex items-center justify-between px-5 py-4"
           style={{ borderBottom: `1px solid ${DIALOG_BD}` }}
         >
-          <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">新增分类</p>
+          <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">新增标签</p>
           <button
             onClick={onClose}
             className="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-black/8 dark:hover:bg-white/8 transition-colors"
@@ -46,12 +46,12 @@ export default function AddCategoryDialog({
               setVal(e.target.value);
               setErr('');
             }}
-            placeholder="输入分类名称..."
+            placeholder="输入标签名称..."
             className={inputCls}
             onKeyDown={e => {
               if (e.key === 'Enter') {
                 if (!val.trim()) {
-                  setErr('分类名称不能为空');
+                  setErr('标签名称不能为空');
                   return;
                 }
                 onConfirm(val.trim());
@@ -73,7 +73,7 @@ export default function AddCategoryDialog({
           <button
             onClick={() => {
               if (!val.trim()) {
-                setErr('分类名称不能为空');
+                setErr('标签名称不能为空');
                 return;
               }
               onConfirm(val.trim());

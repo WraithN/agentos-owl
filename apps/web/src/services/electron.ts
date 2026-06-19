@@ -1,4 +1,5 @@
 /* OwlOS v1.0 Electron IPC 后端服务封装 */
+import type { AgentDriverChunk, AgentWorkSnapshot, SessionSummary, TeammateStatus } from '@owl-os/core';
 import type {
   Agent,
   Conversation,
@@ -11,6 +12,7 @@ import type {
   TeamTemplate,
   BillingRecord,
   Notification,
+  TeammateMode,
 } from '@/types';
 
 // ===== IPC 调用入口 =====
@@ -107,9 +109,10 @@ export const deleteConversation = (id: string) => invoke<void>('delete_conversat
 
 // ===== Messages =====
 
-function msgFromBackend(m: Message): Message {
+function msgFromBackend(m: Message & { msgType?: string }): Message {
   return {
     ...m,
+    type: (m.type ?? m.msgType ?? 'user') as Message['type'],
     timestamp: toDate(m.timestamp) ?? new Date(),
   };
 }
@@ -120,6 +123,9 @@ export const listMessages = (conversationId: string) =>
 export const saveMessage = (msg: Message & { conversationId: string }) =>
   invoke<Message>('save_message', {
     ...msg,
+    msgType: msg.type,
+    contentType: msg.contentType ?? 'text',
+    status: msg.status ?? 'done',
     timestamp: toNum(msg.timestamp),
   }).then(msgFromBackend);
 
@@ -158,10 +164,47 @@ export const deleteTask = (id: string) => invoke<void>('delete_task', id);
 
 // ===== Workflows =====
 
-export const listWorkflowTemplates = () => invoke<WorkflowTemplate[]>('list_workflow_templates');
-export const saveWorkflowTemplate = (template: WorkflowTemplate) =>
-  invoke<WorkflowTemplate>('save_workflow_template', template);
-export const deleteWorkflowTemplate = (id: string) => invoke<void>('delete_workflow_template', id);
+/**
+ * 主进程返回的工作流模板：日期字段是数字时间戳，
+ * 这里在 service 层统一转回 Date，使前端组件无需关心序列化细节。
+ */
+interface WorkflowTemplateRaw extends Omit<WorkflowTemplate, 'createdAt' | 'updatedAt' | 'lastRun'> {
+  createdAt: number;
+  updatedAt: number;
+  lastRun?: number;
+}
+
+const workflowFromBackend = (raw: WorkflowTemplateRaw): WorkflowTemplate => ({
+  ...raw,
+  createdAt: new Date(raw.createdAt),
+  updatedAt: new Date(raw.updatedAt),
+  lastRun: raw.lastRun ? new Date(raw.lastRun) : undefined,
+});
+
+const workflowToBackend = (wf: WorkflowTemplate): WorkflowTemplateRaw => ({
+  ...wf,
+  createdAt: wf.createdAt.getTime(),
+  updatedAt: wf.updatedAt.getTime(),
+  lastRun: wf.lastRun?.getTime(),
+});
+
+export const listWorkflowTemplates = async (): Promise<WorkflowTemplate[]> => {
+  const list = await invoke<WorkflowTemplateRaw[]>('list_workflow_templates');
+  return list.map(workflowFromBackend);
+};
+
+export const saveWorkflowTemplate = async (
+  template: WorkflowTemplate
+): Promise<WorkflowTemplate> => {
+  const saved = await invoke<WorkflowTemplateRaw>(
+    'save_workflow_template',
+    workflowToBackend(template)
+  );
+  return workflowFromBackend(saved);
+};
+
+export const deleteWorkflowTemplate = (id: string) =>
+  invoke<void>('delete_workflow_template', id);
 
 // ===== Knowledge =====
 
@@ -176,19 +219,104 @@ export const saveChunks = (chunks: DocChunk[]) => invoke<DocChunk[]>('save_chunk
 
 // ===== Market Tools =====
 
-export const listMarketTools = () => invoke<MarketTool[]>('list_market_tools');
-export const saveMarketTool = (tool: MarketTool) => invoke<MarketTool>('save_market_tool', tool);
+interface MarketToolRaw extends Omit<MarketTool, 'createdAt' | 'updatedAt'> {
+  createdAt: number;
+  updatedAt: number;
+}
+
+function marketToolFromBackend(t: MarketToolRaw): MarketTool {
+  return {
+    ...t,
+    createdAt: toDate(t.createdAt) ?? new Date(),
+    updatedAt: toDate(t.updatedAt) ?? new Date(),
+  };
+}
+
+export const listMarketTools = () =>
+  invoke<MarketToolRaw[]>('list_market_tools').then(list => list.map(marketToolFromBackend));
+export const saveMarketTool = (tool: MarketTool) =>
+  invoke<MarketToolRaw>('save_market_tool', {
+    ...tool,
+    createdAt: toNum(tool.createdAt),
+    updatedAt: toNum(tool.updatedAt),
+  }).then(marketToolFromBackend);
 export const deleteMarketTool = (id: string) => invoke<void>('delete_market_tool', id);
+
+// ===== Extensions: Skills / Prompts / Tags =====
+
+export interface Skill {
+  id: string;
+  name: string;
+  category: string;
+  description: string;
+  icon: string;
+  iconBg: string;
+  stars: number;
+  installs: number;
+  official: boolean;
+  tags: string[];
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface Prompt {
+  id: string;
+  name: string;
+  category: string;
+  description: string;
+  content: string;
+  official: boolean;
+  tags: string[];
+  createdAt: number;
+  updatedAt: number;
+}
+
+export type ToolCategoryScope = 'skill' | 'prompt' | 'tool';
+
+export interface ToolCategory {
+  id: string;
+  scope: ToolCategoryScope;
+  name: string;
+  sortOrder: number;
+  createdAt: number;
+}
+
+export const listSkills = () => invoke<Skill[]>('list_skills');
+export const saveSkill = (skill: Partial<Skill>) => invoke<Skill>('save_skill', skill);
+export const deleteSkill = (id: string) => invoke<void>('delete_skill', id);
+
+export const listPrompts = () => invoke<Prompt[]>('list_prompts');
+export const savePrompt = (prompt: Partial<Prompt>) => invoke<Prompt>('save_prompt', prompt);
+export const deletePrompt = (id: string) => invoke<void>('delete_prompt', id);
+
+export const listExtensionTags = (scope?: ToolCategoryScope) =>
+  invoke<ToolCategory[]>('list_extension_tags', scope);
+export const saveExtensionTag = (cat: Partial<ToolCategory>) =>
+  invoke<ToolCategory>('save_extension_tag', cat);
+export const deleteExtensionTag = (id: string) =>
+  invoke<void>('delete_extension_tag', id);
+export const listToolCategories = listExtensionTags;
+export const saveToolCategory = saveExtensionTag;
+export const deleteToolCategory = deleteExtensionTag;
 
 // ===== Teams =====
 
-export const listTeams = () => invoke<TeamTemplate[]>('list_teams');
+function teamFromBackend(t: TeamTemplate): TeamTemplate {
+  return {
+    ...t,
+    createdAt: toDate(t.createdAt) ?? new Date(),
+    updatedAt: toDate(t.updatedAt) ?? new Date(),
+  };
+}
+
+export const listTeams = () =>
+  invoke<TeamTemplate[]>('list_teams').then((list) => list.map(teamFromBackend));
 export const saveTeam = (team: TeamTemplate) =>
   invoke<TeamTemplate>('save_team', {
     ...team,
     createdAt: toNum(team.createdAt),
     updatedAt: toNum(team.updatedAt),
-  });
+  }).then(teamFromBackend);
 export const deleteTeam = (id: string) => invoke<void>('delete_team', id);
 
 // ===== Billing =====
@@ -222,6 +350,82 @@ export const saveNotification = (n: Notification) =>
 
 export const markNotificationRead = (id: string) => invoke<void>('mark_notification_read', id);
 export const deleteNotification = (id: string) => invoke<void>('delete_notification', id);
+
+// ===== Audit & Session Logs =====
+
+export interface AuditLog {
+  id: string;
+  timestamp: Date;
+  userName: string;
+  action: string;
+  detail: string;
+  ip: string;
+  result: string;
+}
+
+export interface SessionLog {
+  id: string;
+  timestamp: Date;
+  conversationId?: string;
+  conversationTitle: string;
+  detailPath?: string;
+  mode: string;
+  agentName: string;
+  model: string;
+  event: string;
+  summary: string;
+  tokens: number;
+  durationMs: number;
+  status: string;
+}
+
+interface AuditLogRaw extends Omit<AuditLog, 'timestamp'> { timestamp: number }
+interface SessionLogRaw extends Omit<SessionLog, 'timestamp'> { timestamp: number }
+
+const auditLogFromBackend = (raw: AuditLogRaw): AuditLog => ({
+  ...raw,
+  timestamp: new Date(raw.timestamp),
+});
+
+const sessionLogFromBackend = (raw: SessionLogRaw): SessionLog => ({
+  ...raw,
+  timestamp: new Date(raw.timestamp),
+});
+
+export const listAuditLogs = (limit?: number) =>
+  invoke<AuditLogRaw[]>('list_audit_logs', limit).then(list => list.map(auditLogFromBackend));
+
+export const saveAuditLog = (log: Partial<AuditLog>) =>
+  invoke<AuditLogRaw>('save_audit_log', {
+    ...log,
+    timestamp: log.timestamp instanceof Date ? log.timestamp.getTime() : log.timestamp,
+  }).then(auditLogFromBackend);
+
+export const clearAuditLogs = () => invoke<void>('clear_audit_logs');
+
+export const listSessionLogs = (limit?: number) =>
+  invoke<SessionLogRaw[]>('list_session_logs', limit).then(list => list.map(sessionLogFromBackend));
+
+export const saveSessionLog = (log: Partial<SessionLog>) =>
+  invoke<SessionLogRaw>('save_session_log', {
+    ...log,
+    timestamp: log.timestamp instanceof Date ? log.timestamp.getTime() : log.timestamp,
+  }).then(sessionLogFromBackend);
+
+export const clearSessionLogs = () => invoke<void>('clear_session_logs');
+
+export interface ConversationDetailEntry {
+  id: string;
+  conversationId: string;
+  role: 'user' | 'assistant' | 'system' | 'tool';
+  content: string;
+  timestamp: number;
+  status?: string;
+  meta?: unknown;
+}
+
+export const listConversationDetails = (conversationId: string) =>
+  invoke<ConversationDetailEntry[]>('list_conversation_details', conversationId);
 
 // ===== API Keys =====
 
@@ -319,17 +523,40 @@ export const setSecret = (key: string, value: string) =>
   invoke<{ ok: boolean }>('set_secret', key, value);
 export const deleteSecret = (key: string) => invoke<{ ok: boolean }>('delete_secret', key);
 
-// ===== Pi Agent Runtime =====
+// ===== Owlery Runtime =====
 
-export interface AgentEventWrapper {
+export interface AgentStatusWrapper {
   sessionId: string;
-  event: unknown;
+  status: TeammateStatus;
 }
 
-export const createAgent = (sessionId: string) => invoke<{ ok: boolean }>('agent:create', { sessionId });
-export const disposeAgent = (sessionId: string) => invoke<{ ok: boolean }>('agent:dispose', { sessionId });
-export const promptAgent = (sessionId: string, text: string) =>
-  invoke<{ ok: boolean }>('agent:prompt', { sessionId, text });
-export const stopAgent = (sessionId: string) => invoke<{ ok: boolean }>('agent:stop', { sessionId });
-export const onAgentEvent = (callback: (wrapper: AgentEventWrapper) => void) =>
-  subscribe('agent:event', callback as (...args: unknown[]) => void);
+export const onAgentStatus = (callback: (wrapper: AgentStatusWrapper) => void) =>
+  subscribe('agent:status', callback as (...args: unknown[]) => void);
+
+export interface OwleryChunkWrapper {
+  sessionId: string;
+  chunk: AgentDriverChunk;
+}
+
+export const activateOwlerySession = (sessionId: string) =>
+  invoke<{ ok: boolean }>('owlery:activate_session', { sessionId });
+export const startOwleryChat = (
+  sessionId: string,
+  text: string,
+  options?: { teammateMode?: TeammateMode },
+) =>
+  invoke<{ ok: boolean }>('owlery:start_chat', {
+    sessionId,
+    text,
+    teammateMode: options?.teammateMode,
+  });
+export const getOwleryBufferedOutput = (sessionId: string) =>
+  invoke<AgentDriverChunk[]>('owlery:get_buffered_output', { sessionId });
+export const listOwlerySessionSummaries = () =>
+  invoke<SessionSummary[]>('owlery:list_session_summaries');
+export const getOwleryCrystalBall = (sessionId: string) =>
+  invoke<AgentWorkSnapshot[]>('owlery:get_crystal_ball', { sessionId });
+export const getTeammateStatus = (sessionId: string) =>
+  invoke<TeammateStatus>('owlery:get_teammate_status', { sessionId });
+export const onOwleryChunk = (callback: (wrapper: OwleryChunkWrapper) => void) =>
+  subscribe('owlery:chunk', callback as (...args: unknown[]) => void);

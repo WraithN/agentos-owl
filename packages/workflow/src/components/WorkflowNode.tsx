@@ -24,7 +24,8 @@ export function WorkflowNode({
   onOutputPortMouseDown,
   onDelete,
 }: WorkflowNodeProps) {
-  const def = NODE_DEFS[node.type];
+  // 防御：未知 type 时 NODE_DEFS[node.type] 会是 undefined，回退到 input 样式避免白屏
+  const def = NODE_DEFS[node.type] ?? NODE_DEFS.input;
 
   return (
     <motion.div

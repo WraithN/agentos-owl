@@ -82,7 +82,7 @@ export default function CreateSkillDialog({
             {nameErr && <p className="text-[10px] text-rose-400 mt-1">{nameErr}</p>}
           </div>
           <div>
-            <label className="text-xs text-slate-500 font-medium mb-1 block">分类</label>
+            <label className="text-xs text-slate-500 font-medium mb-1 block">标签</label>
             <CategorySelect
               categories={['文档', '代码', '分析', '通信', '数据', '通用']}
               value={category}

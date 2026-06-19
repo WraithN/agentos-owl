@@ -1,29 +1,125 @@
-/* 桌面端 Pi Agent 运行时封装 */
-import { Agent } from "@earendil-works/pi-agent-core";
+/* Owlery 底层 Agent 构造封装 */
+import { Agent, type AgentTool } from "@earendil-works/pi-agent-core";
 import { getModel, getModels, type Api, type KnownProvider, type Model } from "@earendil-works/pi-ai";
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { app } from "electron";
 import { getDatabase } from "../db/connection.js";
 import * as queries from "../db/queries/index.js";
-import { getSecret, setSecret } from "../secure.js";
+import { getSecret } from "../secure.js";
 import { buildTools } from "./tools.js";
 
-export interface AgentSession {
-  id: string;
-  agent: Agent;
-  windowId: number;
+export class NoDefaultLlmError extends Error {
+  constructor() {
+    super("尚未设置默认对话模型，请在「设置 → LLM 配置」中选择默认模型后再试。");
+    this.name = "NoDefaultLlmError";
+  }
 }
 
-const sessions = new Map<string, AgentSession>();
+const FALLBACK_SYSTEM_PROMPT = "你是 OwlOS 的 Boss Agent，直截了当解决问题。";
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+function resolvePromptPath(role: string): string | null {
+  const candidates: string[] = [];
+  const fileName = `${role}.md`;
+  // 开发态：apps/desktop/dist/main → 仓库根 /prompt/
+  candidates.push(path.resolve(__dirname, "../../../../prompt", fileName));
+  // 打包后：resourcesPath/prompt/
+  try {
+    if (app?.isPackaged) {
+      candidates.push(path.join(process.resourcesPath, "prompt", fileName));
+    }
+  } catch {
+    // ignore，非主进程上下文
+  }
+  for (const p of candidates) {
+    if (fs.existsSync(p)) return p;
+  }
+  return null;
+}
+
+export function loadSystemPrompt(role: string = "boss_agent"): string {
+  const filePath = resolvePromptPath(role);
+  if (!filePath) {
+    console.warn(`[agent] ${role}.md 未找到，使用内置默认提示词`);
+    return FALLBACK_SYSTEM_PROMPT;
+  }
+  try {
+    const text = fs.readFileSync(filePath, "utf-8").trim();
+    return text || FALLBACK_SYSTEM_PROMPT;
+  } catch (err) {
+    console.warn(`[agent] 读取 ${role}.md 失败，使用内置默认提示词:`, err);
+    return FALLBACK_SYSTEM_PROMPT;
+  }
+}
 
 function getSetting(key: string): string | undefined {
   return queries.getSetting(getDatabase(), key);
 }
 
-function getApiKey(): string | undefined {
-  return getSecret("llm_api_key") ?? getSetting("llmApiKey");
+interface LlmModelMeta {
+  id: string;
+  name: string;
+  baseUrl: string;
+  provider?: string;
+  category: "llm" | "embedding" | "voice";
+  isDefault?: boolean;
 }
 
-function setApiKeyFallback(value: string): void {
-  setSecret("llm_api_key", value);
+function parseLlmModels(raw: string | undefined): LlmModelMeta[] {
+  if (!raw) return [];
+  try {
+    const list = JSON.parse(raw);
+    if (!Array.isArray(list)) return [];
+    return list.filter((m): m is LlmModelMeta => {
+      if (!m || typeof m !== "object") return false;
+      const v = m as Record<string, unknown>;
+      return (
+        typeof v.id === "string" &&
+        typeof v.name === "string" &&
+        typeof v.baseUrl === "string" &&
+        (v.category === "llm" || v.category === "embedding" || v.category === "voice")
+      );
+    });
+  } catch {
+    return [];
+  }
+}
+
+const PROVIDER_DOMAIN_MAP: Array<[RegExp, KnownProvider]> = [
+  [/openrouter\.ai/i, "openrouter"],
+  [/anthropic\.com/i, "anthropic"],
+  [/api\.openai\.com/i, "openai"],
+  [/api\.deepseek\.com/i, "deepseek"],
+  [/generativelanguage\.googleapis\.com/i, "google"],
+  [/api\.groq\.com/i, "groq"],
+  [/api\.mistral\.ai/i, "mistral"],
+  [/api\.x\.ai/i, "xai"],
+  [/api\.together\.xyz/i, "together"],
+  [/api\.moonshot\.cn/i, "moonshotai-cn"],
+];
+
+function inferProvider(meta: LlmModelMeta): string {
+  if (meta.provider && meta.provider.trim()) return meta.provider.trim();
+  for (const [pattern, provider] of PROVIDER_DOMAIN_MAP) {
+    if (pattern.test(meta.baseUrl)) return provider;
+  }
+  return "openai";
+}
+
+function resolveDefaultLlm(): { meta: LlmModelMeta; provider: string; apiKey: string } | null {
+  const models = parseLlmModels(getSetting("llmModels"));
+  const def = models.find((m) => m.category === "llm" && m.isDefault === true);
+  if (!def) return null;
+  const provider = inferProvider(def);
+  const apiKey = getSecret(`llm_model_key/${def.id}`) ?? "";
+  return { meta: def, provider, apiKey };
+}
+
+export function hasDefaultLlm(): boolean {
+  return resolveDefaultLlm() !== null;
 }
 
 function getEnvKeyForProvider(provider: string): string {
@@ -67,19 +163,25 @@ function resolveModel(provider: string, modelId: string, baseUrl?: string): Mode
   } as Model<Api>;
 }
 
-export function createAgentSession(sessionId: string, windowId: number): AgentSession {
-  disposeAgentSession(sessionId);
+export interface CreatePlainAgentOptions {
+  systemPrompt: string;
+  tools?: AgentTool[];
+}
 
-  const provider = getSetting("llmProvider") ?? "openai";
-  const modelId = getSetting("defaultModel") ?? "gpt-4o-mini";
-  let apiKey = getApiKey();
-  const baseUrl = getSetting("llmBaseUrl");
-  if (!apiKey) {
-    apiKey = getSetting("llmApiKey");
-    if (apiKey) setApiKeyFallback(apiKey);
+export function createPlainAgent(
+  sessionId: string,
+  windowId: number,
+  options: CreatePlainAgentOptions
+): Agent {
+  const resolved = resolveDefaultLlm();
+  if (!resolved) {
+    throw new NoDefaultLlmError();
   }
 
-  // 设置环境变量供 pi-ai 读取
+  const { meta, provider, apiKey } = resolved;
+  const modelId = meta.id.replace(/^deepseek-/, "");
+  const baseUrl = meta.baseUrl;
+
   const envKey = getEnvKeyForProvider(provider);
   if (apiKey) {
     process.env[envKey] = apiKey;
@@ -89,36 +191,13 @@ export function createAgentSession(sessionId: string, windowId: number): AgentSe
   }
 
   const model = resolveModel(provider, modelId, baseUrl);
-  const systemPrompt = getSetting("agentSystemPrompt") ?? "You are a helpful coding assistant.";
 
-  const agent = new Agent({
+  return new Agent({
     initialState: {
-      systemPrompt,
+      systemPrompt: options.systemPrompt,
       model,
-      tools: buildTools(sessionId),
+      tools: options.tools ?? buildTools(sessionId),
     },
     getApiKey: () => apiKey,
   });
-
-  const session: AgentSession = { id: sessionId, agent, windowId };
-  sessions.set(sessionId, session);
-  return session;
-}
-
-export function getAgentSession(sessionId: string): AgentSession | undefined {
-  return sessions.get(sessionId);
-}
-
-export function disposeAgentSession(sessionId: string): void {
-  const session = sessions.get(sessionId);
-  if (session) {
-    session.agent.abort();
-    sessions.delete(sessionId);
-  }
-}
-
-export function disposeAllAgentSessions(): void {
-  for (const [id] of sessions) {
-    disposeAgentSession(id);
-  }
 }

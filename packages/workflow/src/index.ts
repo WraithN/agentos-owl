@@ -5,6 +5,7 @@ export type {
   CanvasEdge,
   Transform,
   SavedWorkflow,
+  WorkflowStore,
   NodeDef,
   NodeConfigField,
 } from "./types.js";

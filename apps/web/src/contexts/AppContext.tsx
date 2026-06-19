@@ -126,28 +126,45 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const applyPrimaryColor = useCallback((c: string) => {
-    const toHsl = (hex: string) => {
-      const r = parseInt(hex.slice(1, 3), 16) / 255;
-      const g = parseInt(hex.slice(3, 5), 16) / 255;
-      const b = parseInt(hex.slice(5, 7), 16) / 255;
-      const max = Math.max(r, g, b), min = Math.min(r, g, b);
+    const toRgb = (hex: string) => ({
+      r: parseInt(hex.slice(1, 3), 16),
+      g: parseInt(hex.slice(3, 5), 16),
+      b: parseInt(hex.slice(5, 7), 16),
+    });
+    const toHsl = ({ r, g, b }: ReturnType<typeof toRgb>) => {
+      const red = r / 255;
+      const green = g / 255;
+      const blue = b / 255;
+      const max = Math.max(red, green, blue), min = Math.min(red, green, blue);
       let h = 0, s = 0;
       const l = (max + min) / 2;
       if (max !== min) {
         const d = max - min;
         s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
         switch (max) {
-          case r: h = ((g - b) / d + (g < b ? 6 : 0)) / 6; break;
-          case g: h = ((b - r) / d + 2) / 6; break;
-          case b: h = ((r - g) / d + 4) / 6; break;
+          case red: h = ((green - blue) / d + (green < blue ? 6 : 0)) / 6; break;
+          case green: h = ((blue - red) / d + 2) / 6; break;
+          case blue: h = ((red - green) / d + 4) / 6; break;
         }
       }
       return `${Math.round(h * 360)} ${Math.round(s * 100)}% ${Math.round(l * 100)}%`;
     };
     try {
-      const hsl = toHsl(c);
+      if (!/^#[0-9a-f]{6}$/i.test(c)) return;
+      const rgb = toRgb(c);
+      const rgbValue = `${rgb.r}, ${rgb.g}, ${rgb.b}`;
+      const hsl = toHsl(rgb);
+      document.documentElement.style.setProperty('--primary', hsl);
+      document.documentElement.style.setProperty('--ring', hsl);
+      document.documentElement.style.setProperty('--sidebar-ring', hsl);
+      document.documentElement.style.setProperty('--sidebar-primary', hsl);
       document.documentElement.style.setProperty('--aurora-primary-hsl', hsl);
+      document.documentElement.style.setProperty('--aurora-primary-rgb', rgbValue);
       document.documentElement.style.setProperty('--aurora-from', c);
+      document.documentElement.style.setProperty('--aurora-cyan', c);
+      document.documentElement.style.setProperty('--aurora-glow', `rgba(${rgbValue}, 0.15)`);
+      document.documentElement.style.setProperty('--shadow-aurora', `0 0 16px rgba(${rgbValue}, 0.16)`);
+      document.documentElement.style.setProperty('--shadow-glow-cyan', `0 0 20px rgba(${rgbValue}, 0.22), 0 0 40px rgba(${rgbValue}, 0.10)`);
     } catch { /* ignore */ }
   }, []);
 

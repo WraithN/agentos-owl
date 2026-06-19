@@ -2,46 +2,40 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Palette, Cpu, GitBranch, Bell,
-  Shield, CreditCard, Code, ChevronRight, ChevronLeft,
-  Settings2, Bot,
+  Palette, GitBranch, Bell,
+  ChevronRight, ChevronLeft,
+  Settings2, Bot, Brain,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import AppearanceSettings from './AppearanceSettings';
 import AgentDesignSettings from './AgentDesignSettings';
 import WorkflowSettings from './WorkflowSettings';
-import BillingSettings from './BillingSettings';
 import NotificationSettings from './NotificationSettings';
-import SecuritySettings from './SecuritySettings';
 import ApiSettings from './ApiSettings';
-import LlmAgentSettings from './LlmAgentSettings';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useT } from '@/lib/i18n';
+import { useHasDefaultLlmModel } from '@/hooks/use-llm-default';
 
 export default function SettingsModule() {
   const [activePage, setActivePage] = useState('agentDesign');
   const t = useT();
+  const { ready: llmReady, hasDefault: hasDefaultLlm } = useHasDefaultLlmModel();
+  const showLlmAlert = llmReady && !hasDefaultLlm;
 
   const SUB_NAV = [
-    { id: 'appearance',    icon: Palette,    label: t('settings.appearance') },
-    { id: 'agentDesign',   icon: Cpu,        label: t('settings.agent') },
-    { id: 'agentLlm',      icon: Bot,        label: 'Agent LLM' },
-    { id: 'workflows',     icon: GitBranch,  label: '工作流编排' },
-    { id: 'api',           icon: Code,       label: t('settings.api') },
-    { id: 'billing',       icon: CreditCard, label: t('settings.billing') },
-    { id: 'security',      icon: Shield,     label: '安全与审计' },
-    { id: 'notifications', icon: Bell,       label: '通知与集成' },
+    { id: 'appearance',    icon: Palette,    label: t('settings.appearance'), alert: false },
+    { id: 'agentDesign',   icon: Bot,        label: t('settings.agent'),      alert: false },
+    { id: 'llm',           icon: Brain,      label: 'LLM配置',                 alert: showLlmAlert },
+    { id: 'workflows',     icon: GitBranch,  label: '工作流编排',              alert: false },
+    { id: 'notifications', icon: Bell,       label: '通知与集成',              alert: false },
   ];
   const [collapsed, setCollapsed] = useState(true);
 
   const PAGE_MAP: Record<string, React.ReactElement> = {
     appearance:    <AppearanceSettings />,
     agentDesign:   <AgentDesignSettings />,
-    agentLlm:      <LlmAgentSettings />,
+    llm:           <ApiSettings />,
     workflows:     <WorkflowSettings />,
-    api:           <ApiSettings />,
-    billing:       <BillingSettings />,
-    security:      <SecuritySettings />,
     notifications: <NotificationSettings />,
   };
 
@@ -67,6 +61,7 @@ export default function SettingsModule() {
               </div>
             )}
             <button
+              type="button"
               onClick={() => setCollapsed(v => !v)}
               className="p-1.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-white/8 transition-colors shrink-0"
               title={collapsed ? '展开侧边栏' : '收缩侧边栏'}
@@ -86,20 +81,34 @@ export default function SettingsModule() {
               const btn = (
                 <button
                   key={item.id}
+                  type="button"
                   onClick={() => setActivePage(item.id)}
                   className={cn(
-                    'w-full flex items-center rounded-xl text-left transition-all',
+                    'relative w-full flex items-center rounded-xl text-left transition-all',
                     collapsed ? 'justify-center p-2.5' : 'gap-2.5 px-3 py-2.5',
                     active
                       ? 'bg-white/8 text-slate-100 border border-white/10'
                       : 'text-slate-400 hover:text-slate-200 hover:bg-white/5 border border-transparent'
                   )}
                 >
-                  <Icon className={cn('w-4 h-4 shrink-0', active ? 'text-cyan-400' : '')} />
+                  <span className="relative shrink-0">
+                    <Icon className={cn('w-4 h-4', active ? 'text-cyan-400' : '')} />
+                    {item.alert && (
+                      <span
+                        aria-hidden
+                        className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-rose-500 ring-2 ring-[var(--panel-bg-solid,#0b0f17)]"
+                      />
+                    )}
+                  </span>
                   {!collapsed && (
                     <>
                       <span className="text-sm truncate flex-1">{item.label}</span>
-                      {active && <ChevronRight className="w-3 h-3 ml-auto text-slate-600 shrink-0" />}
+                      {item.alert && (
+                        <span className="text-[10px] font-medium text-rose-400 shrink-0">未配置</span>
+                      )}
+                      {active && !item.alert && (
+                        <ChevronRight className="w-3 h-3 ml-auto text-slate-600 shrink-0" />
+                      )}
                     </>
                   )}
                 </button>

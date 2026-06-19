@@ -14,7 +14,7 @@ interface AuthContextType {
   refreshProfile: () => Promise<void>;
 }
 
-const STORAGE_KEY = 'acta_user';
+const STORAGE_KEY = 'owl_user';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 

@@ -3,6 +3,7 @@ import { getDatabase } from "../db/connection.js";
 import * as queries from "../db/queries/index.js";
 import type { Conversation } from "../db/types.js";
 import { nowMs, uuid } from "./_utils.js";
+import { getAuditLogger } from "../services/AuditLogger.js";
 
 export function registerConversationHandlers(): void {
   ipcMain.handle("list_conversations", () => {
@@ -15,16 +16,29 @@ export function registerConversationHandlers(): void {
 
   ipcMain.handle("save_conversation", (_event, conv: Conversation) => {
     const db = getDatabase();
+    const isNew = !conv.id;
     if (!conv.id) {
       conv.id = uuid();
       conv.createdAt = nowMs();
     }
     conv.updatedAt = nowMs();
     queries.upsertConversation(db, conv);
+
+    const logger = getAuditLogger();
+    if (isNew) {
+      logger.logConversationCreated(conv.id, conv.title, conv.mode);
+    }
     return conv;
   });
 
   ipcMain.handle("delete_conversation", (_event, id: string) => {
-    queries.deleteConversation(getDatabase(), id);
+    const db = getDatabase();
+    const conv = queries.getConversation(db, id);
+    queries.deleteConversation(db, id);
+
+    if (conv) {
+      const logger = getAuditLogger();
+      logger.success("会话管理", `删除会话「${conv.title}」`);
+    }
   });
 }

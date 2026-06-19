@@ -19,4 +19,27 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes("node_modules/react") || id.includes("node_modules/react-dom") || id.includes("node_modules/react-router")) {
+            return "react";
+          }
+          if (id.includes("node_modules/@assistant-ui")) {
+            return "assistant";
+          }
+          if (id.includes("node_modules/@radix-ui")) {
+            return "ui";
+          }
+          if (id.includes("node_modules/recharts")) {
+            return "charts";
+          }
+          if (id.includes("node_modules")) {
+            return "vendor";
+          }
+        }
+      },
+    },
+  },
 });

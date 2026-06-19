@@ -2,7 +2,7 @@
 import re
 from pathlib import Path
 
-path = Path('/home/nan/agent-os-acta/src/data/mockData.ts')
+path = Path('/home/nan/agentos-owl/apps/web/src/data/mockData.ts')
 text = path.read_text(encoding='utf-8')
 
 # Insert daysAgo helper after imports

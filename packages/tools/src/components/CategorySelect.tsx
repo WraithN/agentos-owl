@@ -19,7 +19,7 @@ export default function CategorySelect({
   const confirm = () => {
     const v = draft.trim();
     if (!v) {
-      setErr('分类不能为空');
+      setErr('标签不能为空');
       return;
     }
     if (!all.includes(v)) setAll(prev => [...prev, v]);
@@ -44,7 +44,7 @@ export default function CategorySelect({
               if (e.key === 'Enter') confirm();
               if (e.key === 'Escape') setAdding(false);
             }}
-            placeholder="输入新分类名称"
+            placeholder="输入新标签名称"
             className={cn(inputCls, 'flex-1')}
           />
           <button
@@ -84,7 +84,7 @@ export default function CategorySelect({
             {c}
           </option>
         ))}
-        <option value="__new__">+ 新建分类</option>
+        <option value="__new__">+ 新建标签</option>
       </select>
       <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none">
         <Plus className="w-3 h-3 text-slate-400" />

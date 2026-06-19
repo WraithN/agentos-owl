@@ -7,6 +7,9 @@
 /** 应用模式：单聊 / 群聊 / 自动化 */
 export type AppMode = 'single' | 'squad' | 'auto';
 
+/** Teammate 协作模式：由前端指定并传入 Owlery */
+export type TeammateMode = 'pipeline' | 'brainstorm' | 'supervisor' | 'hierarchy';
+
 /** Agent 角色 */
 export type AgentRole = 'aria' | 'coder' | 'muse' | 'analyst' | 'writer' | 'pm' | 'ops' | 'designer' | 'custom';
 
@@ -126,6 +129,7 @@ export interface Message {
     tokens?: number;
     summary?: string;          // 一句话结论，置顶高亮
     durationMs?: number;
+    contentParts?: unknown;
   };
 }
 
@@ -137,6 +141,8 @@ export interface Conversation {
   id: string;
   title: string;
   mode: AppMode;
+  /** Teammate 协作模式； squad/auto 模式下由前端指定并传入 Owlery */
+  teammateMode?: TeammateMode;
   lastMessage: string;
   lastTime: Date;
   unread: number;
@@ -166,6 +172,10 @@ export interface KanbanTask {
 // 工作流
 // ============================================================
 
+/**
+ * 运行时节点视图（用于"自动化执行日志"等场景），
+ * 与画布持久化的 CanvasNode 不同：含 status / duration / 输入输出快照。
+ */
 export interface WorkflowNode {
   id: string;
   name: string;
@@ -178,13 +188,44 @@ export interface WorkflowNode {
   y?: number;
 }
 
+/**
+ * 工作流模板（可持久化）：与 packages/workflow 的画布数据结构一致，
+ * 由 IPC 在 SQLite 中读写。
+ */
 export interface WorkflowTemplate {
   id: string;
   name: string;
   description: string;
-  nodes: WorkflowNode[];
+  /** 画布节点（含坐标 + 配置） */
+  nodes: WorkflowCanvasNode[];
+  /** 画布连线 */
+  edges: WorkflowCanvasEdge[];
+  /** 画布视口：用户上次离开时的平移与缩放 */
+  viewport: WorkflowViewport;
   createdAt: Date;
+  updatedAt: Date;
   lastRun?: Date;
+}
+
+export interface WorkflowCanvasNode {
+  id: string;
+  type: 'input' | 'agent' | 'tool' | 'condition' | 'output';
+  name: string;
+  x: number;
+  y: number;
+  config: Record<string, string>;
+}
+
+export interface WorkflowCanvasEdge {
+  id: string;
+  source: string;
+  target: string;
+}
+
+export interface WorkflowViewport {
+  x: number;
+  y: number;
+  scale: number;
 }
 
 // ============================================================
@@ -219,7 +260,7 @@ export interface MarketTool {
   name: string;
   description: string;
   category: string;
-  toolType: 'mcp' | 'skill' | 'cli';  // 工具类型
+  toolType: 'mcp' | 'cli';  // 工具类型
   icon: string;         // lucide icon name
   iconBg: string;       // 背景色 Tailwind class
   version: string;

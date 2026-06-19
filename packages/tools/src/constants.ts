@@ -99,6 +99,5 @@ export const DIALOG_BD = 'var(--border-subtle)';
 
 export const TYPE_BADGE: Record<string, { label: string; cls: string }> = {
   mcp: { label: 'MCP', cls: 'bg-violet-500/15 text-violet-500 dark:text-violet-400 border-violet-500/25' },
-  skill: { label: 'Skill', cls: 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/25' },
   cli: { label: 'CLI', cls: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/25' },
 };

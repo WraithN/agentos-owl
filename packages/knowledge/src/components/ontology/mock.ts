@@ -11,9 +11,9 @@ export const INIT_CLASSES: OntClass[] = [
 ];
 
 export const INIT_ENTITIES: OntEntity[] = [
-  { id: 'e1', classId: 'c4', label: '张三', attributes: { employeeId: 'EMP001', department: '研发部', email: 'zhangsan@acta.io' } },
-  { id: 'e2', classId: 'c4', label: '李四', attributes: { employeeId: 'EMP002', department: '产品部', email: 'lisi@acta.io' } },
-  { id: 'e3', classId: 'c3', label: 'Acta Inc.', attributes: { name: 'Acta Inc.', founded: '2022-01-01' } },
+  { id: 'e1', classId: 'c4', label: '张三', attributes: { employeeId: 'EMP001', department: '研发部', email: 'zhangsan@owl.io' } },
+  { id: 'e2', classId: 'c4', label: '李四', attributes: { employeeId: 'EMP002', department: '产品部', email: 'lisi@owl.io' } },
+  { id: 'e3', classId: 'c3', label: 'Owl Inc.', attributes: { name: 'Owl Inc.', founded: '2022-01-01' } },
   { id: 'e4', classId: 'c5', label: 'OwlOS v1', attributes: { productId: 'PROD001', price: '0', category: 'AI Platform' } },
 ];
 

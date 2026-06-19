@@ -9,6 +9,7 @@ const MODULE_LABELS: Record<string, string> = {
   knowledge: '知识库',
   tools: '工具市场',
   settings: '设置',
+  more: '更多',
 };
 
 export default function TopBar() {
@@ -22,7 +23,7 @@ export default function TopBar() {
 
   return (
     <header
-      className="h-14 flex items-center gap-3 px-4 shrink-0 z-20 select-none"
+      className="h-14 flex items-center gap-3 px-4 shrink-0 z-20 select-none drag-region"
       style={{
         background: 'var(--glass-l2)',
         backdropFilter: 'var(--glass-blur-l2)',
@@ -33,14 +34,14 @@ export default function TopBar() {
       data-tauri-drag-region
     >
       {/* 左侧：模块标题 */}
-      <div className="flex items-center gap-2 shrink-0 min-w-[120px] h-full">
+      <div className="flex items-center gap-2 shrink-0 min-w-[120px] h-full no-drag-region">
         <span className="text-sm font-semibold text-slate-700 dark:text-slate-100 truncate tracking-tight">
           {MODULE_LABELS[activeModule] ?? activeModule}
         </span>
       </div>
 
       {/* 中间：搜索框（居中） */}
-      <div className="flex-1 flex items-center justify-center">
+      <div className="flex-1 flex items-center justify-center no-drag-region">
         <button
           onClick={() => setCommandPaletteOpen(true)}
           className="flex items-center gap-2 w-full max-w-md px-4 py-2 rounded-xl text-slate-500 dark:text-slate-400 text-sm transition-all duration-200 btn-lift"
@@ -70,7 +71,7 @@ export default function TopBar() {
       </div>
 
       {/* 右侧工具区 */}
-      <div className="flex items-center gap-1 shrink-0">
+      <div className="flex items-center gap-1 shrink-0 no-drag-region">
         {/* 主题切换 */}
         <button
           onClick={toggleDarkMode}

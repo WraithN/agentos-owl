@@ -51,6 +51,10 @@ export function upsertMarketTool(
   );
 }
 
+export function deleteMarketTool(db: Database.Database, id: string): void {
+  db.prepare("DELETE FROM market_tools WHERE id = ?").run(id);
+}
+
 function mapMarketTool(row: Record<string, unknown>): MarketTool {
   return {
     id: String(row.id),

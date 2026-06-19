@@ -1,6 +1,6 @@
 import type { ReactNode, ComponentType } from 'react';
 
-export type NewToolType = 'skill' | 'mcp' | 'cli';
+export type NewToolType = 'mcp' | 'cli';
 
 export type TabId = 'skills' | 'prompts' | 'tools';
 
@@ -34,7 +34,7 @@ export interface MarketTool {
   name: string;
   description: string;
   category: string;
-  toolType: 'mcp' | 'skill' | 'cli';
+  toolType: 'mcp' | 'cli';
   icon: string;
   iconBg: string;
   version: string;

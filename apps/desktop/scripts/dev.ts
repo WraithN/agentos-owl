@@ -7,13 +7,27 @@ const rootDir = path.resolve(__dirname, "../../..");
 const desktopDir = path.resolve(__dirname, "..");
 
 const DEV_PORT = 5173;
-const DEV_SERVER_URL = `http://localhost:${DEV_PORT}`;
+const DEV_HOST = "127.0.0.1";
+const DEV_SERVER_URL = `http://${DEV_HOST}:${DEV_PORT}`;
 
 function runWebDev() {
-  return spawn("pnpm", ["--filter", "@owl-os/web", "exec", "vite", "--port", String(DEV_PORT), "--strictPort"], {
-    cwd: rootDir,
-    stdio: "inherit",
-  });
+  return spawn(
+    "pnpm",
+    ["--filter", "@owl-os/web", "exec", "vite", "--host", DEV_HOST, "--port", String(DEV_PORT), "--strictPort"],
+    {
+      cwd: rootDir,
+      stdio: "inherit",
+    }
+  );
+}
+
+async function checkServer(url: string): Promise<boolean> {
+  try {
+    const res = await fetch(url);
+    return res.ok || res.status < 500;
+  } catch {
+    return false;
+  }
 }
 
 function build(file: string) {
@@ -29,22 +43,24 @@ function build(file: string) {
   });
 }
 
-async function waitForServer(url: string, timeoutMs = 15000) {
+async function waitForServer(url: string, timeoutMs = 60000) {
   const start = Date.now();
   while (Date.now() - start < timeoutMs) {
-    try {
-      const res = await fetch(url);
-      if (res.ok) return;
-    } catch {
-      // ignore
-    }
-    await new Promise((r) => setTimeout(r, 300));
+    if (await checkServer(url)) return;
+    await new Promise((r) => setTimeout(r, 500));
   }
   throw new Error(`dev server did not start at ${url}`);
 }
 
 async function main() {
-  const webDev = runWebDev();
+  const alreadyRunning = await checkServer(DEV_SERVER_URL);
+  let webDev: ReturnType<typeof spawn> | null = null;
+  if (alreadyRunning) {
+    console.log(`[dev] reuse existing web dev server at ${DEV_SERVER_URL}`);
+  } else {
+    console.log(`[dev] starting web dev server at ${DEV_SERVER_URL}`);
+    webDev = runWebDev();
+  }
   await waitForServer(DEV_SERVER_URL);
 
   await build("vite.main.config.ts");
@@ -71,7 +87,7 @@ async function main() {
   );
 
   electron.on("close", (code) => {
-    webDev.kill();
+    webDev?.kill();
     process.exit(code ?? 0);
   });
 }

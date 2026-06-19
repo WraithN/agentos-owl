@@ -3,7 +3,7 @@ import { useApp } from '@/contexts/AppContext';
 import ChatContainer from './ChatContainer';
 
 export default function ChatModule() {
-  const { chatMode, currentConversation, setCurrentConversation, setChatMode } = useApp();
+  const { chatMode, currentConversation, setCurrentConversation, setChatMode, refreshConversations } = useApp();
 
   return (
     <ChatContainer
@@ -11,6 +11,7 @@ export default function ChatModule() {
       currentConversation={currentConversation}
       setCurrentConversation={setCurrentConversation}
       setChatMode={setChatMode}
+      refreshConversations={refreshConversations}
     />
   );
 }

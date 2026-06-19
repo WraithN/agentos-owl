@@ -1,8 +1,10 @@
 import type Database from "better-sqlite3";
 import { seedAgents } from "./agents.js";
+import { seedAuditLogs } from "./auditLogs.js";
 import { seedBilling } from "./billing.js";
 import { seedConversations } from "./conversations.js";
 import { seedDefaultUser } from "./users.js";
+import { seedExtensions } from "./extensions.js";
 import { seedKnowledge } from "./knowledge.js";
 import { seedMarketTools } from "./marketTools.js";
 import { seedNotifications } from "./notifications.js";
@@ -18,7 +20,9 @@ export async function seedIfEmpty(db: Database.Database): Promise<void> {
   seedWorkflows(db);
   seedKnowledge(db);
   seedMarketTools(db);
+  seedExtensions(db);
   seedTeams(db);
   seedBilling(db);
   seedNotifications(db);
+  seedAuditLogs(db);
 }

@@ -1,10 +1,10 @@
 /* 会话列表侧栏 */
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Plus, Search, Pin, Archive, Trash2, Users, Bot, Zap } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { useApp } from '@/contexts/AppContext';
-import { CONVERSATIONS } from '@/data/mockData';
+import { listConversations } from '@/services/electron';
 import type { Conversation } from '@/types';
 
 function timeShort(date: Date) {
@@ -26,8 +26,13 @@ export default function ConversationList({ onToggle }: { onToggle: () => void })
   const { currentConversation, setCurrentConversation, setChatMode } = useApp();
   const [query, setQuery] = useState('');
   const [hoverId, setHoverId] = useState<string | null>(null);
+  const [conversations, setConversations] = useState<Conversation[]>([]);
 
-  const filtered = CONVERSATIONS.filter(c =>
+  useEffect(() => {
+    listConversations().then(setConversations).catch(() => setConversations([]));
+  }, []);
+
+  const filtered = conversations.filter(c =>
     c.title.toLowerCase().includes(query.toLowerCase())
   );
   const today = filtered.filter(c => Date.now() - c.lastTime.getTime() < 86400000);
@@ -36,6 +41,7 @@ export default function ConversationList({ onToggle }: { onToggle: () => void })
   function select(c: Conversation) {
     setCurrentConversation(c);
     setChatMode(c.mode);
+    onToggle();
   }
 
   return (
@@ -73,6 +79,12 @@ export default function ConversationList({ onToggle }: { onToggle: () => void })
           <ConvItem key={c.id} conv={c} active={currentConversation?.id === c.id}
             hovered={hoverId === c.id} onHover={setHoverId} onSelect={select} />
         ))}
+        {filtered.length === 0 && (
+          <div className="flex flex-col items-center justify-center py-12">
+            <Bot className="w-8 h-8 text-slate-600 mb-2" />
+            <p className="text-xs text-slate-600">暂无会话，开始新对话吧</p>
+          </div>
+        )}
       </div>
     </div>
   );

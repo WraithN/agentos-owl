@@ -403,7 +403,7 @@ export default function InputArea({
             onBlur={() => setFocused(false)}
             rows={2}
             disabled={isStreaming}
-            placeholder={recording ? '' : isStreaming ? '正在生成中，请稍候…' : '向 Acta 下达任务，输入 / 触发指令，Shift+Enter 换行…'}
+            placeholder={recording ? '' : isStreaming ? '正在生成中，请稍候…' : '向 Owl 下达任务，输入 / 触发指令，Shift+Enter 换行…'}
             className={cn(
               'w-full bg-transparent text-sm outline-none resize-none leading-relaxed',
               isStreaming && 'opacity-50 cursor-not-allowed'

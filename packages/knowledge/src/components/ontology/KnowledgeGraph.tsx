@@ -8,7 +8,7 @@ const GRAPH_NODES = [
   { id: 'c5', label: 'Product', type: 'class', x: 580, y: 280, color: '#f59e0b' },
   { id: 'c6', label: 'Event', type: 'class', x: 380, y: 280, color: '#ec4899' },
   { id: 'e1', label: '张三', type: 'entity', x: 50, y: 390, color: '#8b5cf6' },
-  { id: 'e3', label: 'Acta Inc.', type: 'entity', x: 540, y: 390, color: '#10b981' },
+  { id: 'e3', label: 'Owl Inc.', type: 'entity', x: 540, y: 390, color: '#10b981' },
 ];
 const GRAPH_EDGES = [
   { from: 'c2', to: 'c1', label: 'subClassOf' }, { from: 'c3', to: 'c1', label: 'subClassOf' },
