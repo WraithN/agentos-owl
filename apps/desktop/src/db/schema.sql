@@ -183,6 +183,7 @@ CREATE TABLE IF NOT EXISTS prompts (
     description TEXT NOT NULL DEFAULT '',
     content TEXT NOT NULL DEFAULT '',
     official INTEGER NOT NULL DEFAULT 0,
+    is_favorite INTEGER NOT NULL DEFAULT 0,
     tags_json TEXT NOT NULL DEFAULT '[]',
     created_at INTEGER NOT NULL,
     updated_at INTEGER NOT NULL
