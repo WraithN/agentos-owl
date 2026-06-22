@@ -264,6 +264,13 @@ function MessageContent({ message, onEdit, onRegenerate, hideActions = false }: 
 
   return (
     <div className={`group relative min-w-0 ${MESSAGE_WIDTH_CLASS}`}>
+      {message.role !== 'user' && (reasoningText.trim() || toolParts.length > 0) && (
+        <div className="my-1 space-y-1 py-1">
+          <ReasoningPanel text={reasoningText} />
+          <ToolLogPanel tools={toolParts} />
+        </div>
+      )}
+
       {hasMainContent && (
         <div
           className={`rounded-2xl px-4 py-2.5 text-base break-words [overflow-wrap:anywhere] ${
@@ -294,13 +301,6 @@ function MessageContent({ message, onEdit, onRegenerate, hideActions = false }: 
       )}
 
       {message.role !== 'user' && hasMainContent && <AssistantStateActions state={assistantState} />}
-
-      {message.role !== 'user' && (reasoningText.trim() || toolParts.length > 0) && (
-        <div className="my-1 space-y-1 py-1">
-          <ReasoningPanel text={reasoningText} />
-          <ToolLogPanel tools={toolParts} />
-        </div>
-      )}
 
       {!hideActions && hasMainContent && (
         <div className={`message-actions flex items-center gap-1 mt-1 opacity-0 group-hover:opacity-100 transition-opacity ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
