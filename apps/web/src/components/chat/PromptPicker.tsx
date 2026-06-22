@@ -8,7 +8,6 @@ import {
 import {
   Tooltip,
   TooltipContent,
-  TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { Button } from '@/components/ui/button';
@@ -17,7 +16,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { listPrompts, type Prompt } from '@/services/electron';
 import { toast } from 'sonner';
 
-const MAX_FAVORITE_PROMPTS = 20;
 const UNCATEGORIZED = '未分类';
 
 interface PromptPickerProps {
@@ -83,65 +81,63 @@ export function PromptPicker({ inputRef }: PromptPickerProps) {
   };
 
   return (
-    <TooltipProvider>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <Popover open={open} onOpenChange={setOpen}>
-            <PopoverTrigger asChild>
-              <Button type="button" variant="ghost" size="icon" className="h-8 w-8">
-                <Bookmark className="h-4 w-4" />
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent align="start" className="w-80 p-0">
-              {loading ? (
-                <div className="flex items-center justify-center py-8">
-                  <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-                </div>
-              ) : categories.length === 0 ? (
-                <div className="px-4 py-6 text-center text-sm text-muted-foreground">
-                  暂无常用提示词，去提示词市场添加
-                </div>
-              ) : (
-                <Tabs defaultValue={categories[0]} className="w-full">
-                  <TabsList className="w-full justify-start rounded-none border-b bg-transparent px-2">
-                    {categories.map((category) => (
-                      <TabsTrigger key={category} value={category} className="text-xs">
-                        {category}
-                      </TabsTrigger>
-                    ))}
-                  </TabsList>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Popover open={open} onOpenChange={setOpen}>
+          <PopoverTrigger asChild>
+            <Button type="button" variant="ghost" size="icon" className="h-7 w-7">
+              <Bookmark className="h-3.5 w-3.5" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent align="start" className="w-80 p-0">
+            {loading ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+              </div>
+            ) : categories.length === 0 ? (
+              <div className="px-4 py-6 text-center text-sm text-muted-foreground">
+                暂无常用提示词，去提示词市场添加
+              </div>
+            ) : (
+              <Tabs defaultValue={categories[0]} className="w-full">
+                <TabsList className="w-full justify-start gap-1 overflow-x-auto rounded-none border-b bg-transparent px-2 [&::-webkit-scrollbar]:hidden">
                   {categories.map((category) => (
-                    <TabsContent key={category} value={category} className="m-0">
-                      <ScrollArea className="h-64">
-                        <div className="py-1">
-                          {itemsByCategory.get(category)?.map((prompt) => (
-                            <button
-                              key={prompt.id}
-                              type="button"
-                              onClick={() => insertPrompt(prompt.content)}
-                              className="w-full px-3 py-2 text-left text-sm hover:bg-muted"
-                            >
-                              <div className="font-medium">{prompt.name}</div>
-                              {prompt.description && (
-                                <div className="truncate text-xs text-muted-foreground">
-                                  {prompt.description}
-                                </div>
-                              )}
-                            </button>
-                          ))}
-                        </div>
-                      </ScrollArea>
-                    </TabsContent>
+                    <TabsTrigger key={category} value={category} className="text-xs">
+                      {category}
+                    </TabsTrigger>
                   ))}
-                </Tabs>
-              )}
-            </PopoverContent>
-          </Popover>
-        </TooltipTrigger>
-        <TooltipContent>
-          <p>常用提示词</p>
-        </TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
+                </TabsList>
+                {categories.map((category) => (
+                  <TabsContent key={category} value={category} className="m-0">
+                    <ScrollArea className="h-64">
+                      <div className="py-1">
+                        {itemsByCategory.get(category)?.map((prompt) => (
+                          <button
+                            key={prompt.id}
+                            type="button"
+                            onClick={() => insertPrompt(prompt.content)}
+                            className="w-full px-3 py-2 text-left text-sm hover:bg-muted focus-visible:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                          >
+                            <div className="font-medium">{prompt.name}</div>
+                            {prompt.description && (
+                              <div className="truncate text-xs text-muted-foreground">
+                                {prompt.description}
+                              </div>
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                    </ScrollArea>
+                  </TabsContent>
+                ))}
+              </Tabs>
+            )}
+          </PopoverContent>
+        </Popover>
+      </TooltipTrigger>
+      <TooltipContent>
+        <p>常用提示词</p>
+      </TooltipContent>
+    </Tooltip>
   );
 }

@@ -23,6 +23,7 @@ import {
 import type { MarketTool as DbMarketTool } from '@/types';
 
 const ALL_CATEGORY = '全部';
+const MAX_FAVORITE_PROMPTS = 20;
 
 function toDate(value: unknown): Date {
   if (value instanceof Date) return value;
@@ -216,6 +217,11 @@ export default function ToolsModuleContainer() {
   const onToggleFavoritePrompt = useCallback(async (id: string, isFavorite: boolean) => {
     const existing = prompts.find(p => p.id === id);
     if (!existing) return;
+    const currentFavorites = prompts.filter(p => p.isFavorite).length;
+    if (isFavorite && !existing.isFavorite && currentFavorites >= MAX_FAVORITE_PROMPTS) {
+      toast.error(`最多只能收藏 ${MAX_FAVORITE_PROMPTS} 个常用提示词`);
+      return;
+    }
     try {
       const saved = await savePrompt({
         id,
