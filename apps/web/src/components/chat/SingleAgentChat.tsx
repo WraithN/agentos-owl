@@ -610,8 +610,9 @@ function WorkflowPanel({
 }) {
   if (Object.keys(agentOutputs).length === 0) return null;
   const entries = Object.values(agentOutputs);
-  const boss = entries.find((agent) => agent.role === 'elder');
-  const members = entries.filter((agent) => agent.role !== 'elder');
+  const isBoss = (agent: AgentOutput) => agent.role === 'elder' || agent.title === 'boss';
+  const boss = entries.find(isBoss);
+  const members = entries.filter((agent) => !isBoss(agent));
   const memberStatusById = new Map(teamStatus?.members.map((member) => [member.agentId, member]));
 
   return (
