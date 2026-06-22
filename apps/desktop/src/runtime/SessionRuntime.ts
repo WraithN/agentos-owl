@@ -39,6 +39,7 @@ export class SessionRuntime {
 
   private pendingRecruitment: {
     sentinelTitle?: string;
+    sentinelReason?: string;
     workers?: string[];
   } = {};
 
@@ -176,15 +177,18 @@ export class SessionRuntime {
           const event = chunk.event as Record<string, unknown>;
           const toolName = String(event?.toolName ?? event?.name ?? "");
           if (toolName === "recruit_sentinel" && agent.role === "elder") {
-            const title = this.extractRecruitTitle(event);
-            if (title) this.pendingRecruitment.sentinelTitle = title;
-            this.forwardChunk(agent, chunk);
+            const { title, reason } = this.extractRecruitArgs(event);
+            if (title) {
+              this.pendingRecruitment.sentinelTitle = title;
+              this.pendingRecruitment.sentinelReason = reason;
+            }
+            // 不转发原始 tool_event；由 recruitSentinel 统一输出包含 sentinelId 的完整事件
             continue;
           }
           if (toolName === "recruit_workers" && agent.role === "sentinel") {
             const workers = this.extractWorkerTitles(event);
             if (workers) this.pendingRecruitment.workers = workers;
-            this.forwardChunk(agent, chunk);
+            // 不转发原始 tool_event；由 recruitWorkers 统一输出包含完整 workers 的事件
             continue;
           }
         }
@@ -248,6 +252,7 @@ export class SessionRuntime {
       endpointB: sentinel.id,
     });
 
+    const reason = this.pendingRecruitment.sentinelReason;
     this.port.postEvent({
       type: "chunk",
       chunk: {
@@ -258,7 +263,8 @@ export class SessionRuntime {
           startedAt: Date.now(),
           endedAt: Date.now(),
           isError: false,
-          result: { title, sentinelId: id },
+          args: { title, reason },
+          result: { title, reason, sentinelId: id },
         },
       },
     });
@@ -297,6 +303,7 @@ export class SessionRuntime {
           startedAt: Date.now(),
           endedAt: Date.now(),
           isError: false,
+          args: { workers: titles },
           result: { workers: titles },
         },
       },
@@ -310,11 +317,15 @@ export class SessionRuntime {
     return title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
   }
 
-  private extractRecruitTitle(event: Record<string, unknown>): string | undefined {
+  private extractRecruitArgs(event: Record<string, unknown>): { title?: string; reason?: string } {
     const result = event?.result as Record<string, unknown> | undefined;
     const args = event?.args as Record<string, unknown> | undefined;
     const title = String(result?.title ?? args?.title ?? "");
-    return title || undefined;
+    const reason = String(result?.reason ?? args?.reason ?? "");
+    return {
+      title: title || undefined,
+      reason: reason || undefined,
+    };
   }
 
   private extractWorkerTitles(event: Record<string, unknown>): string[] | undefined {
