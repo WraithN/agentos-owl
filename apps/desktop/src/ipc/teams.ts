@@ -31,7 +31,7 @@ export function registerTeamHandlers(): void {
   });
 
   ipcMain.handle("get_team", (_event, id: string) => {
-    const found = queries.listTeams(getDatabase()).find((t) => t.id === id);
+    const found = queries.getTeam(getDatabase(), id);
     return found ? toIpc(found) : undefined;
   });
 

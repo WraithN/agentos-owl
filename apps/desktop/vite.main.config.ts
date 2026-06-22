@@ -9,9 +9,12 @@ export default defineConfig({
   build: {
     ssr: true,
     lib: {
-      entry: path.resolve(__dirname, "src/main.ts"),
+      entry: {
+        main: path.resolve(__dirname, "src/main.ts"),
+        "runtime/SessionThreadEntry": path.resolve(__dirname, "src/runtime/SessionThreadEntry.ts"),
+      },
       formats: ["cjs"],
-      fileName: () => "main.cjs",
+      fileName: (_format, entryName) => `${entryName}.cjs`,
     },
     outDir: "dist/main",
     emptyOutDir: true,
@@ -28,6 +31,11 @@ export default defineConfig({
         {
           src: path.resolve(__dirname, "src/db/schema.sql"),
           dest: path.resolve(__dirname, "dist/db"),
+        },
+        {
+          // Worker 线程构建产物位于 dist/main/runtime/，需要从该目录向上定位 schema.sql
+          src: path.resolve(__dirname, "src/db/schema.sql"),
+          dest: path.resolve(__dirname, "dist/main/db"),
         },
       ],
     }),

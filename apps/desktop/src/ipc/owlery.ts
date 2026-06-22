@@ -1,11 +1,38 @@
 import { BrowserWindow, ipcMain } from "electron";
+import type { TeammateMode } from "@owl-os/core";
 import { owlery } from "../agent/owleryRuntime.js";
 import { getTeammateStatus, publishAgentStatus } from "./teammateStatus.js";
+import { getDatabase } from "../db/connection.js";
+import * as queries from "../db/queries/index.js";
 
 const subscriptions = new Map<string, () => void>();
+const TEAMMATE_MODES = new Set<TeammateMode>(["pipeline", "brainstorm", "supervisor", "hierarchy"]);
 
 function subscriptionKey(windowId: number, sessionId: string) {
   return `${windowId}:${sessionId}`;
+}
+
+function normalizeTeammateMode(mode: string | undefined): TeammateMode | undefined {
+  if (!mode) return undefined;
+  return TEAMMATE_MODES.has(mode as TeammateMode) ? (mode as TeammateMode) : undefined;
+}
+
+function resolveTeammateModeFromTemplate(teamTemplateId: string | undefined): TeammateMode | undefined {
+  if (!teamTemplateId) return undefined;
+  try {
+    const template = queries.getTeam(getDatabase(), teamTemplateId);
+    const map: Record<string, TeammateMode> = {
+      pipeline: "pipeline",
+      supervisor: "supervisor",
+      brainstorming: "brainstorm",
+      brainstorm: "brainstorm",
+      hierarchy: "hierarchy",
+      swarm: "hierarchy",
+    };
+    return template?.mode ? map[template.mode] ?? undefined : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 export function registerOwleryHandlers(): void {
@@ -25,12 +52,13 @@ export function registerOwleryHandlers(): void {
         sessionId,
         text,
         teammateMode,
-      }: { sessionId: string; text: string; teammateMode?: string },
+        teamTemplateId,
+      }: { sessionId: string; text: string; teammateMode?: string; teamTemplateId?: string },
     ) => {
       const window = BrowserWindow.fromWebContents(event.sender);
-      // TODO: 将 teammateMode 透传给 Owlery，当前后端先忽略该字段
-      void teammateMode;
-      owlery.startChat({ sessionId, userMessage: text });
+      // packages/core 的 Owlery 回退路径仅接收 teammateMode；teamTemplateId 由主线程在需要时解析
+      const mode = teamTemplateId ? resolveTeammateModeFromTemplate(teamTemplateId) : normalizeTeammateMode(teammateMode);
+      owlery.startChat({ sessionId, userMessage: text, teammateMode: mode });
       publishAgentStatus(sessionId, owlery.getTeammateStatus(sessionId));
       if (window) ensureSubscription(window, sessionId);
       return { ok: true };

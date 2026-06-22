@@ -1,30 +1,19 @@
-import { AgentFactory, Owlery, fixedNameGenerator } from "@owl-os/core";
-import type { AgentDriverFactory, AgentToolFactory } from "@owl-os/core";
-import { createPlainAgent, hasDefaultLlm, loadSystemPrompt, NoDefaultLlmError } from "./agent.js";
-import { PiAgentDriver } from "./drivers/PiAgentDriver.js";
+import { Owlery } from "@owl-os/core";
+import { createOwleryAgentFactory } from "./owleryAgentFactory.js";
 
-const driverFactory: AgentDriverFactory = (input) => {
-  if (!hasDefaultLlm()) throw new NoDefaultLlmError();
-  const systemPrompt = input.role === "elder"
-    ? loadSystemPrompt("boss_agent")
-    : `你是 ${input.title}，负责在 Agent 团队中完成 ${input.role} 职责。`;
-  return new PiAgentDriver(
-    createPlainAgent(input.sessionId, 0, {
-      systemPrompt,
-      tools: input.role === "elder" ? [] : undefined,
-    }),
-  );
-};
-
-const toolFactory: AgentToolFactory = (input) => {
-  if (input.role !== "sentinel" || input.title !== "supervisor") return [];
-  return [{ name: "recruit", description: "评估任务并招募当前 Teammate 的后续成员" }];
-};
-
+// 兼容 IPC 回退路径：在主线程内运行，可直接访问数据库读取 LLM 配置
 export const owlery = new Owlery({
-  agentFactory: new AgentFactory({
-    driverFactory,
-    nameGenerator: fixedNameGenerator,
-    toolFactory,
-  }),
+  agentFactory: createOwleryAgentFactory(),
 });
+
+// WebSocket Owlery 由 main.ts 创建后注册到这里；ipc/settings.ts 通过 notifyLlmConfigUpdate()
+// 触发配置同步，而无需直接依赖 WebSocket Owlery 的类型。
+let webSocketOwleryRef: { updateLlmConfig(): void } | undefined;
+
+export function setWebSocketOwleryRef(ref: { updateLlmConfig(): void }): void {
+  webSocketOwleryRef = ref;
+}
+
+export function notifyLlmConfigUpdate(): void {
+  webSocketOwleryRef?.updateLlmConfig();
+}

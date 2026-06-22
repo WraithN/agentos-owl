@@ -10,6 +10,25 @@ import * as queries from "../db/queries/index.js";
 import { getSecret } from "../secure.js";
 import { buildTools } from "./tools.js";
 
+export interface LlmModelConfig {
+  id: string;
+  name: string;
+  baseUrl: string;
+  provider?: string;
+  category: "llm" | "embedding" | "voice";
+  isDefault?: boolean;
+}
+
+export interface LlmConfig {
+  models: LlmModelConfig[];
+  apiKey: string;
+}
+
+// 主线程内直接读取数据库的兼容入口；Worker 线程应使用传配置版本。
+function getSetting(key: string): string | undefined {
+  return queries.getSetting(getDatabase(), key);
+}
+
 export class NoDefaultLlmError extends Error {
   constructor() {
     super("尚未设置默认对话模型，请在「设置 → LLM 配置」中选择默认模型后再试。");
@@ -40,40 +59,30 @@ function resolvePromptPath(role: string): string | null {
   return null;
 }
 
-export function loadSystemPrompt(role: string = "boss_agent"): string {
+export function tryLoadSystemPrompt(role: string): string | undefined {
   const filePath = resolvePromptPath(role);
-  if (!filePath) {
-    console.warn(`[agent] ${role}.md 未找到，使用内置默认提示词`);
-    return FALLBACK_SYSTEM_PROMPT;
-  }
+  if (!filePath) return undefined;
   try {
     const text = fs.readFileSync(filePath, "utf-8").trim();
-    return text || FALLBACK_SYSTEM_PROMPT;
-  } catch (err) {
-    console.warn(`[agent] 读取 ${role}.md 失败，使用内置默认提示词:`, err);
-    return FALLBACK_SYSTEM_PROMPT;
+    return text || undefined;
+  } catch {
+    return undefined;
   }
 }
 
-function getSetting(key: string): string | undefined {
-  return queries.getSetting(getDatabase(), key);
+export function loadSystemPrompt(role: string = "boss_agent"): string {
+  const text = tryLoadSystemPrompt(role);
+  if (text) return text;
+  console.warn(`[agent] ${role}.md 未找到或读取失败，使用内置默认提示词`);
+  return FALLBACK_SYSTEM_PROMPT;
 }
 
-interface LlmModelMeta {
-  id: string;
-  name: string;
-  baseUrl: string;
-  provider?: string;
-  category: "llm" | "embedding" | "voice";
-  isDefault?: boolean;
-}
-
-function parseLlmModels(raw: string | undefined): LlmModelMeta[] {
+export function parseLlmModels(raw: string | undefined): LlmModelConfig[] {
   if (!raw) return [];
   try {
     const list = JSON.parse(raw);
     if (!Array.isArray(list)) return [];
-    return list.filter((m): m is LlmModelMeta => {
+    return list.filter((m): m is LlmModelConfig => {
       if (!m || typeof m !== "object") return false;
       const v = m as Record<string, unknown>;
       return (
@@ -101,7 +110,7 @@ const PROVIDER_DOMAIN_MAP: Array<[RegExp, KnownProvider]> = [
   [/api\.moonshot\.cn/i, "moonshotai-cn"],
 ];
 
-function inferProvider(meta: LlmModelMeta): string {
+function inferProvider(meta: LlmModelConfig): string {
   if (meta.provider && meta.provider.trim()) return meta.provider.trim();
   for (const [pattern, provider] of PROVIDER_DOMAIN_MAP) {
     if (pattern.test(meta.baseUrl)) return provider;
@@ -109,7 +118,15 @@ function inferProvider(meta: LlmModelMeta): string {
   return "openai";
 }
 
-function resolveDefaultLlm(): { meta: LlmModelMeta; provider: string; apiKey: string } | null {
+function resolveDefaultLlmFromConfig(config: LlmConfig): { meta: LlmModelConfig; provider: string; apiKey: string } | null {
+  const models = config.models;
+  const def = models.find((m) => m.category === "llm" && m.isDefault === true);
+  if (!def) return null;
+  const provider = inferProvider(def);
+  return { meta: def, provider, apiKey: config.apiKey };
+}
+
+function resolveDefaultLlm(): { meta: LlmModelConfig; provider: string; apiKey: string } | null {
   const models = parseLlmModels(getSetting("llmModels"));
   const def = models.find((m) => m.category === "llm" && m.isDefault === true);
   if (!def) return null;
@@ -118,7 +135,8 @@ function resolveDefaultLlm(): { meta: LlmModelMeta; provider: string; apiKey: st
   return { meta: def, provider, apiKey };
 }
 
-export function hasDefaultLlm(): boolean {
+export function hasDefaultLlm(models?: LlmModelConfig[]): boolean {
+  if (models) return models.some((m) => m.category === "llm" && m.isDefault === true);
   return resolveDefaultLlm() !== null;
 }
 
@@ -168,16 +186,11 @@ export interface CreatePlainAgentOptions {
   tools?: AgentTool[];
 }
 
-export function createPlainAgent(
+function buildAgent(
   sessionId: string,
-  windowId: number,
+  resolved: { meta: LlmModelConfig; provider: string; apiKey: string },
   options: CreatePlainAgentOptions
 ): Agent {
-  const resolved = resolveDefaultLlm();
-  if (!resolved) {
-    throw new NoDefaultLlmError();
-  }
-
   const { meta, provider, apiKey } = resolved;
   const modelId = meta.id.replace(/^deepseek-/, "");
   const baseUrl = meta.baseUrl;
@@ -200,4 +213,30 @@ export function createPlainAgent(
     },
     getApiKey: () => apiKey,
   });
+}
+
+// 主线程版本：直接读取数据库获取 LLM 配置
+export function createPlainAgent(
+  sessionId: string,
+  _windowId: number,
+  options: CreatePlainAgentOptions
+): Agent {
+  const resolved = resolveDefaultLlm();
+  if (!resolved) {
+    throw new NoDefaultLlmError();
+  }
+  return buildAgent(sessionId, resolved, options);
+}
+
+// Worker 线程版本：由主线程预读取配置后传入，Worker 不再访问数据库
+export function createPlainAgentWithConfig(
+  sessionId: string,
+  config: LlmConfig,
+  options: CreatePlainAgentOptions
+): Agent {
+  const resolved = resolveDefaultLlmFromConfig(config);
+  if (!resolved) {
+    throw new NoDefaultLlmError();
+  }
+  return buildAgent(sessionId, resolved, options);
 }

@@ -14,6 +14,11 @@ export function listTeams(db: Database.Database): TeamTemplate[] {
   return rows.map(mapTeam);
 }
 
+export function getTeam(db: Database.Database, id: string): TeamTemplate | undefined {
+  const row = db.prepare(`${selectColumns} WHERE id = ?`).get(id) as Record<string, unknown> | undefined;
+  return row ? mapTeam(row) : undefined;
+}
+
 export function upsertTeam(db: Database.Database, team: TeamTemplate): void {
   db.prepare(
     `INSERT INTO team_templates (id, name, description, member_ids_json, coordinator_id, trigger_rule,

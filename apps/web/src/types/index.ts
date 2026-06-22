@@ -4,8 +4,8 @@
 // 基础类型
 // ============================================================
 
-/** 应用模式：单聊 / 群聊 / 自动化 */
-export type AppMode = 'single' | 'squad' | 'auto';
+/** 应用模式：统一对话 / 自动化 */
+export type AppMode = 'chat' | 'auto';
 
 /** Teammate 协作模式：由前端指定并传入 Owlery */
 export type TeammateMode = 'pipeline' | 'brainstorm' | 'supervisor' | 'hierarchy';
@@ -141,8 +141,10 @@ export interface Conversation {
   id: string;
   title: string;
   mode: AppMode;
-  /** Teammate 协作模式； squad/auto 模式下由前端指定并传入 Owlery */
+  /** @deprecated 由 teamTemplateId 替代，保留仅用于兼容旧数据 */
   teammateMode?: TeammateMode;
+  /** 用户手动选择的团队模板 ID */
+  teamTemplateId?: string;
   lastMessage: string;
   lastTime: Date;
   unread: number;

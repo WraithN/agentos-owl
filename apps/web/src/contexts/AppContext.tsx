@@ -72,13 +72,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [activeModule, setActiveModule] = useState('chat');
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [currentConversation, setCurrentConversation] = useState<Conversation | null>(null);
-  const [chatMode, setChatMode] = useState<AppMode>('squad');
+  const [chatMode, setChatMode] = useState<AppMode>('chat');
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [notificationPanelOpen, setNotificationPanelOpen] = useState(false);
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
   const [primaryColor, setPrimaryColorState] = useState('#00b89a');
-  const [fontSize, setFontSizeState] = useState<FontSize>('md');
+  const [fontSize, setFontSizeState] = useState<FontSize>('lg');
   const [animationLevel, setAnimationLevelState] = useState(80);
   const [language, setLanguageState] = useState<Language>('zh');
   const [settings, setSettingsState] = useState<Record<string, unknown>>({});
@@ -169,7 +169,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const applyFontSize = useCallback((s: FontSize) => {
-    const sizeMap: Record<FontSize, string> = { sm: '13px', md: '15px', lg: '17px' };
+    const sizeMap: Record<FontSize, string> = { sm: '14px', md: '16px', lg: '18px' };
     document.documentElement.style.fontSize = sizeMap[s];
   }, []);
 
@@ -309,7 +309,7 @@ export function useApp() {
           if (prop === 'activeModule') return 'chat';
           if (prop === 'darkMode') return true;
           if (prop === 'sidebarExpanded') return true;
-          if (prop === 'chatMode') return 'squad';
+          if (prop === 'chatMode') return 'chat';
           if (prop === 'notifications') return [];
           if (prop === 'notificationPanelOpen') return false;
           if (prop === 'commandPaletteOpen') return false;

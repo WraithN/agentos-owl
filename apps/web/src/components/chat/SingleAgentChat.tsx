@@ -2,42 +2,28 @@
 import { useState, useRef, useEffect, useCallback, type ReactNode } from 'react';
 import {
   AssistantRuntimeProvider,
-  ComposerPrimitive,
   MessagePrimitive,
   ThreadPrimitive,
 } from '@assistant-ui/react';
 import {
-  Send,
   Bot,
   User,
   Copy,
   Edit,
   Check,
-  Paperclip,
-  Mic,
-  Command,
-  Sparkles,
-  Users,
-  X,
   ArrowDown,
   ChevronDown,
   ChevronRight,
-  Square,
   RotateCcw,
   AlertTriangle,
   Loader2,
   Image as ImageIcon,
 } from 'lucide-react';
-import type { TeammateMode } from '@/types';
+import type { AppMode, TeammateMode } from '@/types';
 import { Button } from '@/components/ui/button';
 import { MarkdownText } from './MarkdownText';
 import { useOwleryRuntime } from './useOwleryRuntime';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+import { ChatComposer } from './ChatComposer';
 import {
   Tooltip,
   TooltipContent,
@@ -47,9 +33,11 @@ import {
 
 export interface SingleAgentChatProps {
   conversationId: string;
-  mode?: 'single' | 'squad' | 'auto';
-  /** Teammate 协作模式； squad/auto 模式下由前端指定 */
+  mode?: AppMode;
+  /** Teammate 协作模式；squad/auto 模式下由前端指定（已废弃，优先使用 teamTemplateId） */
   teammateMode?: TeammateMode;
+  /** 用户手动选择的团队模板 ID */
+  teamTemplateId?: string;
   agentId?: string;
   /** 会话标题回调 */
   onTitleChange?: (title: string) => void;
@@ -138,6 +126,8 @@ function formatToolOutput(value: unknown): string {
     for (const key of ['text', 'content', 'output', 'stdout', 'stderr', 'message', 'error', 'result']) {
       if (key in record) return formatToolOutput(record[key]);
     }
+    // 结构化的工具结果统一序列化，避免显示 [object Object]
+    return JSON.stringify(value, null, 2);
   }
   return String(value);
 }
@@ -259,7 +249,12 @@ function MessageContent({ message, onEdit, onRegenerate, hideActions = false }: 
   const toolParts = getToolParts(message);
   const imageParts = getImageParts(message);
   const assistantState = getAssistantState(message);
-  const hasMainContent = message.role === 'user' || mainText.trim() || imageParts.length > 0;
+  const isAssistantRunning = message.role !== 'user' && assistantState === 'running';
+  const isEmptyAssistant = message.role !== 'user' && !mainText.trim() && imageParts.length === 0 && toolParts.length === 0 && !reasoningText.trim();
+  const isThinking = isAssistantRunning && isEmptyAssistant;
+  const isEmptyComplete = assistantState === 'complete' && isEmptyAssistant;
+  const isEmptyError = assistantState !== 'running' && assistantState !== 'complete' && isEmptyAssistant;
+  const hasMainContent = message.role === 'user' || mainText.trim() || imageParts.length > 0 || isThinking || isEmptyComplete || isEmptyError;
 
   const copyToClipboard = useCallback(() => {
     navigator.clipboard.writeText(mainText);
@@ -271,14 +266,30 @@ function MessageContent({ message, onEdit, onRegenerate, hideActions = false }: 
     <div className={`group relative min-w-0 ${MESSAGE_WIDTH_CLASS}`}>
       {hasMainContent && (
         <div
-          className={`rounded-2xl px-4 py-2.5 text-sm break-words [overflow-wrap:anywhere] ${
+          className={`rounded-2xl px-4 py-2.5 text-base break-words [overflow-wrap:anywhere] ${
             message.role === 'user'
               ? 'bg-primary text-primary-foreground'
               : 'bg-muted text-foreground'
           }`}
         >
-          <MarkdownText text={mainText} />
-          <ImageBlocks images={imageParts} />
+          {isThinking ? (
+            <span className="inline-flex items-center gap-2 text-muted-foreground">
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              正在思考…
+            </span>
+          ) : isEmptyComplete ? (
+            <span className="text-muted-foreground">已生成完成（无内容）</span>
+          ) : isEmptyError ? (
+            <span className="inline-flex items-center gap-2 text-destructive">
+              <AlertTriangle className="h-3.5 w-3.5" />
+              {assistantState === 'cancelled' ? '已停止生成，无有效内容' : '生成中断，无有效内容'}
+            </span>
+          ) : (
+            <>
+              <MarkdownText text={mainText} />
+              <ImageBlocks images={imageParts} />
+            </>
+          )}
         </div>
       )}
 
@@ -350,35 +361,8 @@ function MessageContent({ message, onEdit, onRegenerate, hideActions = false }: 
   );
 }
 
-function WaitingAssistantMessage() {
+function ChatMessages({ onEditMessage, onRegenerate, messages }: { onEditMessage: (text: string) => void; onRegenerate: (messageId: string) => void; messages: any[] }) {
   return (
-    <div className="ai-message-row flex justify-start gap-3 py-1">
-      <div className="relative flex w-12 shrink-0 self-stretch">
-        <div className="ai-avatar mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-cyan-500 to-purple-500 text-white shadow-[0_0_16px_rgba(34,211,238,0.28)]">
-          <Bot className="h-4 w-4" />
-        </div>
-        <div className="relative ml-2 flex flex-1 justify-center">
-          <div className="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-slate-400/25" />
-          <div className="relative mt-3 flex h-3 w-3 items-center justify-center rounded-full border border-cyan-400/50 bg-background shadow-[0_0_12px_rgba(34,211,238,0.35)]">
-            <span className="h-1.5 w-1.5 rounded-full bg-cyan-300" />
-          </div>
-        </div>
-      </div>
-      <div className="max-w-[min(92ch,84%)] rounded-2xl bg-muted px-4 py-2.5 text-sm text-muted-foreground">
-        <span className="inline-flex items-center gap-2">
-          <Loader2 className="h-3.5 w-3.5 animate-spin" />
-          正在思考…
-        </span>
-      </div>
-    </div>
-  );
-}
-
-function ChatMessages({ onEditMessage, onRegenerate, messages, isRunning }: { onEditMessage: (text: string) => void; onRegenerate: (messageId: string) => void; messages: any[]; isRunning: boolean }) {
-  const showWaiting = isRunning && messages.length > 0 && !messages.some((message) => message.role === 'assistant' && message.status?.type === 'running');
-
-  return (
-    <>
     <ThreadPrimitive.Messages>
       {({ message }) => (
         <MessagePrimitive.Root
@@ -408,203 +392,23 @@ function ChatMessages({ onEditMessage, onRegenerate, messages, isRunning }: { on
         </MessagePrimitive.Root>
       )}
     </ThreadPrimitive.Messages>
-    {showWaiting && <WaitingAssistantMessage />}
-    </>
-  );
-}
-
-function ChatComposer({ initialText = '', isRunning = false }: { initialText?: string; isRunning?: boolean }) {
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [isRecording, setIsRecording] = useState(false);
-  const inputRef = useRef<HTMLTextAreaElement>(null);
-
-  useEffect(() => {
-    if (initialText && inputRef.current) {
-      inputRef.current.value = initialText;
-      inputRef.current.focus();
-    }
-  }, [initialText]);
-
-  const skills = [
-    { id: 'coding', name: '代码助手', icon: '💻' },
-    { id: 'writing', name: '写作助手', icon: '✍️' },
-    { id: 'analysis', name: '数据分析', icon: '📊' },
-    { id: 'translation', name: '翻译助手', icon: '🌐' },
-  ];
-
-  const commands = [
-    { id: 'explain', name: '解释代码', description: '详细解释选中的代码' },
-    { id: 'refactor', name: '重构代码', description: '优化代码结构和可读性' },
-    { id: 'test', name: '生成测试', description: '为代码生成单元测试' },
-    { id: 'doc', name: '生成文档', description: '生成代码注释和文档' },
-  ];
-
-  const teams = [
-    { id: 'dev-team', name: '开发团队', members: ['架构师', '程序员', '测试员'] },
-    { id: 'product-team', name: '产品团队', members: ['产品经理', '设计师', '运营'] },
-    { id: 'research-team', name: '研究团队', members: ['研究员', '分析师', '专家'] },
-  ];
-
-  return (
-    <ComposerPrimitive.Root className="shrink-0 border-t border-border/50 p-3 glass-l1">
-      {/* Selected File Preview */}
-      {selectedFile && (
-        <div className="mb-3 flex items-center gap-2 p-2 rounded-lg bg-background/50 border border-border/50">
-          <Paperclip className="h-4 w-4 text-muted-foreground" />
-          <span className="text-sm flex-1 truncate">{selectedFile.name}</span>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-6 w-6"
-            onClick={() => setSelectedFile(null)}
-          >
-            <X className="h-3 w-3" />
-          </Button>
-        </div>
-      )}
-
-      <input
-        id="file-upload"
-        type="file"
-        className="hidden"
-        onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
-      />
-
-      {/* Input Row */}
-      <div className="flex items-end gap-2">
-        {/* Text Input */}
-        <div className="relative flex-1">
-          <ComposerPrimitive.Input
-            ref={inputRef}
-            className="min-h-[72px] max-h-[160px] w-full resize-none rounded-xl border border-input bg-background px-3 pb-10 pr-12 pt-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-            placeholder="输入消息，按 Enter 发送，Shift+Enter 换行…"
-            rows={2}
-            submitMode="enter"
-          />
-          <div className="absolute bottom-1.5 left-2 flex items-center gap-1">
-            <Button
-              variant={isRecording ? 'destructive' : 'ghost'}
-              size="icon"
-              className="h-7 w-7"
-              onClick={() => setIsRecording(!isRecording)}
-            >
-              <Mic className="h-3.5 w-3.5" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7"
-              onClick={() => document.getElementById('file-upload')?.click()}
-            >
-              <Paperclip className="h-3.5 w-3.5" />
-            </Button>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-7 w-7">
-                  <Command className="h-3.5 w-3.5" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start">
-                {commands.map((cmd) => (
-                  <DropdownMenuItem
-                    key={cmd.id}
-                    onClick={() => {
-                      if (inputRef.current) {
-                        inputRef.current.value = `${cmd.name}：${inputRef.current.value}`;
-                        inputRef.current.focus();
-                      }
-                    }}
-                  >
-                    {cmd.name}
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-7 w-7">
-                  <Sparkles className="h-3.5 w-3.5" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start">
-                {skills.map((skill) => (
-                  <DropdownMenuItem
-                    key={skill.id}
-                    onClick={() => {
-                      if (inputRef.current) {
-                        inputRef.current.value = `使用「${skill.name}」技能：${inputRef.current.value}`;
-                        inputRef.current.focus();
-                      }
-                    }}
-                  >
-                    {skill.icon} {skill.name}
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-7 w-7">
-                  <Users className="h-3.5 w-3.5" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start">
-                {teams.map((team) => (
-                  <DropdownMenuItem
-                    key={team.id}
-                    onClick={() => {
-                      if (inputRef.current) {
-                        inputRef.current.value = `调用「${team.name}」：${inputRef.current.value}`;
-                        inputRef.current.focus();
-                      }
-                    }}
-                  >
-                    {team.name}
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-          <div className="absolute bottom-1.5 right-2">
-            {isRunning ? (
-              <ComposerPrimitive.Cancel asChild>
-                <button type="button" className="inline-flex h-7 w-7 items-center justify-center rounded-md bg-destructive text-destructive-foreground transition-colors hover:bg-destructive/90">
-                  <Square className="h-3 w-3 fill-current" />
-                </button>
-              </ComposerPrimitive.Cancel>
-            ) : (
-              <ComposerPrimitive.Send asChild>
-                <Button type="submit" size="icon" className="h-7 w-7">
-                  <Send className="h-3.5 w-3.5" />
-                </Button>
-              </ComposerPrimitive.Send>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Recording Indicator */}
-      {isRecording && (
-        <div className="mt-2 flex items-center gap-2 text-xs text-destructive animate-pulse">
-          <div className="w-2 h-2 rounded-full bg-destructive animate-ping" />
-          正在录音... 点击停止
-        </div>
-      )}
-    </ComposerPrimitive.Root>
   );
 }
 
 export default function SingleAgentChat({
   conversationId,
-  mode = 'single',
+  mode = 'chat',
   teammateMode,
+  teamTemplateId,
   agentId,
   onTitleChange,
 }: SingleAgentChatProps) {
+  const [selectedTeam, setSelectedTeam] = useState<string | undefined>(teamTemplateId);
   const { runtime, conversationTitle, messages, isRunning, regenerateFromMessage } = useOwleryRuntime(
     conversationId,
     mode,
     teammateMode,
+    selectedTeam,
   );
   const [editText, setEditText] = useState('');
   const [isFollowingLatest, setIsFollowingLatest] = useState(true);
@@ -653,7 +457,7 @@ export default function SingleAgentChat({
           onScroll={handleViewportScroll}
           className="flex-1 overflow-y-auto px-16 py-8 space-y-6"
         >
-          <ChatMessages onEditMessage={handleEditMessage} onRegenerate={regenerateFromMessage} messages={messages} isRunning={isRunning} />
+          <ChatMessages onEditMessage={handleEditMessage} onRegenerate={regenerateFromMessage} messages={messages} />
 
           <ThreadPrimitive.Empty>
             <div className="flex h-full flex-col items-center justify-center text-muted-foreground">
@@ -679,7 +483,12 @@ export default function SingleAgentChat({
         )}
 
         {/* 输入区 */}
-        <ChatComposer initialText={editText} isRunning={isRunning} />
+        <ChatComposer
+          initialText={editText}
+          isRunning={isRunning}
+          selectedTeam={selectedTeam}
+          onTeamChange={setSelectedTeam}
+        />
       </ThreadPrimitive.Root>
     </AssistantRuntimeProvider>
   );

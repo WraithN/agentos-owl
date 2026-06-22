@@ -162,7 +162,7 @@ export const CONVERSATIONS: Conversation[] = [
   {
     id: 'conv-1',
     title: '用户增长方案设计',
-    mode: 'squad',
+    mode: 'chat',
     lastMessage: 'Analyst: 已完成 DAU 数据分析，关键漏斗在注册环节流失 34%...',
     lastTime: new Date(Date.now() - 1000 * 60 * 8),
     unread: 3,
@@ -185,7 +185,7 @@ export const CONVERSATIONS: Conversation[] = [
   {
     id: 'conv-3',
     title: '帮我写一个 React 拖拽组件',
-    mode: 'single',
+    mode: 'chat',
     lastMessage: 'Aria: 这是一个基于 @dnd-kit 的完整拖拽实现，包含动画和无障碍支持...',
     lastTime: new Date(Date.now() - 1000 * 60 * 60 * 2),
     unread: 0,
@@ -196,7 +196,7 @@ export const CONVERSATIONS: Conversation[] = [
   {
     id: 'conv-4',
     title: '分析 Q2 销售数据',
-    mode: 'single',
+    mode: 'chat',
     lastMessage: 'Q2 整体收入同比增长 18.3%，北区表现最佳...',
     lastTime: new Date(Date.now() - 1000 * 60 * 60 * 26),
     unread: 0,

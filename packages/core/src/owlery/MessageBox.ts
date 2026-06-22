@@ -2,6 +2,7 @@ import type { AgentId, AgentMessage, ChannelId, SessionId } from "../agent/types
 
 export class MessageChannel {
   private readonly queues = new Map<AgentId, AgentMessage[]>();
+  private readonly subscribers = new Map<AgentId, Set<(message: AgentMessage) => void>>();
 
   constructor(
     readonly id: ChannelId,
@@ -21,6 +22,17 @@ export class MessageChannel {
     if (!this.hasAgent(from)) throw new Error("Sender is not a channel endpoint");
     if (!this.hasAgent(message.to)) throw new Error("Recipient is not a channel endpoint");
     this.queues.get(message.to)?.push(message);
+    this.subscribers.get(message.to)?.forEach((callback) => callback(message));
+  }
+
+  subscribe(agentId: AgentId, callback: (message: AgentMessage) => void): () => void {
+    if (!this.hasAgent(agentId)) throw new Error("Subscriber is not a channel endpoint");
+    const callbacks = this.subscribers.get(agentId) ?? new Set<(message: AgentMessage) => void>();
+    callbacks.add(callback);
+    this.subscribers.set(agentId, callbacks);
+    return () => {
+      callbacks.delete(callback);
+    };
   }
 
   async *receive(agentId: AgentId): AsyncIterable<AgentMessage> {
@@ -59,5 +71,11 @@ export class MessageBox {
     const channel = this.channels.get(channelId);
     if (!channel) throw new Error("Channel not found");
     return channel.receive(agentId);
+  }
+
+  subscribe(channelId: ChannelId, agentId: AgentId, callback: (message: AgentMessage) => void): () => void {
+    const channel = this.channels.get(channelId);
+    if (!channel) throw new Error("Channel not found");
+    return channel.subscribe(agentId, callback);
   }
 }

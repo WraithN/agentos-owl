@@ -6,7 +6,7 @@ export type TemplateTeammateId = string;
 
 export type AgentRole = "elder" | "sentinel" | "worker";
 export type SentinelKind = "primary" | "sub";
-export type AgentTitle = "boss" | "cto" | "planner" | "supervisor" | "operator";
+export type AgentTitle = string;
 export type TeammateMode = "pipeline" | "brainstorm" | "supervisor" | "hierarchy";
 export type AgentMessageKind = "request" | "response" | "event" | "control";
 export type AgentWorkStatus = "not_started" | "in_progress" | "completed" | "failed" | "cancelled";

@@ -3,7 +3,7 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { generateId } from '@assistant-ui/react';
 import { cn } from '@/lib/utils';
-import type { AppMode, Conversation, TeammateMode } from '@/types';
+import type { AppMode, Conversation } from '@/types';
 import { saveConversation, saveMessage, startOwleryChat } from '@/services/electron';
 import UpgradeBar from './UpgradeBar';
 import EmptyState from './EmptyState';
@@ -75,7 +75,7 @@ export default function ChatContainer({
 
   async function handleNewConv(options?: {
     mode?: AppMode;
-    teammateMode?: TeammateMode;
+    teamTemplateId?: string;
     title?: string;
   }) {
     const now = new Date();
@@ -83,26 +83,26 @@ export default function ChatContainer({
     const conversation = await saveConversation({
       id: '',
       title,
-      mode: options?.mode ?? 'single',
-      teammateMode: options?.teammateMode,
+      mode: options?.mode ?? 'chat',
+      teamTemplateId: options?.teamTemplateId,
       lastMessage: '',
       lastTime: now,
       unread: 0,
-      agentIds: options?.teammateMode ? [] : ['boss_agent'],
+      agentIds: options?.teamTemplateId ? [] : ['boss_agent'],
       pinned: false,
       createdAt: now,
       updatedAt: now,
     });
     setCurrentConversation(conversation);
-    setChatMode(options?.mode ?? 'single');
+    setChatMode(options?.mode ?? 'chat');
     setDynamicTitle(title);
     await refreshConversations?.();
     return conversation;
   }
 
-  async function handleQuickAction(prompt: string, teammateMode: TeammateMode) {
+  async function handleQuickAction(prompt: string) {
     const title = buildTitleFromText(prompt);
-    const conversation = await handleNewConv({ mode: 'squad', teammateMode, title });
+    const conversation = await handleNewConv({ mode: 'chat', title });
     const now = new Date();
     await saveMessage({
       id: generateId(),
@@ -111,10 +111,9 @@ export default function ChatContainer({
       content: prompt,
       timestamp: now,
     });
-    await startOwleryChat(conversation.id, prompt, { teammateMode });
+    await startOwleryChat(conversation.id, prompt);
   }
 
-  const isSquad = chatMode === 'squad';
   const isAuto = chatMode === 'auto';
 
   return (
@@ -135,7 +134,7 @@ export default function ChatContainer({
       <AnimatePresence>
         {showUpgradeBar && (
           <UpgradeBar
-            onConfirm={() => { setShowUpgradeBar(false); setChatMode('squad'); }}
+            onConfirm={() => { setShowUpgradeBar(false); setChatMode('chat'); }}
             onDismiss={() => setShowUpgradeBar(false)}
           />
         )}
@@ -166,6 +165,7 @@ export default function ChatContainer({
               conversationId={currentConversation.id}
               mode={chatMode}
               teammateMode={currentConversation.teammateMode}
+              teamTemplateId={currentConversation.teamTemplateId}
               onTitleChange={setDynamicTitle}
             />
           ) : (
@@ -175,7 +175,7 @@ export default function ChatContainer({
 
         {/* 浮动抽屉：任务看板 / 执行日志 */}
         <AnimatePresence>
-          {taskBoardOpen && isSquad && (
+          {taskBoardOpen && !isAuto && (
             <motion.div
               key="task-board"
               initial={{ x: '100%', opacity: 0 }}
@@ -199,19 +199,6 @@ export default function ChatContainer({
               style={{ background: 'var(--panel-bg-solid)', borderLeft: '1px solid var(--border-subtle)' }}
             >
               <ExecutionLog />
-            </motion.div>
-          )}
-          {taskBoardOpen && !isSquad && !isAuto && (
-            <motion.div
-              key="task-board-single"
-              initial={{ x: '100%', opacity: 0 }}
-              animate={{ x: 0, opacity: 1 }}
-              exit={{ x: '100%', opacity: 0 }}
-              transition={{ type: 'spring', stiffness: 260, damping: 28, delay: 0.08 }}
-              className="absolute right-0 top-0 bottom-0 z-30 w-full md:w-[60%] min-w-[320px] overflow-hidden"
-              style={{ background: 'var(--panel-bg-solid)', borderLeft: '1px solid var(--border-subtle)' }}
-            >
-              <TaskBoard />
             </motion.div>
           )}
         </AnimatePresence>

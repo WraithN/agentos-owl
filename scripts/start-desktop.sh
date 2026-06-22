@@ -30,6 +30,29 @@ fi
 
 cd "${ROOT_DIR}"
 
+cleanup_old_processes() {
+  echo "[INFO] stopping existing OwlOS desktop dev processes..."
+  local patterns=(
+    "${ROOT_DIR}/apps/desktop/dist/main/main.cjs"
+    "tsx.*scripts/dev.ts"
+    "pnpm.*@owl-os/desktop.*dev"
+  )
+  for pattern in "${patterns[@]}"; do
+    pkill -f "${pattern}" 2>/dev/null || true
+  done
+  if command -v ss >/dev/null 2>&1; then
+    local port_pids
+    port_pids="$(ss -ltnp 'sport = :8765' 2>/dev/null | grep -oE 'pid=[0-9]+' | cut -d= -f2 | sort -u || true)"
+    if [[ -n "${port_pids}" ]]; then
+      echo "[INFO] freeing Owlery WebSocket port 8765: ${port_pids}"
+      kill ${port_pids} 2>/dev/null || true
+    fi
+  fi
+  sleep 1
+}
+
+cleanup_old_processes
+
 # 开启 Electron 详细日志，便于排查启动问题
 export ELECTRON_ENABLE_LOGGING=1
 

@@ -6,6 +6,8 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { getTeammateStatus, onAgentStatus } from '@/services/electron';
 import { cn } from '@/lib/utils';
 
+const OWLERY_STATUS_EVENT = 'owlery:teammate-status';
+
 const STATUS_META: Record<AgentWorkStatus, { label: string; className: string }> = {
   not_started: { label: '未开始', className: 'bg-slate-500' },
   in_progress: { label: '工作中', className: 'bg-amber-400' },
@@ -44,12 +46,19 @@ export default function ChatHeader({
       .catch(() => {
         if (!disposed) setTeammateStatus(null);
       });
+    const handleWebSocketStatus = (event: Event) => {
+      const detail = (event as CustomEvent<{ sessionId: string; status: TeammateStatus }>).detail;
+      if (detail.sessionId !== currentId) return;
+      setTeammateStatus(detail.status);
+    };
+    window.addEventListener(OWLERY_STATUS_EVENT, handleWebSocketStatus);
     const unsubscribe = onAgentStatus((wrapper) => {
       if (wrapper.sessionId !== currentId) return;
       setTeammateStatus(wrapper.status);
     });
     return () => {
       disposed = true;
+      window.removeEventListener(OWLERY_STATUS_EVENT, handleWebSocketStatus);
       unsubscribe();
     };
   }, [currentId]);

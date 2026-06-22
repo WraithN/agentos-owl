@@ -33,14 +33,27 @@ async function collect(driver: PiAgentDriver) {
 describe("PiAgentDriver", () => {
   it("maps pi message updates to text deltas", async () => {
     const driver = new PiAgentDriver(new FakePiAgent([
-      { type: "message_update", message: { content: "hel" } },
-      { type: "message_update", message: { content: "hello" } },
+      { type: "message_update", assistantMessageEvent: {}, message: { role: "assistant", content: "hel" } },
+      { type: "message_update", assistantMessageEvent: {}, message: { role: "assistant", content: "hello" } },
       { type: "agent_end" },
     ]));
 
     await expect(collect(driver)).resolves.toEqual([
       { type: "text_delta", text: "hel" },
       { type: "text_delta", text: "lo" },
+      { type: "done" },
+    ]);
+  });
+
+  it("ignores user/prompt message events", async () => {
+    const driver = new PiAgentDriver(new FakePiAgent([
+      { type: "message_end", message: { role: "user", content: "user prompt" } },
+      { type: "message_update", assistantMessageEvent: {}, message: { role: "assistant", content: "hi" } },
+      { type: "agent_end" },
+    ]));
+
+    await expect(collect(driver)).resolves.toEqual([
+      { type: "text_delta", text: "hi" },
       { type: "done" },
     ]);
   });

@@ -1,25 +1,23 @@
 /* 空状态页面 */
 import { motion } from 'framer-motion';
-import type { TeammateMode } from '@/types';
 
 interface QuickAction {
   label: string;
   emoji: string;
   prompt: string;
-  teammateMode: TeammateMode;
 }
 
 const QUICK_ACTIONS: QuickAction[] = [
-  { label: '分析数据', emoji: '📊', prompt: '帮我分析用户增长数据，找出关键漏斗瓶颈', teammateMode: 'brainstorm' },
-  { label: '生成代码', emoji: '⚡', prompt: '帮我生成一个 React 拖拽排序组件', teammateMode: 'pipeline' },
-  { label: '撰写文档', emoji: '📝', prompt: '帮我撰写一份产品需求文档', teammateMode: 'supervisor' },
-  { label: '竞品监控', emoji: '🔍', prompt: '运行每日竞品监控，分析竞品最新动态', teammateMode: 'hierarchy' },
+  { label: '分析数据', emoji: '📊', prompt: '帮我分析用户增长数据，找出关键漏斗瓶颈' },
+  { label: '生成代码', emoji: '⚡', prompt: '帮我生成一个 React 拖拽排序组件' },
+  { label: '撰写文档', emoji: '📝', prompt: '帮我撰写一份产品需求文档' },
+  { label: '竞品监控', emoji: '🔍', prompt: '运行每日竞品监控，分析竞品最新动态' },
 ];
 
 export default function EmptyState({
   onQuickAction,
 }: {
-  onQuickAction: (text: string, teammateMode: TeammateMode) => void;
+  onQuickAction: (text: string) => void;
 }) {
   return (
     <div className="flex-1 flex flex-col items-center justify-center gap-8 px-6 py-12 overflow-y-auto">
@@ -57,7 +55,7 @@ export default function EmptyState({
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: i * 0.08 }}
-            onClick={() => onQuickAction(action.prompt, action.teammateMode)}
+            onClick={() => onQuickAction(action.prompt)}
             className="glass glass-hover flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all duration-200"
           >
             <span className="text-xl">{action.emoji}</span>

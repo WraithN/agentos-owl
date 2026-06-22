@@ -59,7 +59,9 @@ CREATE TABLE IF NOT EXISTS agents (
 CREATE TABLE IF NOT EXISTS conversations (
     id TEXT PRIMARY KEY,
     title TEXT NOT NULL,
-    mode TEXT NOT NULL DEFAULT 'single',
+    mode TEXT NOT NULL DEFAULT 'chat',
+    teammate_mode TEXT,
+    team_template_id TEXT,
     last_message TEXT NOT NULL DEFAULT '',
     last_time INTEGER NOT NULL,
     unread INTEGER NOT NULL DEFAULT 0,

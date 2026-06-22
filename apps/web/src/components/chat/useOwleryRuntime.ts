@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { generateId, useExternalStoreRuntime, type AppendMessage, type MessageStatus, type ThreadMessageLike } from '@assistant-ui/react';
-import type { AgentDriverChunk } from '@owl-os/core';
+import type { AgentDriverChunk, TeammateStatus } from '@owl-os/core';
 import { toast } from 'sonner';
+import { WebSocketClient } from '@/services/websocket';
 import {
   activateOwlerySession,
   getOwleryBufferedOutput,
@@ -15,8 +16,14 @@ import type { AppMode, Conversation, Message, MessageType, TeammateMode } from '
 
 const TITLE_MAX_LENGTH = 20;
 const LAST_MESSAGE_MAX_LENGTH = 80;
+const OWLERY_STATUS_EVENT = 'owlery:teammate-status';
+const SESSION_STREAM = 'session';
 
 type ThreadContentPart = any;
+
+function dispatchTeammateStatus(sessionId: string, status: TeammateStatus): void {
+  window.dispatchEvent(new CustomEvent(OWLERY_STATUS_EVENT, { detail: { sessionId, status } }));
+}
 
 function buildCompleteStatus(): MessageStatus {
   return { type: 'complete', reason: 'stop' };
@@ -148,14 +155,18 @@ function buildAssistantFromChunks(id: string, chunks: AgentDriverChunk[]): Threa
 
 export function useOwleryRuntime(
   conversationId: string,
-  mode: AppMode = 'single',
+  mode: AppMode = 'chat',
   teammateMode?: TeammateMode,
+  teamTemplateId?: string,
 ) {
   const [messages, setMessages] = useState<ThreadMessageLike[]>([]);
   const [isRunning, setIsRunning] = useState(false);
   const assistantIdRef = useRef<string | null>(null);
   const assistantTextRef = useRef('');
   const assistantPartsRef = useRef<ThreadContentPart[]>([]);
+  const webSocketClientRef = useRef<WebSocketClient | null>(null);
+  const webSocketAvailableRef = useRef(true);
+  const activeTransportRef = useRef<'websocket' | 'ipc'>('ipc');
 
   const conversationTitle = (() => {
     const firstUser = messages.find((message) => message.role === 'user');
@@ -164,48 +175,61 @@ export function useOwleryRuntime(
     const text = typeof content === 'string' ? content : content.find((part) => part.type === 'text')?.text ?? '';
     return text.length <= TITLE_MAX_LENGTH ? text : `${text.slice(0, TITLE_MAX_LENGTH)}…`;
   })();
+  const conversationTitleRef = useRef(conversationTitle);
+  conversationTitleRef.current = conversationTitle;
 
   const applyChunk = useCallback((chunk: AgentDriverChunk) => {
+    if (chunk.type === 'done' && !assistantIdRef.current) {
+      setIsRunning(false);
+      return;
+    }
+
     if (!assistantIdRef.current) {
       assistantIdRef.current = generateId();
       assistantTextRef.current = '';
-      assistantPartsRef.current = [{ type: 'text', text: '' } as ThreadContentPart];
+      assistantPartsRef.current = [];
       setMessages((prev) => [...prev, {
         id: assistantIdRef.current,
         role: 'assistant',
-        content: [{ type: 'text', text: '' } as ThreadContentPart],
+        content: [],
         createdAt: new Date(),
         status: buildRunningStatus(),
       } as ThreadMessageLike]);
     }
 
     const id = assistantIdRef.current;
+    if (!id) return;
     if (chunk.type === 'text_delta') {
-      assistantTextRef.current += chunk.text;
-      assistantPartsRef.current = upsertTextPart(assistantPartsRef.current, assistantTextRef.current);
+      const nextText = assistantTextRef.current + chunk.text;
+      const nextParts = upsertTextPart(assistantPartsRef.current, nextText);
+      assistantTextRef.current = nextText;
+      assistantPartsRef.current = nextParts;
+      // 将新内容捕获到闭包变量，避免 React 批量执行 updater 时引用已被后续 chunk 重置。
       setMessages((prev) => prev.map((message) => message.id === id ? {
         ...message,
-        content: assistantPartsRef.current,
+        content: nextParts,
         status: buildRunningStatus(),
       } as ThreadMessageLike : message));
       return;
     }
 
     if (chunk.type === 'reasoning_delta') {
-      assistantPartsRef.current = upsertReasoningPart(assistantPartsRef.current, chunk.text);
+      const nextParts = upsertReasoningPart(assistantPartsRef.current, chunk.text);
+      assistantPartsRef.current = nextParts;
       setMessages((prev) => prev.map((message) => message.id === id ? {
         ...message,
-        content: assistantPartsRef.current,
+        content: nextParts,
         status: buildRunningStatus(),
       } as ThreadMessageLike : message));
       return;
     }
 
     if (chunk.type === 'tool_event') {
-      assistantPartsRef.current = upsertToolPart(assistantPartsRef.current, chunk.event);
+      const nextParts = upsertToolPart(assistantPartsRef.current, chunk.event);
+      assistantPartsRef.current = nextParts;
       setMessages((prev) => prev.map((message) => message.id === id ? {
         ...message,
-        content: assistantPartsRef.current,
+        content: nextParts,
         status: buildRunningStatus(),
       } as ThreadMessageLike : message));
       return;
@@ -213,28 +237,35 @@ export function useOwleryRuntime(
 
     if (chunk.type === 'error') {
       setIsRunning(false);
-      assistantPartsRef.current = upsertTextPart(assistantPartsRef.current, assistantTextRef.current || chunk.error);
+      const nextParts = upsertTextPart(assistantPartsRef.current, assistantTextRef.current || chunk.error);
+      assistantPartsRef.current = nextParts;
       setMessages((prev) => prev.map((message) => message.id === id ? {
         ...message,
-        content: assistantPartsRef.current,
+        content: nextParts,
         status: buildErrorStatus(chunk.error),
       } as ThreadMessageLike : message));
       assistantIdRef.current = null;
+      assistantTextRef.current = '';
+      assistantPartsRef.current = [];
       return;
     }
 
     if (chunk.type === 'done') {
       setIsRunning(false);
       setMessages((prev) => prev.map((message) => message.id === id ? { ...message, status: buildCompleteStatus() } as ThreadMessageLike : message));
-      if (assistantTextRef.current.trim() || assistantPartsRef.current.length > 0) {
-        saveConversation(buildConversationUpdate(conversationId, conversationTitle, mode, assistantTextRef.current))
-          .then(() => saveMessage(buildPersistedMessage({ id, conversationId, type: 'agent', content: assistantTextRef.current, meta: { contentParts: assistantPartsRef.current } })))
+      // 在重置引用前先捕获最终内容，避免异步 save 回调执行时引用已被清空导致保存空内容。
+      const finalText = assistantTextRef.current;
+      const finalParts = assistantPartsRef.current;
+      if (finalText.trim() || finalParts.length > 0) {
+        saveConversation(buildConversationUpdate(conversationId, conversationTitleRef.current, mode, finalText))
+          .then(() => saveMessage(buildPersistedMessage({ id, conversationId, type: 'agent', content: finalText, meta: { contentParts: finalParts } })))
           .catch((error: unknown) => console.error('保存 Owlery 助手消息失败:', error));
       }
       assistantIdRef.current = null;
       assistantPartsRef.current = [];
+      assistantTextRef.current = '';
     }
-  }, [conversationId, conversationTitle, mode]);
+  }, [conversationId, mode]);
 
   useEffect(() => {
     let mounted = true;
@@ -258,14 +289,27 @@ export function useOwleryRuntime(
       })
       .catch((error: unknown) => console.error('加载 Owlery 会话失败:', error));
 
+    activeTransportRef.current = 'ipc';
+    webSocketAvailableRef.current = true;
+    webSocketClientRef.current = new WebSocketClient({
+      sessionId: conversationId,
+      onChunk: applyChunk,
+      onStatus: (status) => dispatchTeammateStatus(conversationId, status),
+      onError: (_error, streamType) => {
+        if (streamType === SESSION_STREAM) webSocketAvailableRef.current = false;
+      },
+    });
+
     const unsubscribe = onOwleryChunk(({ sessionId, chunk }) => {
-      if (sessionId !== conversationId) return;
+      if (sessionId !== conversationId || activeTransportRef.current !== 'ipc') return;
       applyChunk(chunk);
     });
 
     return () => {
       mounted = false;
       unsubscribe();
+      webSocketClientRef.current?.close();
+      webSocketClientRef.current = null;
     };
   }, [conversationId, applyChunk]);
 
@@ -281,12 +325,16 @@ export function useOwleryRuntime(
     try {
       await saveConversation(buildConversationUpdate(conversationId, conversationTitle === '新对话' ? text.slice(0, TITLE_MAX_LENGTH) : conversationTitle, mode, text));
       await saveMessage(buildPersistedMessage({ id: userId, conversationId, type: 'user', content: text }));
-      await startOwleryChat(conversationId, text, { teammateMode });
+      const webSocketSent = webSocketClientRef.current?.isSessionReady() === true
+        ? webSocketClientRef.current.sendChat(text, { teammateMode, teamTemplateId })
+        : false;
+      activeTransportRef.current = webSocketSent ? 'websocket' : 'ipc';
+      if (!webSocketSent) await startOwleryChat(conversationId, text, { teammateMode, teamTemplateId });
     } catch (error) {
       setIsRunning(false);
       toast.error(`发送失败：${error instanceof Error ? error.message : String(error)}`);
     }
-  }, [conversationId, conversationTitle, mode]);
+  }, [conversationId, conversationTitle, mode, teammateMode, teamTemplateId]);
 
   const regenerateFromMessage = useCallback((_messageId: string) => {
     toast.info('Owlery 重新生成能力即将接入');

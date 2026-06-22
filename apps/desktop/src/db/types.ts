@@ -34,6 +34,8 @@ export interface Conversation {
   id: string;
   title: string;
   mode: string;
+  teammateMode?: string;
+  teamTemplateId?: string;
   lastMessage: string;
   lastTime: number;
   unread: number;

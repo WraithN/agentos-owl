@@ -4,8 +4,10 @@ import { AsyncQueue } from "./AsyncQueue.js";
 type PiAgentEvent = {
   type?: string;
   message?: {
+    role?: string;
     content?: string | Array<{ type?: string; text?: string; thinking?: string }>;
   };
+  assistantMessageEvent?: unknown;
   [key: string]: unknown;
 };
 
@@ -34,10 +36,12 @@ function formatMessagePayload(payload: unknown): string {
 
 export class DefaultPromptCompiler implements PromptCompiler {
   compile(input: AgentDriverInput): string {
-    const messages = input.messages.map((message) => formatMessagePayload(message.payload)).join("\n\n");
+    const userMessage = input.messages.map((message) => formatMessagePayload(message.payload)).join("\n\n");
     // systemPrompt 已由 createPlainAgent 设置到 Agent 的 initialState，
     // 这里不再重复拼接，避免 system prompt 在 user turn 中出现两次。
-    return [messages, input.context ? JSON.stringify(input.context) : undefined]
+    // 不添加显式 User/Assistant 角色标记，交给 pi-agent-core 的 Agent 自行处理角色；
+    // 显式标记容易让某些模型在回复里复述用户输入，造成“AI 重复展示用户内容”。
+    return [userMessage, input.context ? JSON.stringify(input.context) : undefined]
       .filter((part): part is string => Boolean(part))
       .join("\n\n");
   }
@@ -96,6 +100,10 @@ function mapPiEventToDriverChunk(event: PiAgentEvent, state: { lastText: string;
     return { type: "tool_event", event };
   }
   if (event.type !== "message_update" && event.type !== "message_end") return null;
+  // 只处理助手（assistant）消息的内容更新；用户/系统消息的事件（如 prompt 的 message_end）
+  // 会被 Agent 库作为对话历史重新抛出，若误当成助手输出会导致 AI 复述用户输入。
+  if (event.type === "message_update" && event.assistantMessageEvent === undefined) return null;
+  if (event.type === "message_end" && event.message?.role !== "assistant") return null;
   const text = extractContent(event.message?.content, "text");
   if (text.length > state.lastText.length) {
     return { type: "text_delta", text: text.slice(state.lastText.length) };

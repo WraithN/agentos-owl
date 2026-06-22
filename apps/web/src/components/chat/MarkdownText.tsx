@@ -388,7 +388,7 @@ function FormattedCodeBlock({ data }: { data: Extract<MarkdownPart, { type: 'cod
     <div className="my-3 overflow-hidden rounded-xl border border-border/60 bg-background/70 shadow-sm">
       <div className="flex items-center justify-between gap-3 border-b border-border/50 bg-muted/60 px-3 py-2">
         <div className="flex min-w-0 items-center gap-2">
-          <span className="rounded-md border border-cyan-500/25 bg-cyan-500/15 px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-widest text-cyan-400">
+          <span className="rounded-md border border-cyan-500/25 bg-cyan-500/15 px-2 py-0.5 font-mono text-xs font-bold uppercase tracking-widest text-cyan-400">
             {data.language}
           </span>
           {data.filename && <span className="truncate font-mono text-xs text-muted-foreground">{data.filename}</span>}
@@ -417,7 +417,7 @@ function FormattedCodeBlock({ data }: { data: Extract<MarkdownPart, { type: 'cod
           </Button>
         </div>
       </div>
-      <pre className="max-w-full overflow-x-auto p-3 font-mono text-xs leading-relaxed text-slate-200">
+      <pre className="max-w-full overflow-x-auto p-3 font-mono text-sm leading-relaxed text-slate-200">
         {highlightCode(visibleCode, data.language)}
       </pre>
       {isHtml && (

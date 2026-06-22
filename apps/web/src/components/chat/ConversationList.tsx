@@ -1,6 +1,6 @@
 /* 会话列表侧栏 */
 import { useState, useEffect } from 'react';
-import { Plus, Search, Pin, Archive, Trash2, Users, Bot, Zap } from 'lucide-react';
+import { Plus, Search, Pin, Archive, Trash2, Bot, Zap } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { useApp } from '@/contexts/AppContext';
@@ -17,7 +17,6 @@ function timeShort(date: Date) {
 }
 
 function ModeIcon({ mode }: { mode: string }) {
-  if (mode === 'squad') return <Users className="w-3 h-3 text-purple-400 shrink-0" />;
   if (mode === 'auto') return <Zap className="w-3 h-3 text-cyan-400 shrink-0" />;
   return <Bot className="w-3 h-3 text-slate-400 shrink-0" />;
 }
@@ -116,7 +115,7 @@ function ConvItem({
       {/* 模式图标 */}
       <div className={cn(
         'w-8 h-8 rounded-lg flex items-center justify-center shrink-0 mt-0.5',
-        conv.mode === 'squad' ? 'bg-purple-500/20' : conv.mode === 'auto' ? 'bg-cyan-500/20' : 'bg-slate-700/50'
+        conv.mode === 'auto' ? 'bg-cyan-500/20' : 'bg-slate-700/50'
       )}>
         <ModeIcon mode={conv.mode} />
       </div>

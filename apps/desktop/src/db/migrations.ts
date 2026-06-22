@@ -10,6 +10,8 @@ import { setSecret } from "../secure.js";
  */
 export function runMigrations(db: Database.Database): void {
   ensureWorkflowColumns(db);
+  ensureConversationTeammateMode(db);
+  ensureConversationTeamTemplateId(db);
   purgeLegacyWorkflowData(db);
   ensureLogTables(db);
   ensureSessionLogDetailPath(db);
@@ -19,7 +21,7 @@ export function runMigrations(db: Database.Database): void {
   importDeepSeekConfig(db);
   purgeSeedConversations(db);
   purgeMockLogs(db);
-  bumpSchemaVersion(db, 6);
+  bumpSchemaVersion(db, 7);
 }
 
 /**
@@ -89,6 +91,20 @@ function ensureSessionLogDetailPath(db: Database.Database): void {
   const cols = tableColumns(db, "session_logs");
   if (!cols.has("detail_path")) {
     db.exec("ALTER TABLE session_logs ADD COLUMN detail_path TEXT");
+  }
+}
+
+function ensureConversationTeammateMode(db: Database.Database): void {
+  const cols = tableColumns(db, "conversations");
+  if (!cols.has("teammate_mode")) {
+    db.exec("ALTER TABLE conversations ADD COLUMN teammate_mode TEXT");
+  }
+}
+
+function ensureConversationTeamTemplateId(db: Database.Database): void {
+  const cols = tableColumns(db, "conversations");
+  if (!cols.has("team_template_id")) {
+    db.exec("ALTER TABLE conversations ADD COLUMN team_template_id TEXT");
   }
 }
 

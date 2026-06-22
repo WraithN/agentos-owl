@@ -269,6 +269,14 @@ describe("Owlery", () => {
     expect(chunks).toEqual([{ type: "text_delta", text: "hello" }, { type: "done" }]);
     expect(owlery.getBufferedOutput("session-a")).toEqual(chunks);
   });
+
+  it("startChat passes preferred teammate mode into recruitment", async () => {
+    const owlery = new Owlery({ agentFactory: createFactory(), modeEvaluator: async () => "pipeline" });
+    owlery.startChat({ sessionId: "session-a", userMessage: "头脑风暴", teammateMode: "brainstorm" });
+    await wait(20);
+
+    expect(owlery.getTeammateStatus("session-a").mode).toBe("brainstorm");
+  });
 });
 
 describe("MessageBox", () => {
@@ -291,6 +299,28 @@ describe("MessageBox", () => {
     expect(received).toHaveLength(1);
     expect(received[0]?.from).toBe("elder");
     await expect(box.send(channel.id, "worker", received[0]!)).rejects.toThrow("Sender is not a channel endpoint");
+  });
+
+  it("delivers messages to subscribers until unsubscribed", async () => {
+    const box = new MessageBox();
+    const channel = box.createChannel({ sessionId: "s", endpointA: "elder", endpointB: "sentinel" });
+    const received: unknown[] = [];
+    const unsubscribe = box.subscribe(channel.id, "sentinel", (message) => received.push(message.payload));
+
+    const message: AgentMessage = {
+      id: "m1",
+      from: "elder",
+      to: "sentinel",
+      sessionId: "s",
+      kind: "request",
+      payload: { hello: true },
+      createdAt: 1,
+    };
+    await box.send(channel.id, "elder", message);
+    unsubscribe();
+    await box.send(channel.id, "elder", { ...message, id: "m2" });
+
+    expect(received).toEqual([{ hello: true }]);
   });
 });
 

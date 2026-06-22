@@ -14,6 +14,7 @@ export interface ChatLoopInput {
   sessionId: SessionId;
   userMessage: string;
   context?: unknown;
+  teammateMode?: TeammateMode;
 }
 
 export interface SessionSlot {
@@ -355,11 +356,12 @@ export class Owlery {
   private async runSession(slot: SessionSlot, input: ChatLoopInput): Promise<void> {
     slot.runStatus = "running";
     slot.lastError = undefined;
-    if (!slot.teammates) {
+    if (!slot.teammates || (input.teammateMode && slot.teammates.mode !== input.teammateMode)) {
       await this.recruitForSession({
         sessionId: input.sessionId,
         userPrompt: input.userMessage,
         conversationContext: { messages: [] },
+        userPreferredMode: input.teammateMode,
       });
     }
     slot.crystalBall.updateStatus(slot.elder.id, "in_progress", input.userMessage);
@@ -390,6 +392,7 @@ export class Owlery {
         return;
       }
 
+      let receivedDone = false;
       for await (const chunk of slot.elder.streamChat({ sessionId: input.sessionId, messages: [message], context: input.context })) {
         this.publishChunk(slot, chunk);
         if (chunk.type === "error") {
@@ -397,11 +400,14 @@ export class Owlery {
           slot.lastError = chunk.error;
           slot.crystalBall.updateStatus(slot.elder.id, "failed", chunk.error);
         }
+        if (chunk.type === "done") receivedDone = true;
       }
       if (slot.runStatus === "running") {
         slot.runStatus = "completed";
         slot.crystalBall.updateStatus(slot.elder.id, "completed");
       }
+      // 部分 Driver 在流结束后不会主动发送 done，统一补发完成信号，避免前端一直停留在“思考中”
+      if (!receivedDone) this.publishChunk(slot, { type: "done" });
     } catch (error) {
       const messageText = error instanceof Error ? error.message : String(error);
       const chunk: AgentDriverChunk = { type: "error", error: messageText };

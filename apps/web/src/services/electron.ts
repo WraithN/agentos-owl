@@ -82,9 +82,15 @@ export const deleteAgent = (id: string) => invoke<void>('delete_agent', id);
 
 // ===== Conversations =====
 
+function normalizeMode(mode: string): Conversation['mode'] {
+  // 旧数据中的 single/squad 统一映射为新的统一对话模式
+  return mode === 'auto' ? 'auto' : 'chat';
+}
+
 function convFromBackend(c: Conversation): Conversation {
   return {
     ...c,
+    mode: normalizeMode(c.mode),
     lastTime: toDate(c.lastTime) ?? new Date(),
     createdAt: toDate(c.createdAt) ?? new Date(),
     updatedAt: toDate(c.updatedAt) ?? new Date(),
@@ -543,12 +549,13 @@ export const activateOwlerySession = (sessionId: string) =>
 export const startOwleryChat = (
   sessionId: string,
   text: string,
-  options?: { teammateMode?: TeammateMode },
+  options?: { teammateMode?: TeammateMode; teamTemplateId?: string },
 ) =>
   invoke<{ ok: boolean }>('owlery:start_chat', {
     sessionId,
     text,
     teammateMode: options?.teammateMode,
+    teamTemplateId: options?.teamTemplateId,
   });
 export const getOwleryBufferedOutput = (sessionId: string) =>
   invoke<AgentDriverChunk[]>('owlery:get_buffered_output', { sessionId });

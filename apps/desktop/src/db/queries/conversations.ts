@@ -3,7 +3,7 @@ import type { Conversation } from "../types.js";
 import { fromJson, toJson } from "./_json.js";
 
 const selectColumns = `
-  SELECT id, title, mode, last_message, last_time, unread, agent_ids_json, pinned, created_at, updated_at
+  SELECT id, title, mode, teammate_mode, team_template_id, last_message, last_time, unread, agent_ids_json, pinned, created_at, updated_at
   FROM conversations
 `;
 
@@ -29,16 +29,20 @@ export function upsertConversation(
   conv: Conversation
 ): void {
   db.prepare(
-    `INSERT INTO conversations (id, title, mode, last_message, last_time, unread, agent_ids_json, pinned, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `INSERT INTO conversations (id, title, mode, teammate_mode, team_template_id, last_message, last_time, unread, agent_ids_json, pinned, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
      ON CONFLICT(id) DO UPDATE SET
-        title = excluded.title, mode = excluded.mode, last_message = excluded.last_message,
-        last_time = excluded.last_time, unread = excluded.unread, agent_ids_json = excluded.agent_ids_json,
-        pinned = excluded.pinned, updated_at = excluded.updated_at`
+        title = excluded.title, mode = excluded.mode, teammate_mode = excluded.teammate_mode,
+        team_template_id = excluded.team_template_id, last_message = excluded.last_message,
+        last_time = excluded.last_time, unread = excluded.unread,
+        agent_ids_json = excluded.agent_ids_json, pinned = excluded.pinned,
+        updated_at = excluded.updated_at`
   ).run(
     conv.id,
     conv.title,
     conv.mode,
+    conv.teammateMode ?? null,
+    conv.teamTemplateId ?? null,
     conv.lastMessage,
     conv.lastTime,
     conv.unread,
@@ -58,6 +62,8 @@ function mapConversation(row: Record<string, unknown>): Conversation {
     id: String(row.id),
     title: String(row.title),
     mode: String(row.mode),
+    teammateMode: row.teammate_mode ? String(row.teammate_mode) : undefined,
+    teamTemplateId: row.team_template_id ? String(row.team_template_id) : undefined,
     lastMessage: String(row.last_message),
     lastTime: Number(row.last_time),
     unread: Number(row.unread),
