@@ -211,6 +211,22 @@
 2. **当前工作区存在大量 `.skills/` 删除记录**，建议在开始功能开发前先处理这些未跟踪/已删除文件，避免提交时混入无关变更。
 
 
+## 十一、[2026-06-21] 统一对话入口 + 动态团队招募
+
+- [x] Task 1：创建 Sentinel prompt 占位文件 — 状态：`COMPLETED`
+- [x] Task 2：扩展 AgentTitle 为字符串类型 — 状态：`COMPLETED`
+- [x] Task 3：给 Elder/Sentinel 添加 recruit_sentinel / recruit_workers 工具 — 状态：`COMPLETED`
+- [x] Task 4：更新 boss_agent.md 增加工具说明 — 状态：`COMPLETED`
+- [x] Task 5：更新运行时类型与控制命令 — 状态：`COMPLETED`
+- [x] Task 6：重构 SessionRuntime 支持动态招募 — 状态：`COMPLETED`
+- [x] Task 7：主线程 Owlery 透传 teamTemplateId — 状态：`COMPLETED`
+- [x] Task 8：IPC 回退路径同步更新 — 状态：`COMPLETED`
+- [x] Task 9：前端移除 single/squad 视觉区分 — 状态：`COMPLETED`
+- [x] Task 10：前端输入框增加团队选择按钮 — 状态：`COMPLETED`
+- [x] Task 11：全量验证（lint / typecheck / test / build） — 状态：`COMPLETED`
+
+---
+
 ## 十、[2026-06-19] Owlery 会话/状态链路 Review 后续
 
 > 本次 review 覆盖 `webui → Elder → … → teammate` 会话链路、`teammate → CrystalBall → webui` 状态链路以及前端 `ChatModule` 信息流处理。以下问题需在后续迭代中跟进。
@@ -219,7 +235,7 @@
 
 | # | 功能点 | 现状 | 问题/差距 | 预期交付 | 负责文件 |
 |---|--------|------|-----------|----------|----------|
-| P0-9 | 前端模式 → 后端 TeammateMode 映射 | `AppMode='single\|squad\|auto'`，后端 `TeammateMode='pipeline\|brainstorm\|supervisor\|hierarchy'`，映射未定义 | 模式切换后 Owlery 无法按预期选择协作模式 | 在 `startOwleryChat` / `saveConversation` 中传递模式，并在 desktop 侧完成映射 | `apps/web/src/services/electron.ts`、`apps/desktop/src/ipc/owlery.ts`、`packages/core/src/owlery/Owlery.ts` |
+| P0-9 | 前端模式 → 后端 TeammateMode 映射 | `startOwleryChat` 已透传 `teammateMode`，`saveConversation` 已持久化 `teammate_mode`，desktop 侧校验后传入 Owlery，Owlery 按偏好模式招募团队 | 已完成；后续可扩展 AppMode → TeammateMode 默认映射策略 | 状态：`COMPLETED` | `apps/web/src/services/electron.ts`、`apps/desktop/src/ipc/owlery.ts`、`packages/core/src/owlery/Owlery.ts` |
 | P1-13 | 新建会话跟随当前模式 | `handleNewConv` 写死 `mode: 'single'`、`agentIds: ['boss_agent']` | 用户在 squad/auto 下新建会话仍被切回 single | 按当前 `chatMode` 创建会话，并允许传入团队模板 | `apps/web/src/components/chat/ChatContainer.tsx` |
 
 ### 10.2 招募与 Agent 调度（P1）

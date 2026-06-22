@@ -19,7 +19,7 @@
 | `apps/desktop/src/websocket/statusStream.ts` | Status Stream 协议处理 |
 | `apps/desktop/src/eventbus/EventBus.ts` | Owlery 与 SessionRuntime 内部通信总线 |
 | `apps/desktop/src/eventbus/types.ts` | ControlCommand / SessionRuntimeEvent 类型 |
-| `apps/desktop/src/runtime/SessionWorker.ts` | Worker Thread 入口 |
+| `apps/desktop/src/runtime/SessionThreadEntry.ts` | Worker Thread 入口 |
 | `apps/desktop/src/runtime/SessionRuntime.ts` | Worker Thread 内执行入口 |
 | `apps/desktop/src/runtime/AgentExecutor.ts` | Worker Thread 内 Agent 调度器 |
 | `apps/desktop/src/runtime/types.ts` | Runtime 内部类型 |
@@ -656,14 +656,14 @@ git commit -m "feat(desktop): add SessionRuntime skeleton"
 
 ---
 
-## Task 5: 创建 SessionWorker 入口
+## Task 5: 创建 SessionThreadEntry 入口
 
 **Files:**
-- Create: `apps/desktop/src/runtime/SessionWorker.ts`
+- Create: `apps/desktop/src/runtime/SessionThreadEntry.ts`
 
-### Step 5.1: 实现 SessionWorker
+### Step 5.1: 实现 SessionThreadEntry
 
-Create `apps/desktop/src/runtime/SessionWorker.ts`:
+Create `apps/desktop/src/runtime/SessionThreadEntry.ts`:
 
 ```ts
 import { parentPort } from "worker_threads";
@@ -690,7 +690,7 @@ parentPort?.once("message", (init: WorkerInitMessage) => {
 
 选择方案：**在 Worker 内静态构建 AgentFactory**。
 
-即 `SessionWorker.ts` 直接 import `owleryRuntime.ts` 中的 `AgentFactory` 配置，或复制一份配置到 Worker 入口。
+即 `SessionThreadEntry.ts` 直接 import `owleryRuntime.ts` 中的 `AgentFactory` 配置，或复制一份配置到 Worker 入口。
 
 ```ts
 import { AgentFactory, fixedNameGenerator } from "@owl-os/core";
@@ -730,8 +730,8 @@ Expected: No errors.
 ### Step 5.4: Commit
 
 ```bash
-git add apps/desktop/src/runtime/SessionWorker.ts
-git commit -m "feat(desktop): add SessionWorker entry point"
+git add apps/desktop/src/runtime/SessionThreadEntry.ts
+git commit -m "feat(desktop): add SessionThreadEntry entry point"
 ```
 
 ---
@@ -938,7 +938,7 @@ Expected: No errors.
 
 ```bash
 git add apps/desktop/src/owlery/SessionSlot.ts
-git commit -m "feat(desktop): add SessionSlot with Worker Thread management"
+git commit -m "feat(desktop): add SessionSlot with session thread management"
 ```
 
 ---
@@ -1021,7 +1021,7 @@ export class Owlery extends EventEmitter {
     this.webSocketServer.onMessage = (sessionId, streamType, message) => {
       this.handleFrontendMessage(sessionId, streamType, message);
     };
-    this.workerScriptPath = path.resolve(__dirname, "../runtime/SessionWorker.js");
+    this.workerScriptPath = path.resolve(__dirname, "../runtime/SessionThreadEntry.js");
   }
 
   async startChat(sessionId: string, userMessage: string, teammateMode?: string): Promise<void> {

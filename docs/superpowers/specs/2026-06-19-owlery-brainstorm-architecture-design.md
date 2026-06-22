@@ -465,7 +465,7 @@ ALTER TABLE conversations ADD COLUMN teammate_mode TEXT;
 
 | 阶段 | 目标 | 关键文件 |
 |------|------|----------|
-| **P1** | WebSocket 基础 + EventBus + Worker Thread 骨架 | `apps/desktop/src/websocket/*`、`EventBus.ts`、`sessionWorker.ts` |
+| **P1** | WebSocket 基础 + EventBus + Worker Thread 骨架 | `apps/desktop/src/websocket/*`、`EventBus.ts`、`SessionThreadEntry.ts` |
 | **P2** | SessionSlot + SessionRuntime + AgentExecutor | `SessionSlot.ts`、`SessionRuntime.ts`、`AgentExecutor.ts` |
 | **P3** | MessageBox 事件驱动改造 | `packages/core/src/owlery/MessageBox.ts` |
 | **P4** | recruit 工具实现 | `apps/desktop/src/agent/owleryRuntime.ts`、recruit tools |
