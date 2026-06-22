@@ -195,6 +195,7 @@ export default function ToolsModuleContainer() {
         content: p.content,
         official: p.official,
         tags: p.tags,
+        isFavorite: p.isFavorite,
         createdAt: existing?.createdAt,
       });
       setPrompts(prev => prev.map(x => (x.id === saved.id ? saved : x)));

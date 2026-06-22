@@ -395,7 +395,13 @@ export default function ToolsModule({ dataSource }: ToolsModuleProps = {}) {
                     key={p.id}
                     item={p}
                     onDelete={() => deletePrompt(p.id)}
-                    onFav={() => dataSource?.onToggleFavoritePrompt?.(p.id, !p.isFavorite)}
+                    onFav={() =>
+                      dataSource?.onToggleFavoritePrompt
+                        ? dataSource.onToggleFavoritePrompt(p.id, !p.isFavorite)
+                        : setLocalPrompts(prev =>
+                            prev.map(x => (x.id === p.id ? { ...x, isFavorite: !x.isFavorite } : x))
+                          )
+                    }
                     onSave={updatePrompt}
                     index={i}
                   />

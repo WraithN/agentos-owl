@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { BookOpen, Pencil, Bookmark, BookmarkIcon, Copy, Trash2 } from 'lucide-react';
+import { BookOpen, Pencil, Bookmark, Copy, Trash2 } from 'lucide-react';
 import { cn } from '@owl-os/core';
 import DeleteConfirmDialog from './DeleteConfirmDialog.js';
 import EditPromptDialog from './EditPromptDialog.js';
@@ -63,6 +63,7 @@ export default function PromptCard({
           {/* 常驻操作按钮 */}
           <div className="flex items-center gap-1 shrink-0" onClick={e => e.stopPropagation()}>
             <button
+              type="button"
               onClick={e => {
                 e.stopPropagation();
                 setEditOpen(true);
@@ -84,9 +85,10 @@ export default function PromptCard({
                 item.isFavorite ? 'text-amber-400 bg-amber-500/15' : 'text-slate-400 hover:text-amber-400 hover:bg-amber-500/10'
               )}
             >
-              {item.isFavorite ? <Bookmark className="w-3.5 h-3.5 fill-amber-400" /> : <BookmarkIcon className="w-3.5 h-3.5" />}
+              <Bookmark className={cn('w-3.5 h-3.5', item.isFavorite && 'fill-amber-400')} />
             </button>
             <button
+              type="button"
               onClick={copy}
               title={copied ? '已复制' : '复制提示词'}
               className={cn(
@@ -97,6 +99,7 @@ export default function PromptCard({
               <Copy className="w-3.5 h-3.5" />
             </button>
             <button
+              type="button"
               onClick={e => {
                 e.stopPropagation();
                 setConfirmDelete(true);
