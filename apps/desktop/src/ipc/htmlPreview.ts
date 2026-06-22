@@ -182,7 +182,7 @@ function readPreview(req: PreviewIdRequest) {
 async function saveAs(req: SaveAsRequest) {
   const result = await dialog.showSaveDialog({
     title: "保存 HTML 文件",
-    defaultPath: normalizeHtmlFileName(req.defaultName),
+    defaultPath: path.join(os.homedir(), "Downloads", normalizeHtmlFileName(req.defaultName)),
     filters: [TEXT_HTML_FILTER, { name: "All Files", extensions: ["*"] }],
   });
   if (result.canceled || !result.filePath) return { canceled: true };
