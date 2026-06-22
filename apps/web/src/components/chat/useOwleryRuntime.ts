@@ -316,6 +316,13 @@ export function useOwleryRuntime(
     if (chunk.type === 'done') {
       setIsRunning(false);
       setMessages((prev) => prev.map((message) => message.id === id ? { ...message, status: buildCompleteStatus() } as ThreadMessageLike : message));
+      // 会话完成后，将所有智能体（包括老板）标记为已完成
+      setAgentOutputs((prev) => Object.fromEntries(
+        Object.entries(prev).map(([agentId, agent]) => [
+          agentId,
+          { ...agent, statusText: agent.statusText || '已完成', chunks: [...agent.chunks, { type: 'done' } as AgentDriverChunk] },
+        ])
+      ));
       // 在重置引用前先捕获最终内容，避免异步 save 回调执行时引用已被清空导致保存空内容。
       const finalText = assistantTextRef.current;
       const finalParts = assistantPartsRef.current;

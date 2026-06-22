@@ -108,6 +108,7 @@ function createPreviewWindow(record: HtmlPreviewRecord): BrowserWindow {
     width: 1440,
     height: 900,
     title: "HTML 安全预览",
+    frame: false,
     webPreferences: {
       preload: path.join(__dirname, "preload.cjs"),
       contextIsolation: true,

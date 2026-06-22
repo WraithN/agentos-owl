@@ -36,6 +36,7 @@ import {
   Bug,
 } from 'lucide-react';
 import type { AppMode, TeammateMode } from '@/types';
+import type { TeammateStatus } from '@owl-os/core';
 import { Button } from '@/components/ui/button';
 import { MarkdownText } from './MarkdownText';
 import { useOwleryRuntime, type AgentOutput } from './useOwleryRuntime';
@@ -66,9 +67,12 @@ const MESSAGE_WIDTH_CLASS = 'w-[min(92ch,84%)]';
 interface WorkflowContextValue {
   agentOutputs: Record<string, AgentOutput>;
   isRunning: boolean;
+  teamStatus: TeammateStatus | null;
 }
 
-const WorkflowContext = createContext<WorkflowContextValue>({ agentOutputs: {}, isRunning: false });
+const WorkflowContext = createContext<WorkflowContextValue>({ agentOutputs: {}, isRunning: false, teamStatus: null });
+
+const OWLERY_STATUS_EVENT = 'owlery:teammate-status';
 
 function useWorkflowContext(): WorkflowContextValue {
   return useContext(WorkflowContext);
@@ -374,7 +378,7 @@ function MessageContent({
   showWorkflow?: boolean;
 }) {
   const [copied, setCopied] = useState(false);
-  const { agentOutputs, isRunning } = useWorkflowContext();
+  const { agentOutputs, isRunning, teamStatus } = useWorkflowContext();
   const mainText = getMainText(message);
   const reasoningText = getReasoningText(message);
   const toolParts = getToolParts(message);
@@ -397,7 +401,7 @@ function MessageContent({
   return (
     <div className={`group relative min-w-0 ${MESSAGE_WIDTH_CLASS}`}>
       {showThinking && <ThinkingIndicator />}
-      {showWorkflowPanel && <WorkflowPanel agentOutputs={agentOutputs} sessionId={sessionId} />}
+      {showWorkflowPanel && <WorkflowPanel agentOutputs={agentOutputs} teamStatus={teamStatus} sessionId={sessionId} />}
 
       {message.role !== 'user' && (reasoningText.trim() || toolParts.length > 0) && (
         <div className="my-1 space-y-1 py-1">
@@ -491,86 +495,170 @@ function MessageContent({
   );
 }
 
-function AgentCard({ agent, sessionId }: { agent: AgentOutput; sessionId: string }) {
+type AgentWorkStatusType = 'not_started' | 'in_progress' | 'completed' | 'failed' | 'cancelled';
+
+const WORK_STATUS_LABEL: Record<AgentWorkStatusType, string> = {
+  not_started: '未开始',
+  in_progress: '进行中',
+  completed: '已完成',
+  failed: '失败',
+  cancelled: '已取消',
+};
+
+interface MemberStatusLike {
+  status: AgentWorkStatusType;
+}
+
+function getAgentWorkStatus(
+  agent: AgentOutput,
+  memberStatus?: MemberStatusLike
+): { status: AgentWorkStatusType; label: string } {
+  if (memberStatus) {
+    return { status: memberStatus.status, label: WORK_STATUS_LABEL[memberStatus.status] };
+  }
+  if (agent.chunks.some((c) => c.type === 'error')) return { status: 'failed', label: '失败' };
+  if (agent.chunks.some((c) => c.type === 'done')) return { status: 'completed', label: '已完成' };
+  if (agent.chunks.length > 0 || agent.statusText) return { status: 'in_progress', label: agent.statusText || '进行中' };
+  return { status: 'not_started', label: '未开始' };
+}
+
+function AgentCard({
+  agent,
+  sessionId,
+  memberStatus,
+  variant = 'member',
+}: {
+  agent: AgentOutput;
+  sessionId: string;
+  memberStatus?: MemberStatusLike;
+  variant?: 'boss' | 'member';
+}) {
   const [open, setOpen] = useState(false);
   const text = agent.chunks.filter((c) => c.type === 'text_delta').map((c) => (c as { text: string }).text).join('');
   const reasoning = agent.chunks.filter((c) => c.type === 'reasoning_delta').map((c) => (c as { text: string }).text).join('');
   const tools = agent.chunks.filter((c) => c.type === 'tool_event').map((c) => eventToToolPart((c as { event: unknown }).event));
   const hasContent = text.trim() || reasoning.trim() || tools.length > 0;
-  const isFailed = agent.chunks.some((c) => c.type === 'error');
-  const isDone = agent.chunks.some((c) => c.type === 'done');
-  const isWorking = !isFailed && !isDone;
-  const fallbackLabel = isFailed ? '失败' : isDone ? '已完成' : '工作中';
+  const { status, label } = getAgentWorkStatus(agent, memberStatus);
+  const isFailed = status === 'failed';
+  const isDone = status === 'completed';
+  const isProcessing = status === 'in_progress';
+  const isNotStarted = status === 'not_started';
   const titleLabel = getAgentTitleLabel(agent.role, agent.title);
   const Icon = getAgentIcon(agent.role, agent.title);
   const gradient = getAgentGradient(agent.role, agent.title);
-  const isElder = agent.role === 'elder';
+  const isBoss = variant === 'boss';
 
   return (
-    <div className={`relative ${isElder ? 'pl-14' : 'pl-20'} mb-3 animate-fade-in`}>
-      <div className={`absolute top-0 ${isElder ? 'left-0' : 'left-6'} flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br ${gradient} text-white shadow-md shadow-black/10`}>
-        <Icon className="h-4 w-4" />
+    <div className={`relative ${isBoss ? 'pl-12' : 'pl-16'} mb-3 animate-fade-in`}>
+      <div className={`absolute top-0 ${isBoss ? 'left-0' : 'left-5'} flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br ${gradient} text-white shadow-md shadow-black/10`}>
+        <Icon className="h-3.5 w-3.5" />
       </div>
-      <div
-        className={`
-          rounded-xl px-4 py-3 transition-all duration-300
-          ${isWorking ? 'glass-l3 border-amber-500/40 animate-breath-glow' : isFailed ? 'glass-l3 border-destructive/40' : 'glass-l3 opacity-80'}
-          ${hasContent ? 'cursor-pointer hover:shadow-md' : ''}
-        `}
-      >
-        <button
-          type="button"
-          onClick={() => hasContent && setOpen((prev) => !prev)}
-          className="flex w-full items-center justify-between gap-2 text-left"
-        >
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="font-medium text-foreground">{titleLabel}：{agent.name}</span>
-            <span className={`text-sm ${isWorking ? 'font-medium text-amber-500' : 'text-muted-foreground'}`}>
-              {agent.statusText || fallbackLabel}
-            </span>
-          </div>
-          {hasContent && (open ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />)}
-        </button>
-        {open && hasContent && (
-          <div className="mt-3 space-y-2 border-t border-border/40 pt-2">
-            {reasoning.trim() && <ReasoningPanel text={reasoning} />}
-            {tools.length > 0 && <ToolLogPanel tools={tools} />}
-            {text.trim() && (
-              <div className="text-xs text-foreground">
-                <MarkdownText text={text} sessionId={sessionId} />
-              </div>
-            )}
-          </div>
+      <div className="relative">
+        {isProcessing && (
+          <div className="absolute -inset-[2px] rounded-xl bg-gradient-to-r from-green-400 to-cyan-400 opacity-30 blur-sm animate-agent-glow" />
         )}
+        <div
+          className={`
+            relative rounded-xl px-4 py-3 transition-all duration-300
+            ${isProcessing ? 'border border-green-400/30 bg-green-500/5' : isFailed ? 'glass-l3 border-destructive/40' : isDone ? 'border border-border/60 bg-background/50' : 'border border-border/40 glass-l3 opacity-75'}
+            ${hasContent ? 'cursor-pointer hover:shadow-md' : ''}
+          `}
+        >
+          <button
+            type="button"
+            onClick={() => hasContent && setOpen((prev) => !prev)}
+            className="flex w-full items-center justify-between gap-2 text-left"
+          >
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="font-medium text-foreground">{titleLabel}：{agent.name}</span>
+              <span className="flex items-center gap-1.5 text-sm">
+                <span
+                  className={`h-2 w-2 shrink-0 rounded-full ${
+                    isProcessing ? 'bg-green-500 animate-agent-dot-pulse' : isFailed ? 'bg-destructive' : isDone ? 'bg-green-500' : 'bg-muted-foreground'
+                  }`}
+                />
+                <span className={isProcessing ? 'font-medium text-green-500' : 'text-muted-foreground'}>{label}</span>
+              </span>
+            </div>
+            {hasContent && (open ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />)}
+          </button>
+          {open && hasContent && (
+            <div className="mt-3 space-y-2 border-t border-border/40 pt-2">
+              {reasoning.trim() && <ReasoningPanel text={reasoning} />}
+              {tools.length > 0 && <ToolLogPanel tools={tools} />}
+              {text.trim() && (
+                <div className="text-xs text-foreground">
+                  <MarkdownText text={text} sessionId={sessionId} />
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
 }
 
-function WorkflowPanel({ agentOutputs, sessionId }: { agentOutputs: Record<string, AgentOutput>; sessionId: string }) {
+function WorkflowPanel({
+  agentOutputs,
+  teamStatus,
+  sessionId,
+}: {
+  agentOutputs: Record<string, AgentOutput>;
+  teamStatus: TeammateStatus | null;
+  sessionId: string;
+}) {
   if (Object.keys(agentOutputs).length === 0) return null;
+  const entries = Object.values(agentOutputs);
+  const boss = entries.find((agent) => agent.role === 'elder');
+  const members = entries.filter((agent) => agent.role !== 'elder');
+  const memberStatusById = new Map(teamStatus?.members.map((member) => [member.agentId, member]));
+
   return (
-    <div className="relative mb-3">
-      <div className="agent-timeline-line" />
-      {Object.values(agentOutputs).map((agent) => (
-        <AgentCard key={agent.agentId} agent={agent} sessionId={sessionId} />
-      ))}
+    <div className="relative mb-3 space-y-4">
+      {boss && (
+        <AgentCard
+          key={boss.agentId}
+          agent={boss}
+          memberStatus={teamStatus?.leader}
+          sessionId={sessionId}
+          variant="boss"
+        />
+      )}
+      {members.length > 0 && (
+        <div className="rounded-xl border border-border/50 bg-background/40 p-4">
+          <div className="mb-3 border-l-[3px] border-cyan-400 pl-2 text-sm font-medium text-foreground">
+            {teamStatus?.teammateName ?? '执行团队'}
+          </div>
+          <div className="space-y-3">
+            {members.map((agent) => (
+              <AgentCard
+                key={agent.agentId}
+                agent={agent}
+                memberStatus={memberStatusById.get(agent.agentId)}
+                sessionId={sessionId}
+                variant="member"
+              />
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
 function ThinkingIndicator() {
   return (
-    <div className="sticky top-0 z-10 relative pl-20 mb-3 animate-fade-in">
-      <div className="absolute left-6 top-0 flex h-10 w-10 items-center justify-center rounded-full bg-slate-200/80 text-slate-500 dark:bg-slate-700/80">
-        <Loader2 className="h-4 w-4 animate-spin" />
+    <div className="sticky top-0 z-10 relative pl-16 mb-3 animate-fade-in">
+      <div className="absolute left-5 top-0 flex h-7 w-7 items-center justify-center rounded-full bg-slate-200/80 text-slate-500 dark:bg-slate-700/80">
+        <Loader2 className="h-3.5 w-3.5 animate-spin" />
       </div>
       <div className="glass-l3 rounded-xl px-4 py-3">
         <div className="flex items-center gap-3 text-muted-foreground">
           <span className="flex gap-1">
-            <span className="h-2 w-2 rounded-full bg-muted-foreground animate-bounce-dot-1" />
-            <span className="h-2 w-2 rounded-full bg-muted-foreground animate-bounce-dot-2" />
-            <span className="h-2 w-2 rounded-full bg-muted-foreground animate-bounce-dot-3" />
+            <span className="h-2 w-2 rounded-full bg-muted-foreground animate-thinking-1" />
+            <span className="h-2 w-2 rounded-full bg-muted-foreground animate-thinking-2" />
+            <span className="h-2 w-2 rounded-full bg-muted-foreground animate-thinking-3" />
           </span>
           <span className="text-sm">正在思考中…</span>
         </div>
@@ -647,6 +735,7 @@ export default function SingleAgentChat({
   );
   const [editText, setEditText] = useState('');
   const [isFollowingLatest, setIsFollowingLatest] = useState(true);
+  const [teamStatus, setTeamStatus] = useState<TeammateStatus | null>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
 
   // 标题变化时通知外层
@@ -656,6 +745,7 @@ export default function SingleAgentChat({
 
   useEffect(() => {
     setIsFollowingLatest(true);
+    setTeamStatus(null);
   }, [conversationId]);
 
   useEffect(() => {
@@ -683,6 +773,23 @@ export default function SingleAgentChat({
     setEditText(text);
   }, []);
 
+  // 监听运行时推送的团队状态，用于展示团队名称与成员工作状态
+  useEffect(() => {
+    const handler = (event: Event) => {
+      const detail = (event as CustomEvent).detail as { sessionId: string; status: TeammateStatus } | undefined;
+      if (detail?.sessionId === conversationId) {
+        setTeamStatus(detail.status);
+      }
+    };
+    window.addEventListener(OWLERY_STATUS_EVENT, handler);
+    return () => window.removeEventListener(OWLERY_STATUS_EVENT, handler);
+  }, [conversationId]);
+
+  // 新会话开始时清空上一轮的团队状态
+  useEffect(() => {
+    if (isRunning) setTeamStatus(null);
+  }, [isRunning]);
+
   return (
     <AssistantRuntimeProvider runtime={runtime}>
       <ThreadPrimitive.Root className="relative h-full flex flex-col overflow-hidden">
@@ -692,7 +799,7 @@ export default function SingleAgentChat({
           onScroll={handleViewportScroll}
           className="flex-1 overflow-y-auto px-16 py-8 space-y-6"
         >
-          <WorkflowContext.Provider value={{ agentOutputs, isRunning }}>
+          <WorkflowContext.Provider value={{ agentOutputs, isRunning, teamStatus }}>
             <ChatMessages
               sessionId={conversationId}
               onEditMessage={handleEditMessage}

@@ -437,7 +437,7 @@ function FormattedCodeBlock({ data, sessionId }: { data: Extract<MarkdownPart, {
           {isHtml && (
             <Button type="button" variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={executeHtml}>
               <Eye className="h-3.5 w-3.5" />
-              执行
+              预览
             </Button>
           )}
         </div>

@@ -130,6 +130,18 @@ export default {
                     '0%, 80%, 100%': { transform: 'scale(0.6)', opacity: '0.5' },
                     '40%': { transform: 'scale(1)', opacity: '1' },
                 },
+                'thinking-bounce': {
+                    '0%, 80%, 100%': { transform: 'translateY(0)' },
+                    '40%': { transform: 'translateY(-5px)' },
+                },
+                'agent-glow': {
+                    '0%, 100%': { transform: 'scale(1.01)', opacity: '0.15' },
+                    '50%': { transform: 'scale(1.05)', opacity: '0.4' },
+                },
+                'agent-dot-pulse': {
+                    '0%, 100%': { boxShadow: '0 0 4px rgba(34, 197, 94, 0.6)' },
+                    '50%': { boxShadow: '0 0 10px rgba(34, 197, 94, 0.9)' },
+                },
                 'float': {
                     '0%, 100%': { transform: 'translateY(0px)' },
                     '50%': { transform: 'translateY(-8px)' },
@@ -146,6 +158,11 @@ export default {
                 'bounce-dot-1': 'bounce-dot 1.4s infinite ease-in-out',
                 'bounce-dot-2': 'bounce-dot 1.4s infinite ease-in-out 0.2s',
                 'bounce-dot-3': 'bounce-dot 1.4s infinite ease-in-out 0.4s',
+                'thinking-1': 'thinking-bounce 1.2s infinite ease-in-out',
+                'thinking-2': 'thinking-bounce 1.2s infinite ease-in-out 0.15s',
+                'thinking-3': 'thinking-bounce 1.2s infinite ease-in-out 0.3s',
+                'agent-glow': 'agent-glow 2s ease-in-out infinite',
+                'agent-dot-pulse': 'agent-dot-pulse 2s ease-in-out infinite',
                 'float': 'float 6s ease-in-out infinite',
             }
         }
