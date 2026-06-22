@@ -1,14 +1,16 @@
 import { useCallback, useState, type ReactNode } from 'react';
-import { Check, ChevronDown, ChevronRight, Copy, Download, Eye, X } from 'lucide-react';
+import { Check, ChevronDown, ChevronRight, Copy, Download, Eye } from 'lucide-react';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
-import { openExternal, openPath } from '@/services/electron';
+import { createHtmlPreviewTempFile, openExternal, openHtmlPreviewWindow, openPath, saveHtmlPreviewAs } from '@/services/electron';
+import { getHtmlDefaultFileName, getHtmlTitle, isHtmlCode } from '@/components/html-preview/htmlPreviewUtils';
 
 const CODE_BLOCK_COLLAPSE_LINE_COUNT = 100;
 const CODE_BLOCK_PREVIEW_LINE_COUNT = 24;
 const CODE_FENCE_PATTERN = /```([^\n`]*)\n?([\s\S]*?)```/g;
 const DEFAULT_CODE_LANGUAGE = 'text';
 const COPY_RESET_DELAY_MS = 2000;
-const HTML_LANGUAGES = new Set(['html', 'htm']);
+const HTML_PREVIEW_TOO_LARGE_CODE = 'HTML_PREVIEW_TOO_LARGE';
 const KEYWORDS_BY_LANGUAGE: Record<string, string[]> = {
   python: ['def', 'return', 'if', 'else', 'elif', 'for', 'while', 'import', 'from', 'class', 'try', 'except', 'with', 'as', 'in', 'not', 'and', 'or', 'True', 'False', 'None', 'lambda', 'yield', 'async', 'await', 'pass', 'raise'],
   default: ['function', 'const', 'let', 'var', 'return', 'if', 'else', 'for', 'while', 'class', 'import', 'export', 'default', 'from', 'async', 'await', 'new', 'this', 'typeof', 'instanceof', 'try', 'catch', 'throw', 'true', 'false', 'null', 'undefined', 'interface', 'type', 'extends', 'implements'],
@@ -357,32 +359,55 @@ function renderMarkdownText(text: string) {
   return blocks.map(renderTextBlock);
 }
 
-function FormattedCodeBlock({ data }: { data: Extract<MarkdownPart, { type: 'code' }> }) {
+function FormattedCodeBlock({ data, sessionId }: { data: Extract<MarkdownPart, { type: 'code' }>; sessionId: string }) {
   const [copied, setCopied] = useState(false);
   const [expanded, setExpanded] = useState(false);
-  const [previewOpen, setPreviewOpen] = useState(false);
   const lines = data.code.split('\n');
   const shouldCollapse = lines.length > CODE_BLOCK_COLLAPSE_LINE_COUNT;
   const visibleCode = shouldCollapse && !expanded
     ? lines.slice(0, CODE_BLOCK_PREVIEW_LINE_COUNT).join('\n')
     : data.code;
+  const isHtml = isHtmlCode(data.language, data.code);
+  const defaultName = getHtmlDefaultFileName(data.code, data.filename);
 
-  const copy = useCallback(() => {
-    navigator.clipboard.writeText(data.code);
-    setCopied(true);
-    setTimeout(() => setCopied(false), COPY_RESET_DELAY_MS);
+  const copy = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(data.code);
+      setCopied(true);
+      setTimeout(() => setCopied(false), COPY_RESET_DELAY_MS);
+    } catch {
+      toast.error('复制失败，请手动复制');
+    }
   }, [data.code]);
 
-  const isHtml = HTML_LANGUAGES.has(data.language.toLowerCase());
-  const download = useCallback(() => {
-    const blob = new Blob([data.code], { type: isHtml ? 'text/html;charset=utf-8' : 'text/plain;charset=utf-8' });
+  const download = useCallback(async () => {
+    if (isHtml) {
+      await saveHtmlPreviewAs({ html: data.code, defaultName });
+      return;
+    }
+    const blob = new Blob([data.code], { type: 'text/plain;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = data.filename ?? (isHtml ? 'index.html' : `code.${data.language || DEFAULT_CODE_LANGUAGE}`);
+    link.download = data.filename ?? `code.${data.language || DEFAULT_CODE_LANGUAGE}`;
     link.click();
     URL.revokeObjectURL(url);
-  }, [data.code, data.filename, data.language, isHtml]);
+  }, [data.code, data.filename, data.language, defaultName, isHtml]);
+
+  const executeHtml = useCallback(async () => {
+    try {
+      const result = await createHtmlPreviewTempFile({ sessionId, html: data.code, title: getHtmlTitle(data.code) ?? data.filename });
+      await openHtmlPreviewWindow(result.previewId);
+    } catch (error) {
+      const detail = error as { code?: string; maxPreviewBytes?: number; message?: string };
+      if (detail.code === HTML_PREVIEW_TOO_LARGE_CODE || detail.message?.includes(HTML_PREVIEW_TOO_LARGE_CODE)) {
+        const maxMb = detail.maxPreviewBytes ? Math.floor(detail.maxPreviewBytes / 1024 / 1024) : undefined;
+        toast.error(maxMb ? `HTML 超过预览大小限制（${maxMb}MB）` : 'HTML 超过预览大小限制');
+        return;
+      }
+      toast.error('打开 HTML 预览失败');
+    }
+  }, [data.code, data.filename, sessionId]);
 
   return (
     <div className="my-3 overflow-hidden rounded-xl border border-border/60 bg-background/70 shadow-sm">
@@ -396,25 +421,25 @@ function FormattedCodeBlock({ data }: { data: Extract<MarkdownPart, { type: 'cod
         </div>
         <div className="flex shrink-0 items-center gap-1">
           {shouldCollapse && (
-            <Button variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={() => setExpanded((value) => !value)}>
+            <Button type="button" variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={() => setExpanded((value) => !value)}>
               {expanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
               {expanded ? '收起' : '展开'}
             </Button>
           )}
-          {isHtml && (
-            <Button variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={() => setPreviewOpen(true)}>
-              <Eye className="h-3.5 w-3.5" />
-              预览
-            </Button>
-          )}
-          <Button variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={download}>
-            <Download className="h-3.5 w-3.5" />
-            下载
-          </Button>
-          <Button variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={copy}>
+          <Button type="button" variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={copy}>
             {copied ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
             {copied ? '已复制' : '复制'}
           </Button>
+          <Button type="button" variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={download}>
+            <Download className="h-3.5 w-3.5" />
+            下载
+          </Button>
+          {isHtml && (
+            <Button type="button" variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={executeHtml}>
+              <Eye className="h-3.5 w-3.5" />
+              执行
+            </Button>
+          )}
         </div>
       </div>
       <pre className="max-w-full overflow-x-auto p-3 font-mono text-sm leading-relaxed text-slate-200">
@@ -422,7 +447,7 @@ function FormattedCodeBlock({ data }: { data: Extract<MarkdownPart, { type: 'cod
       </pre>
       {isHtml && (
         <div className="border-t border-border/50 bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
-          已生成 HTML 内容。浏览器无法直接写入本地文件，可使用“下载”保存或“复制”后手动保存。
+          HTML 内容将通过独立窗口与 iframe sandbox 安全预览。
         </div>
       )}
       {shouldCollapse && !expanded && (
@@ -430,28 +455,15 @@ function FormattedCodeBlock({ data }: { data: Extract<MarkdownPart, { type: 'cod
           已折叠，显示前 {CODE_BLOCK_PREVIEW_LINE_COUNT} 行 / 共 {lines.length} 行
         </div>
       )}
-      {previewOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6">
-          <div className="flex h-[80vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-border bg-background shadow-2xl">
-            <div className="flex items-center justify-between border-b border-border px-4 py-2">
-              <span className="text-sm font-medium">HTML 安全预览</span>
-              <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={() => setPreviewOpen(false)}>
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
-            <iframe title="HTML 安全预览" sandbox="allow-scripts" srcDoc={data.code} className="h-full w-full bg-white" />
-          </div>
-        </div>
-      )}
     </div>
   );
 }
 
-export function MarkdownText({ text }: { text: string }) {
+export function MarkdownText({ text, sessionId }: { text: string; sessionId: string }) {
   return (
     <div className="space-y-2 break-words">
       {parseMarkdownParts(text).map((part, index) => part.type === 'code'
-        ? <FormattedCodeBlock key={`${part.type}-${index}`} data={part} />
+        ? <FormattedCodeBlock key={`${part.type}-${index}`} data={part} sessionId={sessionId} />
         : <div key={`${part.type}-${index}`} className="space-y-2">{renderMarkdownText(part.content)}</div>)}
     </div>
   );

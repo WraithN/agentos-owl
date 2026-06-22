@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Send,
   Paperclip,
+  Eye,
   Mic,
   Command,
   Sparkles,
@@ -10,7 +11,13 @@ import {
   Square,
 } from 'lucide-react';
 import { ComposerPrimitive, useComposerRuntime } from '@assistant-ui/react';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
+import {
+  createFilePreviewTempFile,
+  openFilePreviewWindow,
+} from '@/services/electron';
+import { canPreviewOfficeFile } from '@/components/html-preview/filePreviewUtils';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -30,6 +37,7 @@ interface ChatComposerProps {
   initialText?: string;
   isRunning?: boolean;
   selectedTeam?: string;
+  sessionId: string;
   onTeamChange?: (teamId?: string) => void;
 }
 
@@ -37,6 +45,7 @@ export function ChatComposer({
   initialText = '',
   isRunning = false,
   selectedTeam,
+  sessionId,
   onTeamChange,
 }: ChatComposerProps) {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -56,6 +65,33 @@ export function ChatComposer({
       setInputText(initialText);
     }
   }, [initialText, setInputText]);
+
+  const handlePreviewFile = useCallback(async () => {
+    if (!selectedFile || !canPreviewOfficeFile(selectedFile.name)) return;
+    try {
+      const data = await selectedFile.arrayBuffer();
+      const result = await createFilePreviewTempFile({
+        sessionId,
+        fileName: selectedFile.name,
+        data,
+      });
+      await openFilePreviewWindow(result.previewId);
+    } catch (error) {
+      const detail = error as { code?: string; message?: string };
+      if (
+        detail.code === 'FILE_PREVIEW_TOO_LARGE' ||
+        detail.message?.includes('FILE_PREVIEW_TOO_LARGE')
+      ) {
+        toast.error('文件超过预览大小限制');
+        return;
+      }
+      toast.error('打开文件预览失败');
+    }
+  }, [selectedFile, sessionId]);
+
+  const canPreviewSelectedFile = selectedFile
+    ? canPreviewOfficeFile(selectedFile.name)
+    : false;
 
   const skills = [
     { id: 'coding', name: '代码助手', icon: '💻' },
@@ -79,7 +115,20 @@ export function ChatComposer({
           <div className="mb-3 flex items-center gap-2 p-2 rounded-lg bg-background/50 border border-border/50">
             <Paperclip className="h-4 w-4 text-muted-foreground" />
             <span className="text-sm flex-1 truncate">{selectedFile.name}</span>
+            {canPreviewSelectedFile && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-6 gap-1 px-2 text-xs"
+                onClick={handlePreviewFile}
+              >
+                <Eye className="h-3 w-3" />
+                预览
+              </Button>
+            )}
             <Button
+              type="button"
               variant="ghost"
               size="icon"
               className="h-6 w-6"

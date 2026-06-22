@@ -245,7 +245,7 @@ function AssistantStateActions({ state }: { state: string }) {
   );
 }
 
-function MessageContent({ message, onEdit, onRegenerate, hideActions = false }: { message: any; onEdit: (text: string) => void; onRegenerate: (messageId: string) => void; hideActions?: boolean }) {
+function MessageContent({ message, sessionId, onEdit, onRegenerate, hideActions = false }: { message: any; sessionId: string; onEdit: (text: string) => void; onRegenerate: (messageId: string) => void; hideActions?: boolean }) {
   const [copied, setCopied] = useState(false);
   const mainText = getMainText(message);
   const reasoningText = getReasoningText(message);
@@ -296,7 +296,7 @@ function MessageContent({ message, onEdit, onRegenerate, hideActions = false }: 
             </span>
           ) : (
             <>
-              <MarkdownText text={mainText} />
+              <MarkdownText text={mainText} sessionId={sessionId} />
               <ImageBlocks images={imageParts} />
             </>
           )}
@@ -364,7 +364,7 @@ function MessageContent({ message, onEdit, onRegenerate, hideActions = false }: 
   );
 }
 
-function ChatMessages({ onEditMessage, onRegenerate, messages }: { onEditMessage: (text: string) => void; onRegenerate: (messageId: string) => void; messages: any[] }) {
+function ChatMessages({ conversationId, onEditMessage, onRegenerate, messages }: { conversationId: string; onEditMessage: (text: string) => void; onRegenerate: (messageId: string) => void; messages: any[] }) {
   return (
     <ThreadPrimitive.Messages>
       {({ message }) => (
@@ -385,7 +385,7 @@ function ChatMessages({ onEditMessage, onRegenerate, messages }: { onEditMessage
             </div>
           )}
 
-          <MessageContent message={message} onEdit={onEditMessage} onRegenerate={onRegenerate} />
+          <MessageContent message={message} sessionId={conversationId} onEdit={onEditMessage} onRegenerate={onRegenerate} />
 
           {message.role === 'user' && (
             <div className="shrink-0 w-8 h-8 rounded-full flex items-center justify-center bg-primary text-primary-foreground">
@@ -460,7 +460,7 @@ export default function SingleAgentChat({
           onScroll={handleViewportScroll}
           className="flex-1 overflow-y-auto px-16 py-8 space-y-6"
         >
-          <ChatMessages onEditMessage={handleEditMessage} onRegenerate={regenerateFromMessage} messages={messages} />
+          <ChatMessages conversationId={conversationId} onEditMessage={handleEditMessage} onRegenerate={regenerateFromMessage} messages={messages} />
 
           <ThreadPrimitive.Empty>
             <div className="flex h-full flex-col items-center justify-center text-muted-foreground">
@@ -490,6 +490,7 @@ export default function SingleAgentChat({
           initialText={editText}
           isRunning={isRunning}
           selectedTeam={selectedTeam}
+          sessionId={conversationId}
           onTeamChange={setSelectedTeam}
         />
       </ThreadPrimitive.Root>

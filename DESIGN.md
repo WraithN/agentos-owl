@@ -298,6 +298,10 @@ background: radial-gradient(ellipse at top left, #042f2e 0%, #020617 50%, #0f0a1
 
 主内容区内使用 `glass-l3` 卡片承载具体功能面板，关键操作使用 `btn-aurora`。
 
+### 11.3 安全预览窗口
+
+HTML / DOCX / XLSX 预览使用独立最大化窗口，整体背景沿用 `deep-space`，顶部工具栏使用 `glass-l2`，过期/错误状态使用 `glass-l3` 卡片。预览内容区通过白底 iframe 承载，避免被预览内容继承应用主题。
+
 ## 12. 新增组件 checklist
 
 新增 UI 时，请对照以下清单：
