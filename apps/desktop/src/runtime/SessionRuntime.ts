@@ -265,6 +265,7 @@ export class SessionRuntime {
           isError: false,
           args: { title, reason },
           result: { title, reason, sentinelId: id },
+          durationMs: 0,
         },
       },
     });
@@ -305,6 +306,7 @@ export class SessionRuntime {
           isError: false,
           args: { workers: titles },
           result: { workers: titles },
+          durationMs: 0,
         },
       },
     });

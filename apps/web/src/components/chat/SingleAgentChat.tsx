@@ -140,7 +140,10 @@ function formatToolSummary(value: unknown, formatter: (value: unknown) => string
 
 function formatToolDuration(tool: any) {
   if (typeof tool.durationMs === 'number') return `${tool.durationMs}ms`;
-  if (typeof tool.startedAt === 'number') return `${Date.now() - tool.startedAt}ms`;
+  if (typeof tool.startedAt === 'number' && typeof tool.endedAt === 'number') {
+    return `${Math.max(0, tool.endedAt - tool.startedAt)}ms`;
+  }
+  if (typeof tool.startedAt === 'number') return '进行中';
   return '—';
 }
 
