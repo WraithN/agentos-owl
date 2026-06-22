@@ -11,7 +11,7 @@ export type AgentDriverFactory = (input: {
   tools: AgentToolRegistration[];
 }) => AgentDriver;
 
-export type AgentNameGenerator = (input: { locale: string; role: AgentRole; title: AgentTitle }) => string;
+export type AgentNameGenerator = (input: { locale: string; role: AgentRole; title: AgentTitle; sessionId: SessionId }) => string;
 export type RecruitHandler = (elder: ElderAgentRuntime, input: RecruitInput) => Promise<TeammateManager>;
 export type AgentToolFactory = (input: { agentId: AgentId; role: AgentRole; title: AgentTitle; sessionId: SessionId }) => AgentToolRegistration[];
 
@@ -69,7 +69,7 @@ export class AgentFactory {
 
   createAgent(input: CreateAgentInput): ElderAgentRuntime | SentinelAgentRuntime | WorkerAgentRuntime {
     const locale = input.locale ?? "zh-CN";
-    const name = this.options.nameGenerator({ locale, role: input.role, title: input.title });
+    const name = this.options.nameGenerator({ locale, role: input.role, title: input.title, sessionId: input.sessionId });
     const tools = this.options.toolFactory?.({ agentId: input.id, role: input.role, title: input.title, sessionId: input.sessionId }) ?? [];
     const driver = this.options.driverFactory({ agentId: input.id, role: input.role, title: input.title, sessionId: input.sessionId, tools });
     const profile = { id: input.id, role: input.role, name, title: input.title, locale, tools, driver };

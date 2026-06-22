@@ -371,6 +371,11 @@
     transition: all 0.2s ease;
   }
 
+  /* Agent 任务流左侧时间线 */
+  .agent-timeline-line {
+    @apply absolute left-5 top-3 bottom-3 w-px bg-gradient-to-b from-border via-border/60 to-transparent;
+  }
+
   /* 极光渐变文字 */
   .aurora-text {
     background: linear-gradient(135deg, var(--aurora-cyan) 0%, var(--aurora-blue) 50%, var(--aurora-purple) 100%);

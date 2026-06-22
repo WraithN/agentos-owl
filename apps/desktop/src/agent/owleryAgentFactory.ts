@@ -1,7 +1,7 @@
 import { Type } from "@earendil-works/pi-ai";
 import type { AgentTool, AgentToolResult } from "@earendil-works/pi-agent-core";
-import { AgentFactory, fixedNameGenerator } from "@owl-os/core";
-import type { AgentDriverFactory, AgentToolFactory } from "@owl-os/core";
+import { AgentFactory } from "@owl-os/core";
+import type { AgentDriverFactory, AgentNameGenerator, AgentToolFactory } from "@owl-os/core";
 import {
   createPlainAgent,
   createPlainAgentWithConfig,
@@ -13,6 +13,7 @@ import {
 import type { LlmConfig } from "./llmConfig.js";
 import { buildTools } from "./tools.js";
 import { PiAgentDriver } from "./drivers/PiAgentDriver.js";
+import { generateBossName, localeAwareNameGenerator } from "./agentNames.js";
 
 export type { LlmConfig } from "./llmConfig.js";
 
@@ -65,6 +66,8 @@ function buildRecruitWorkersTool(): AgentTool {
   };
 }
 
+const owleryNameGenerator: AgentNameGenerator = localeAwareNameGenerator;
+
 function sanitizeTitle(title: string): string {
   return title
     .toLowerCase()
@@ -87,7 +90,11 @@ export function createOwleryAgentFactory(): AgentFactory {
   const driverFactory: AgentDriverFactory = (input) => {
     if (!hasDefaultLlm()) throw new NoDefaultLlmError();
     const systemPrompt =
-      input.role === "elder" ? loadSystemPrompt("elder_boss") : loadSentinelPrompt(input.title);
+      input.role === "elder"
+        ? loadSystemPrompt("elder_boss")
+        : input.role === "sentinel"
+          ? loadSentinelPrompt(input.title)
+          : loadSystemPrompt("worker");
 
     const tools: AgentTool[] =
       input.role === "elder"
@@ -111,7 +118,7 @@ export function createOwleryAgentFactory(): AgentFactory {
 
   return new AgentFactory({
     driverFactory,
-    nameGenerator: fixedNameGenerator,
+    nameGenerator: owleryNameGenerator,
     toolFactory,
   });
 }
@@ -121,7 +128,11 @@ export function createOwleryAgentFactoryWithConfig(config: LlmConfig): AgentFact
   const driverFactory: AgentDriverFactory = (input) => {
     if (!hasDefaultLlm(config.models)) throw new NoDefaultLlmError();
     const systemPrompt =
-      input.role === "elder" ? loadSystemPrompt("elder_boss") : loadSentinelPrompt(input.title);
+      input.role === "elder"
+        ? loadSystemPrompt("elder_boss")
+        : input.role === "sentinel"
+          ? loadSentinelPrompt(input.title)
+          : loadSystemPrompt("worker");
 
     const tools: AgentTool[] =
       input.role === "elder"
@@ -145,7 +156,7 @@ export function createOwleryAgentFactoryWithConfig(config: LlmConfig): AgentFact
 
   return new AgentFactory({
     driverFactory,
-    nameGenerator: fixedNameGenerator,
+    nameGenerator: owleryNameGenerator,
     toolFactory,
   });
 }

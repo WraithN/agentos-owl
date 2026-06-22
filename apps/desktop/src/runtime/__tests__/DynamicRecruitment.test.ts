@@ -79,11 +79,20 @@ describe("SessionRuntime dynamic recruitment", () => {
     await new Promise((resolve) => setTimeout(resolve, 200));
     runtime.dispose();
 
-    const toolEvents = port.events
-      .filter((e) => e.type === "chunk" && e.chunk.type === "tool_event")
-      .map((e) => (e as { chunk: { event: { toolName: string } } }).chunk.event.toolName);
+    const statusCards = port.events
+      .filter((e) => e.type === "chunk" && e.chunk.type === "status_card")
+      .map((e) => (e as { chunk: { text: string } }).chunk.text);
 
-    expect(toolEvents).toContain("recruit_sentinel");
-    expect(toolEvents).toContain("recruit_workers");
+    expect(statusCards.some((text) => text.includes("正在招聘") && text.includes("团队"))).toBe(true);
+    expect(statusCards.some((text) => text.includes("正在招聘") && text.includes("developer"))).toBe(true);
+    expect(statusCards.some((text) => text.includes("工作中"))).toBe(true);
+    expect(statusCards.some((text) => text.includes("已完成"))).toBe(true);
+    expect(statusCards.some((text) => text.includes("正在对工作进行评审"))).toBe(true);
+
+    const forwardedText = port.events
+      .filter((e) => e.type === "chunk" && e.chunk.type === "text_delta")
+      .map((e) => (e as { chunk: { text: string } }).chunk.text)
+      .join("");
+    expect(forwardedText.length).toBeGreaterThan(0);
   });
 });

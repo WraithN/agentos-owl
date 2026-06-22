@@ -1,12 +1,30 @@
 /* Chat 标题栏 */
 import { useEffect, useState } from 'react';
 import { LayoutGrid, Plus, Bot, Activity, History } from 'lucide-react';
-import type { AgentWorkStatus, TeammateStatus } from '@owl-os/core';
+import type { AgentWorkStatus, TeammateAgentStatus, TeammateStatus } from '@owl-os/core';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { getTeammateStatus, onAgentStatus } from '@/services/electron';
 import { cn } from '@/lib/utils';
 
 const OWLERY_STATUS_EVENT = 'owlery:teammate-status';
+
+const TITLE_LABEL: Record<string, string> = {
+  boss: '老板',
+  planner: '规划师',
+  supervisor: '监督者',
+  coordinator: '协调者',
+  cto: 'CTO',
+  developer: '开发者',
+  tester: '测试员',
+  designer: '设计师',
+  writer: '撰写者',
+  researcher: '研究员',
+  analyst: '分析师',
+  marketer: '营销员',
+  operator: '操作员',
+  reviewer: '审核员',
+  debugger: '调试员',
+};
 
 const STATUS_META: Record<AgentWorkStatus, { label: string; className: string }> = {
   not_started: { label: '未开始', className: 'bg-slate-500' },
@@ -15,6 +33,23 @@ const STATUS_META: Record<AgentWorkStatus, { label: string; className: string }>
   failed: { label: '失败', className: 'bg-destructive' },
   cancelled: { label: '已取消', className: 'bg-slate-400' },
 };
+
+function AgentStatusRow({ agent }: { agent: TeammateAgentStatus }) {
+  const meta = STATUS_META[agent.status];
+  return (
+    <div className="flex items-center justify-between gap-2 rounded-lg border border-border/50 bg-muted/20 p-2 text-xs">
+      <div className="min-w-0">
+        <div className="truncate text-foreground">
+          角色：{TITLE_LABEL[agent.title] ?? agent.title}，名称：{agent.name}
+        </div>
+      </div>
+      <div className="flex shrink-0 items-center gap-1.5 text-muted-foreground">
+        <span className={cn('h-2 w-2 rounded-full', meta.className)} />
+        {meta.label}
+      </div>
+    </div>
+  );
+}
 
 /* ── Chat 标题栏 ───────────────────────────────────────────────────────── */
 interface ChatHeaderProps {
@@ -85,52 +120,24 @@ export default function ChatHeader({
                 'p-2 rounded-lg transition-colors',
                 'text-slate-500 hover:text-slate-300 hover:bg-white/5'
               )}
-              title="Teammate 状态"
+              title="智能体团队"
             >
               <Bot className="w-4 h-4" />
             </button>
           </PopoverTrigger>
           <PopoverContent align="end" className="w-80 border-border/60 bg-background/95 p-3">
-            <div className="mb-2 text-sm font-medium text-foreground">Teammate 状态</div>
+            <div className="mb-2 text-sm font-medium text-foreground">智能体团队</div>
             {!teammateStatus ? (
-              <div className="rounded-lg border border-dashed border-border/50 p-3 text-xs text-muted-foreground">暂无 Teammate 状态</div>
+              <div className="rounded-lg border border-dashed border-border/50 p-3 text-xs text-muted-foreground">暂无智能体团队状态</div>
             ) : (
-              <div className="grid gap-2">
-                <div className="rounded-lg border border-border/50 bg-muted/30 p-2 text-xs">
-                  <div className="mb-2 font-medium text-foreground">{teammateStatus.teammateName}</div>
-                  {teammateStatus.leader && (() => {
-                    const leaderStatus = STATUS_META[teammateStatus.leader.status];
-                    return (
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="min-w-0">
-                          <div className="truncate text-foreground">组长：{teammateStatus.leader.name}</div>
-                          <div className="text-muted-foreground">{teammateStatus.leader.title}</div>
-                        </div>
-                        <div className="flex shrink-0 items-center gap-1.5 text-muted-foreground">
-                          <span className={cn('h-2 w-2 rounded-full', leaderStatus.className)} />
-                          {leaderStatus.label}
-                        </div>
-                      </div>
-                    );
-                  })()}
-                </div>
-                <div className="grid gap-1.5">
-                  {teammateStatus.members.map((agent) => {
-                    const status = STATUS_META[agent.status];
-                    return (
-                      <div key={agent.agentId} className="flex items-center justify-between gap-2 rounded-lg border border-border/50 bg-muted/20 p-2 text-xs">
-                        <div className="min-w-0">
-                          <div className="truncate text-foreground">{agent.name}</div>
-                          <div className="text-muted-foreground">{agent.title}</div>
-                        </div>
-                        <div className="flex shrink-0 items-center gap-1.5 text-muted-foreground">
-                          <span className={cn('h-2 w-2 rounded-full', status.className)} />
-                          {status.label}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
+              <div className="grid gap-1.5">
+                {teammateStatus.teammateName && (
+                  <div className="text-xs text-muted-foreground">{teammateStatus.teammateName}</div>
+                )}
+                {teammateStatus.leader && <AgentStatusRow agent={teammateStatus.leader} />}
+                {teammateStatus.members.map((agent) => (
+                  <AgentStatusRow key={agent.agentId} agent={agent} />
+                ))}
               </div>
             )}
           </PopoverContent>

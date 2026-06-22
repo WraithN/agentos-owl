@@ -16,10 +16,20 @@ import type { AppMode, Conversation, Message, MessageType, TeammateMode } from '
 
 const TITLE_MAX_LENGTH = 20;
 const LAST_MESSAGE_MAX_LENGTH = 80;
+const STATUS_CARD_MARKER = '__STATUS_CARD__';
 const OWLERY_STATUS_EVENT = 'owlery:teammate-status';
 const SESSION_STREAM = 'session';
 
 type ThreadContentPart = any;
+
+export type AgentOutput = {
+  agentId: string;
+  name: string;
+  title: string;
+  role: string;
+  statusText: string;
+  chunks: AgentDriverChunk[];
+};
 
 function dispatchTeammateStatus(sessionId: string, status: TeammateStatus): void {
   window.dispatchEvent(new CustomEvent(OWLERY_STATUS_EVENT, { detail: { sessionId, status } }));
@@ -161,6 +171,7 @@ export function useOwleryRuntime(
 ) {
   const [messages, setMessages] = useState<ThreadMessageLike[]>([]);
   const [isRunning, setIsRunning] = useState(false);
+  const [agentOutputs, setAgentOutputs] = useState<Record<string, AgentOutput>>({});
   const assistantIdRef = useRef<string | null>(null);
   const assistantTextRef = useRef('');
   const assistantPartsRef = useRef<ThreadContentPart[]>([]);
@@ -179,26 +190,78 @@ export function useOwleryRuntime(
   conversationTitleRef.current = conversationTitle;
 
   const applyChunk = useCallback((chunk: AgentDriverChunk) => {
+    const ensureAssistant = () => {
+      if (!assistantIdRef.current) {
+        assistantIdRef.current = generateId();
+        assistantTextRef.current = '';
+        assistantPartsRef.current = [];
+        setMessages((prev) => [...prev, {
+          id: assistantIdRef.current,
+          role: 'assistant',
+          content: [],
+          createdAt: new Date(),
+          status: buildRunningStatus(),
+        } as ThreadMessageLike]);
+      }
+      return assistantIdRef.current;
+    };
+
     if (chunk.type === 'done' && !assistantIdRef.current) {
       setIsRunning(false);
       return;
     }
 
-    if (!assistantIdRef.current) {
-      assistantIdRef.current = generateId();
-      assistantTextRef.current = '';
-      assistantPartsRef.current = [];
-      setMessages((prev) => [...prev, {
-        id: assistantIdRef.current,
-        role: 'assistant',
-        content: [],
-        createdAt: new Date(),
-        status: buildRunningStatus(),
-      } as ThreadMessageLike]);
+    if (chunk.type === 'status_card') {
+      ensureAssistant();
+      const statusAgentId = chunk.agentId;
+      if (statusAgentId) {
+        setAgentOutputs((prev) => {
+          const existing = prev[statusAgentId];
+          if (existing) {
+            return { ...prev, [statusAgentId]: { ...existing, statusText: chunk.text } };
+          }
+          return {
+            ...prev,
+            [statusAgentId]: {
+              agentId: statusAgentId,
+              name: chunk.agentName ?? '',
+              title: chunk.agentTitle ?? '',
+              role: chunk.role ?? 'worker',
+              statusText: chunk.text,
+              chunks: [],
+            },
+          };
+        });
+      }
+      return;
     }
 
-    const id = assistantIdRef.current;
-    if (!id) return;
+    if (chunk.type === 'agent_chunk') {
+      ensureAssistant();
+      setAgentOutputs((prev) => {
+        const existing = prev[chunk.agentId];
+        if (existing) {
+          return {
+            ...prev,
+            [chunk.agentId]: { ...existing, chunks: [...existing.chunks, chunk.chunk] },
+          };
+        }
+        return {
+          ...prev,
+          [chunk.agentId]: {
+            agentId: chunk.agentId,
+            name: chunk.agentName,
+            title: chunk.agentTitle,
+            role: chunk.role,
+            statusText: '',
+            chunks: [chunk.chunk],
+          },
+        };
+      });
+      return;
+    }
+
+    const id = ensureAssistant();
     if (chunk.type === 'text_delta') {
       const nextText = assistantTextRef.current + chunk.text;
       const nextParts = upsertTextPart(assistantPartsRef.current, nextText);
@@ -322,6 +385,7 @@ export function useOwleryRuntime(
     assistantIdRef.current = null;
     assistantTextRef.current = '';
     assistantPartsRef.current = [];
+    setAgentOutputs({});
     try {
       await saveConversation(buildConversationUpdate(conversationId, conversationTitle === '新对话' ? text.slice(0, TITLE_MAX_LENGTH) : conversationTitle, mode, text));
       await saveMessage(buildPersistedMessage({ id: userId, conversationId, type: 'user', content: text }));
@@ -350,5 +414,5 @@ export function useOwleryRuntime(
     convertMessage: (message) => message,
   });
 
-  return { runtime, conversationTitle, messages, isRunning, regenerateFromMessage };
+  return { runtime, conversationTitle, messages, isRunning, regenerateFromMessage, agentOutputs };
 }

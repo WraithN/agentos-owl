@@ -1,5 +1,6 @@
 import { BrowserWindow, ipcMain } from "electron";
 import type { TeammateMode } from "@owl-os/core";
+import { generateBossName } from "../agent/agentNames.js";
 import { owlery } from "../agent/owleryRuntime.js";
 import { getTeammateStatus, publishAgentStatus } from "./teammateStatus.js";
 import { getDatabase } from "../db/connection.js";
@@ -86,7 +87,7 @@ export function registerOwleryHandlers(): void {
       return {
         sessionId,
         teammateName: "默认团队",
-        leader: { agentId: `${sessionId}:elder_boss`, name: "Elder Agent", title: "boss", role: "elder", status: "not_started" },
+        leader: { agentId: `${sessionId}:elder`, name: generateBossName(sessionId, "zh-CN"), title: "boss", role: "elder", status: "not_started" },
         members: [],
       };
     }

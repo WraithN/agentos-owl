@@ -1,10 +1,11 @@
 /* 单 Agent 对话界面 —— 基于 assistant-ui 与 Pi Agent IPC */
-import { useState, useRef, useEffect, useCallback, type ReactNode } from 'react';
+import { useState, useRef, useEffect, useCallback, createContext, useContext, type ReactNode } from 'react';
 import {
   AssistantRuntimeProvider,
   MessagePrimitive,
   ThreadPrimitive,
 } from '@assistant-ui/react';
+import type { LucideIcon } from 'lucide-react';
 import {
   Bot,
   User,
@@ -18,11 +19,26 @@ import {
   AlertTriangle,
   Loader2,
   Image as ImageIcon,
+  Briefcase,
+  LayoutTemplate,
+  ShieldCheck,
+  Network,
+  Cpu,
+  Code,
+  FlaskConical,
+  Paintbrush,
+  PenTool,
+  Search,
+  BarChart3,
+  Megaphone,
+  Terminal,
+  CheckCircle,
+  Bug,
 } from 'lucide-react';
 import type { AppMode, TeammateMode } from '@/types';
 import { Button } from '@/components/ui/button';
 import { MarkdownText } from './MarkdownText';
-import { useOwleryRuntime } from './useOwleryRuntime';
+import { useOwleryRuntime, type AgentOutput } from './useOwleryRuntime';
 import { ChatComposer } from './ChatComposer';
 import {
   Tooltip,
@@ -46,6 +62,103 @@ export interface SingleAgentChatProps {
 const BOTTOM_DISTANCE_THRESHOLD = 96;
 const TOOL_SUMMARY_MAX_LENGTH = 120;
 const MESSAGE_WIDTH_CLASS = 'w-[min(92ch,84%)]';
+
+interface WorkflowContextValue {
+  agentOutputs: Record<string, AgentOutput>;
+  isRunning: boolean;
+}
+
+const WorkflowContext = createContext<WorkflowContextValue>({ agentOutputs: {}, isRunning: false });
+
+function useWorkflowContext(): WorkflowContextValue {
+  return useContext(WorkflowContext);
+}
+
+const AGENT_TITLE_LABEL: Record<string, string> = {
+  boss: '老板',
+  planner: '规划师',
+  supervisor: '监督者',
+  coordinator: '协调者',
+  cto: 'CTO',
+  developer: '开发者',
+  tester: '测试员',
+  designer: '设计师',
+  writer: '撰写者',
+  researcher: '研究员',
+  analyst: '分析师',
+  marketer: '营销员',
+  operator: '操作员',
+  reviewer: '审核员',
+  debugger: '调试员',
+};
+
+function getAgentTitleLabel(role: string, title: string): string {
+  if (role === 'elder' || title === 'boss') return '老板';
+  return AGENT_TITLE_LABEL[title] ?? title;
+}
+
+const AGENT_ICON: Record<string, LucideIcon> = {
+  boss: Briefcase,
+  planner: LayoutTemplate,
+  supervisor: ShieldCheck,
+  coordinator: Network,
+  cto: Cpu,
+  developer: Code,
+  tester: FlaskConical,
+  designer: Paintbrush,
+  writer: PenTool,
+  researcher: Search,
+  analyst: BarChart3,
+  marketer: Megaphone,
+  operator: Terminal,
+  reviewer: CheckCircle,
+  debugger: Bug,
+};
+
+const DEFAULT_ICON = User;
+
+function getAgentIcon(role: string, title: string): LucideIcon {
+  return AGENT_ICON[title] ?? AGENT_ICON[role] ?? DEFAULT_ICON;
+}
+
+const AGENT_AVATAR_GRADIENT: Record<string, string> = {
+  boss: 'from-blue-500 to-indigo-600',
+  planner: 'from-emerald-500 to-teal-600',
+  supervisor: 'from-violet-500 to-purple-600',
+  coordinator: 'from-cyan-500 to-blue-600',
+  cto: 'from-rose-500 to-pink-600',
+  developer: 'from-amber-400 to-orange-500',
+  tester: 'from-lime-500 to-green-600',
+  designer: 'from-fuchsia-500 to-pink-600',
+  writer: 'from-sky-400 to-blue-500',
+  researcher: 'from-slate-400 to-slate-500',
+  analyst: 'from-indigo-400 to-violet-500',
+  marketer: 'from-red-400 to-rose-500',
+  operator: 'from-teal-400 to-cyan-500',
+  reviewer: 'from-emerald-400 to-teal-500',
+  debugger: 'from-orange-400 to-red-500',
+};
+
+const DEFAULT_GRADIENT = 'from-slate-400 to-slate-500';
+
+function getAgentGradient(role: string, title: string): string {
+  return AGENT_AVATAR_GRADIENT[title] ?? AGENT_AVATAR_GRADIENT[role] ?? DEFAULT_GRADIENT;
+}
+
+function eventToToolPart(event: any) {
+  return {
+    type: 'tool-call',
+    toolCallId: event.toolCallId ?? event.id ?? event.toolName ?? event.name ?? 'tool',
+    toolName: event.toolName ?? event.name ?? '未知工具',
+    args: event.args ?? {},
+    argsText: JSON.stringify(event.args ?? {}, null, 2),
+    result: event.type === 'tool_execution_end' ? event.result : undefined,
+    isError: event.isError,
+    startedAt: event.startedAt ?? Date.now(),
+    endedAt: event.endedAt,
+    durationMs: event.durationMs,
+  };
+}
 
 function getMessageParts(message: any) {
   return Array.isArray(message.content) ? message.content : [{ type: 'text', text: message.content ?? '' }];
@@ -245,8 +358,23 @@ function AssistantStateActions({ state }: { state: string }) {
   );
 }
 
-function MessageContent({ message, sessionId, onEdit, onRegenerate, hideActions = false }: { message: any; sessionId: string; onEdit: (text: string) => void; onRegenerate: (messageId: string) => void; hideActions?: boolean }) {
+function MessageContent({
+  message,
+  sessionId,
+  onEdit,
+  onRegenerate,
+  hideActions = false,
+  showWorkflow = false,
+}: {
+  message: any;
+  sessionId: string;
+  onEdit: (text: string) => void;
+  onRegenerate: (messageId: string) => void;
+  hideActions?: boolean;
+  showWorkflow?: boolean;
+}) {
   const [copied, setCopied] = useState(false);
+  const { agentOutputs, isRunning } = useWorkflowContext();
   const mainText = getMainText(message);
   const reasoningText = getReasoningText(message);
   const toolParts = getToolParts(message);
@@ -254,10 +382,11 @@ function MessageContent({ message, sessionId, onEdit, onRegenerate, hideActions 
   const assistantState = getAssistantState(message);
   const isAssistantRunning = message.role !== 'user' && assistantState === 'running';
   const isEmptyAssistant = message.role !== 'user' && !mainText.trim() && imageParts.length === 0 && toolParts.length === 0 && !reasoningText.trim();
-  const isThinking = isAssistantRunning && isEmptyAssistant;
   const isEmptyComplete = assistantState === 'complete' && isEmptyAssistant;
   const isEmptyError = assistantState !== 'running' && assistantState !== 'complete' && isEmptyAssistant;
-  const hasMainContent = message.role === 'user' || mainText.trim() || imageParts.length > 0 || isThinking || isEmptyComplete || isEmptyError;
+  const hasMainContent = message.role === 'user' || mainText.trim() || imageParts.length > 0 || isEmptyComplete || isEmptyError;
+  const showWorkflowPanel = showWorkflow && Object.keys(agentOutputs).length > 0;
+  const showThinking = showWorkflow && isAssistantRunning && isRunning;
 
   const copyToClipboard = useCallback(() => {
     navigator.clipboard.writeText(mainText);
@@ -267,6 +396,9 @@ function MessageContent({ message, sessionId, onEdit, onRegenerate, hideActions 
 
   return (
     <div className={`group relative min-w-0 ${MESSAGE_WIDTH_CLASS}`}>
+      {showThinking && <ThinkingIndicator />}
+      {showWorkflowPanel && <WorkflowPanel agentOutputs={agentOutputs} sessionId={sessionId} />}
+
       {message.role !== 'user' && (reasoningText.trim() || toolParts.length > 0) && (
         <div className="my-1 space-y-1 py-1">
           <ReasoningPanel text={reasoningText} />
@@ -282,12 +414,7 @@ function MessageContent({ message, sessionId, onEdit, onRegenerate, hideActions 
               : 'bg-muted text-foreground'
           }`}
         >
-          {isThinking ? (
-            <span className="inline-flex items-center gap-2 text-muted-foreground">
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              正在思考…
-            </span>
-          ) : isEmptyComplete ? (
+          {isEmptyComplete ? (
             <span className="text-muted-foreground">已生成完成（无内容）</span>
           ) : isEmptyError ? (
             <span className="inline-flex items-center gap-2 text-destructive">
@@ -364,7 +491,106 @@ function MessageContent({ message, sessionId, onEdit, onRegenerate, hideActions 
   );
 }
 
-function ChatMessages({ conversationId, onEditMessage, onRegenerate, messages }: { conversationId: string; onEditMessage: (text: string) => void; onRegenerate: (messageId: string) => void; messages: any[] }) {
+function AgentCard({ agent, sessionId }: { agent: AgentOutput; sessionId: string }) {
+  const [open, setOpen] = useState(false);
+  const text = agent.chunks.filter((c) => c.type === 'text_delta').map((c) => (c as { text: string }).text).join('');
+  const reasoning = agent.chunks.filter((c) => c.type === 'reasoning_delta').map((c) => (c as { text: string }).text).join('');
+  const tools = agent.chunks.filter((c) => c.type === 'tool_event').map((c) => eventToToolPart((c as { event: unknown }).event));
+  const hasContent = text.trim() || reasoning.trim() || tools.length > 0;
+  const isFailed = agent.chunks.some((c) => c.type === 'error');
+  const isDone = agent.chunks.some((c) => c.type === 'done');
+  const isWorking = !isFailed && !isDone;
+  const fallbackLabel = isFailed ? '失败' : isDone ? '已完成' : '工作中';
+  const titleLabel = getAgentTitleLabel(agent.role, agent.title);
+  const Icon = getAgentIcon(agent.role, agent.title);
+  const gradient = getAgentGradient(agent.role, agent.title);
+  const isElder = agent.role === 'elder';
+
+  return (
+    <div className={`relative ${isElder ? 'pl-14' : 'pl-20'} mb-3 animate-fade-in`}>
+      <div className={`absolute top-0 ${isElder ? 'left-0' : 'left-6'} flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br ${gradient} text-white shadow-md shadow-black/10`}>
+        <Icon className="h-4 w-4" />
+      </div>
+      <div
+        className={`
+          rounded-xl px-4 py-3 transition-all duration-300
+          ${isWorking ? 'glass-l3 border-amber-500/40 animate-breath-glow' : isFailed ? 'glass-l3 border-destructive/40' : 'glass-l3 opacity-80'}
+          ${hasContent ? 'cursor-pointer hover:shadow-md' : ''}
+        `}
+      >
+        <button
+          type="button"
+          onClick={() => hasContent && setOpen((prev) => !prev)}
+          className="flex w-full items-center justify-between gap-2 text-left"
+        >
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="font-medium text-foreground">{titleLabel}：{agent.name}</span>
+            <span className={`text-sm ${isWorking ? 'font-medium text-amber-500' : 'text-muted-foreground'}`}>
+              {agent.statusText || fallbackLabel}
+            </span>
+          </div>
+          {hasContent && (open ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />)}
+        </button>
+        {open && hasContent && (
+          <div className="mt-3 space-y-2 border-t border-border/40 pt-2">
+            {reasoning.trim() && <ReasoningPanel text={reasoning} />}
+            {tools.length > 0 && <ToolLogPanel tools={tools} />}
+            {text.trim() && (
+              <div className="text-xs text-foreground">
+                <MarkdownText text={text} sessionId={sessionId} />
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function WorkflowPanel({ agentOutputs, sessionId }: { agentOutputs: Record<string, AgentOutput>; sessionId: string }) {
+  if (Object.keys(agentOutputs).length === 0) return null;
+  return (
+    <div className="relative mb-3">
+      <div className="agent-timeline-line" />
+      {Object.values(agentOutputs).map((agent) => (
+        <AgentCard key={agent.agentId} agent={agent} sessionId={sessionId} />
+      ))}
+    </div>
+  );
+}
+
+function ThinkingIndicator() {
+  return (
+    <div className="sticky top-0 z-10 relative pl-20 mb-3 animate-fade-in">
+      <div className="absolute left-6 top-0 flex h-10 w-10 items-center justify-center rounded-full bg-slate-200/80 text-slate-500 dark:bg-slate-700/80">
+        <Loader2 className="h-4 w-4 animate-spin" />
+      </div>
+      <div className="glass-l3 rounded-xl px-4 py-3">
+        <div className="flex items-center gap-3 text-muted-foreground">
+          <span className="flex gap-1">
+            <span className="h-2 w-2 rounded-full bg-muted-foreground animate-bounce-dot-1" />
+            <span className="h-2 w-2 rounded-full bg-muted-foreground animate-bounce-dot-2" />
+            <span className="h-2 w-2 rounded-full bg-muted-foreground animate-bounce-dot-3" />
+          </span>
+          <span className="text-sm">正在思考中…</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ChatMessages({
+  sessionId,
+  onEditMessage,
+  onRegenerate,
+  messages,
+}: {
+  sessionId: string;
+  onEditMessage: (text: string) => void;
+  onRegenerate: (messageId: string) => void;
+  messages: any[];
+}) {
+  const lastAssistantId = messages.filter((m) => m.role !== 'user').pop()?.id;
   return (
     <ThreadPrimitive.Messages>
       {({ message }) => (
@@ -385,7 +611,13 @@ function ChatMessages({ conversationId, onEditMessage, onRegenerate, messages }:
             </div>
           )}
 
-          <MessageContent message={message} sessionId={conversationId} onEdit={onEditMessage} onRegenerate={onRegenerate} />
+          <MessageContent
+            message={message}
+            sessionId={sessionId}
+            onEdit={onEditMessage}
+            onRegenerate={onRegenerate}
+            showWorkflow={message.id === lastAssistantId}
+          />
 
           {message.role === 'user' && (
             <div className="shrink-0 w-8 h-8 rounded-full flex items-center justify-center bg-primary text-primary-foreground">
@@ -407,7 +639,7 @@ export default function SingleAgentChat({
   onTitleChange,
 }: SingleAgentChatProps) {
   const [selectedTeam, setSelectedTeam] = useState<string | undefined>(teamTemplateId);
-  const { runtime, conversationTitle, messages, isRunning, regenerateFromMessage } = useOwleryRuntime(
+  const { runtime, conversationTitle, messages, isRunning, regenerateFromMessage, agentOutputs } = useOwleryRuntime(
     conversationId,
     mode,
     teammateMode,
@@ -460,7 +692,14 @@ export default function SingleAgentChat({
           onScroll={handleViewportScroll}
           className="flex-1 overflow-y-auto px-16 py-8 space-y-6"
         >
-          <ChatMessages conversationId={conversationId} onEditMessage={handleEditMessage} onRegenerate={regenerateFromMessage} messages={messages} />
+          <WorkflowContext.Provider value={{ agentOutputs, isRunning }}>
+            <ChatMessages
+              sessionId={conversationId}
+              onEditMessage={handleEditMessage}
+              onRegenerate={regenerateFromMessage}
+              messages={messages}
+            />
+          </WorkflowContext.Provider>
 
           <ThreadPrimitive.Empty>
             <div className="flex h-full flex-col items-center justify-center text-muted-foreground">

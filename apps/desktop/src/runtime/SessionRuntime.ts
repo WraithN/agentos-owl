@@ -16,6 +16,37 @@ import type { LlmConfig } from "../agent/llmConfig.js";
 import { AgentExecutor } from "./AgentExecutor.js";
 import type { RuntimePort } from "./types.js";
 
+const SENTINEL_TITLE_LABEL: Record<string, string> = {
+  boss: "老板",
+  planner: "规划师",
+  supervisor: "监督者",
+  coordinator: "协调者",
+  cto: "CTO",
+};
+
+const WORKER_TITLE_LABEL: Record<string, string> = {
+  developer: "开发者",
+  tester: "测试员",
+  designer: "设计师",
+  writer: "撰写者",
+  researcher: "研究员",
+  analyst: "分析师",
+  marketer: "营销员",
+  operator: "操作员",
+  reviewer: "审核员",
+  debugger: "调试员",
+};
+
+function getAgentTitleLabel(role: string, title: string): string {
+  if (role === "elder" || title === "boss") return "老板";
+  if (role === "sentinel") return SENTINEL_TITLE_LABEL[title] ?? title;
+  return WORKER_TITLE_LABEL[title] ?? title;
+}
+
+function getTeamName(title: string): string {
+  return `${getAgentTitleLabel("sentinel", title)}团队`;
+}
+
 export interface SessionRuntimeOptions {
   sessionId: string;
   port: RuntimePort;
@@ -113,6 +144,8 @@ export class SessionRuntime {
 
     try {
       const elder = this.ensureElder();
+      // 先让前端立即看到老板卡片，减少首字等待的空白感
+      this.emitAgentStatusCard(elder, "正在工作");
       let sentinel: AgentRuntime;
 
       if (teammateMode) {
@@ -127,14 +160,53 @@ export class SessionRuntime {
         sentinel = this.recruitSentinel(elder, title);
       }
 
-      // Sentinel 执行并决定 Workers
-      await this.streamAgent(sentinel, userMessage);
+      // Sentinel 第一阶段：制定计划并招募 Worker（不直接输出正文）
+      this.emitAgentStatusCard(sentinel, "正在工作规划");
+      const sentinelPlan = await this.streamAgent(sentinel, userMessage, { forwardText: false });
       const workerTitles = this.pendingRecruitment.workers;
+
       if (workerTitles && workerTitles.length > 0) {
-        const workers = this.recruitWorkers(sentinel, workerTitles);
+        const workers = this.recruitWorkersIfNeeded(sentinel, workerTitles);
+        const workerOutputs: string[] = [];
         for (const worker of workers) {
-          await this.streamAgent(worker, userMessage);
+          this.emitAgentStatusCard(worker, "工作中");
+          const output = await this.streamAgent(worker, userMessage, { forwardText: false });
+          this.emitAgentStatusCard(worker, "已完成");
+          if (output) workerOutputs.push(output);
         }
+
+        // Sentinel 第二阶段：基于 Worker 真实产出做收敛，生成供 Elder 评审的草案
+        let draft = sentinelPlan;
+        if (workerOutputs.length > 0) {
+          this.emitAgentStatusCard(sentinel, "正在收敛Worker产出");
+          const aggregatePrompt = [
+            "你招募的 Worker 已经完成执行，以下是他们的原始产出。",
+            "请对这些产出进行去重、校验、补全遗漏，并整合为一份可直接交付给用户的最终成果。",
+            "不要暴露内部协调过程，直接给出最终答案。",
+            "",
+            workerOutputs.map((output, index) => `--- Worker ${index + 1} ---\n${output}`).join("\n\n"),
+          ].join("\n");
+          draft = await this.streamAgent(sentinel, aggregatePrompt, { forwardText: false });
+          this.emitAgentStatusCard(sentinel, "已完成");
+        }
+
+        // Elder 最终评审并输出给用户的唯一答案
+        this.emitAgentStatusCard(elder, "正在对工作进行评审");
+        const finalPrompt = [
+          "你是唯一面向用户的 Agent。请基于以下工作成果进行最终评审，直接输出给用户的最终答案，不要暴露内部协调过程。",
+          "",
+          draft || "（无额外工作成果）",
+        ].join("\n");
+        await this.streamAgent(elder, finalPrompt, { forwardText: true });
+      } else if (sentinelPlan) {
+        // 简单任务未招募 Worker，由 Elder 直接输出结论
+        this.emitAgentStatusCard(elder, "正在对工作进行评审");
+        const finalPrompt = [
+          "你是唯一面向用户的 Agent。请直接输出以下结论给用户，不要暴露内部协调过程。",
+          "",
+          sentinelPlan,
+        ].join("\n");
+        await this.streamAgent(elder, finalPrompt, { forwardText: true });
       }
 
       if (this.runStatus === "running") {
@@ -152,7 +224,12 @@ export class SessionRuntime {
     }
   }
 
-  private async streamAgent(agent: AgentRuntime, userMessage: string): Promise<void> {
+  private async streamAgent(
+    agent: AgentRuntime,
+    payloadText: string,
+    options: { forwardText?: boolean } = {},
+  ): Promise<string> {
+    const forwardText = options.forwardText ?? false;
     this.currentAgent = agent;
     const message: AgentMessage<{ text: string }> = {
       id: `${this.sessionId}:${Date.now()}:${agent.role}`,
@@ -160,13 +237,14 @@ export class SessionRuntime {
       to: agent.id,
       sessionId: this.sessionId,
       kind: "request",
-      payload: { text: userMessage },
+      payload: { text: payloadText },
       createdAt: Date.now(),
     };
 
-    this.crystalBall.updateStatus(agent.id, "in_progress", userMessage);
+    this.crystalBall.updateStatus(agent.id, "in_progress", payloadText);
     this.emitStatus();
 
+    const textParts: string[] = [];
     try {
       for await (const chunk of agent.streamChat({
         sessionId: this.sessionId,
@@ -187,12 +265,28 @@ export class SessionRuntime {
           }
           if (toolName === "recruit_workers" && agent.role === "sentinel") {
             const workers = this.extractWorkerTitles(event);
-            if (workers) this.pendingRecruitment.workers = workers;
+            if (workers) {
+              this.pendingRecruitment.workers = workers;
+              this.recruitWorkersIfNeeded(agent, workers);
+            }
             // 不转发原始 tool_event；由 recruitWorkers 统一输出包含完整 workers 的事件
             continue;
           }
+          // 非招募类 tool_event 包装为 agent_chunk，前端折叠在对应 Agent 卡片下
+          if (agent.role !== "elder") this.emitAgentChunk(agent, chunk);
+          continue;
         }
-        this.forwardChunk(agent, chunk);
+        if (chunk.type === "text_delta") {
+          textParts.push(chunk.text);
+          if (forwardText && agent.role === "elder") {
+            this.forwardChunk(agent, chunk);
+          } else if (agent.role !== "elder") {
+            this.emitAgentChunk(agent, chunk);
+          }
+          continue;
+        }
+        // reasoning_delta 等其他 chunk 也折叠在对应 Agent 卡片下
+        if (agent.role !== "elder") this.emitAgentChunk(agent, chunk);
       }
       this.crystalBall.updateStatus(agent.id, "completed");
     } catch (error) {
@@ -202,13 +296,46 @@ export class SessionRuntime {
     }
 
     this.emitStatus();
+    return textParts.join("");
   }
 
   private forwardChunk(agent: AgentRuntime, chunk: AgentDriverChunk): void {
-    // 仅将老板与主 Sentinel 的输出透传给前端；Worker 的原始输出由 Boss 收口
-    if (agent.role === "elder" || agent.role === "sentinel") {
+    // 只有 Elder 的文本会直接透传给前端；Worker / Sentinel 的产出由 Elder 收敛后统一输出
+    if (agent.role === "elder" && chunk.type === "text_delta") {
       this.port.postEvent({ type: "chunk", chunk });
     }
+  }
+
+  private emitAgentChunk(agent: AgentRuntime, chunk: AgentDriverChunk): void {
+    this.port.postEvent({
+      type: "chunk",
+      chunk: {
+        type: "agent_chunk",
+        agentId: agent.id,
+        agentName: agent.name,
+        agentTitle: agent.title,
+        role: agent.role,
+        chunk,
+      },
+    });
+  }
+
+  private emitStatusCard(text: string): void {
+    this.port.postEvent({ type: "chunk", chunk: { type: "status_card", text } });
+  }
+
+  private emitAgentStatusCard(agent: AgentRuntime, text: string): void {
+    this.port.postEvent({
+      type: "chunk",
+      chunk: {
+        type: "status_card",
+        text,
+        agentId: agent.id,
+        agentName: agent.name,
+        agentTitle: agent.title,
+        role: agent.role,
+      },
+    });
   }
 
   private stop(): void {
@@ -252,30 +379,14 @@ export class SessionRuntime {
       endpointB: sentinel.id,
     });
 
-    const reason = this.pendingRecruitment.sentinelReason;
-    this.port.postEvent({
-      type: "chunk",
-      chunk: {
-        type: "tool_event",
-        event: {
-          type: "tool_execution_end",
-          toolName: "recruit_sentinel",
-          startedAt: Date.now(),
-          endedAt: Date.now(),
-          isError: false,
-          args: { title, reason },
-          result: { title, reason, sentinelId: id },
-          durationMs: 0,
-        },
-      },
-    });
-
+    this.emitAgentStatusCard(elder, `正在招聘${getTeamName(title)}团队`);
     this.emitStatus();
     return sentinel;
   }
 
   private recruitWorkers(sentinel: AgentRuntime, titles: string[]): AgentRuntime[] {
     const workers: AgentRuntime[] = [];
+    let created = 0;
     for (const title of titles) {
       const id = `${this.sessionId}:worker:${this.getSanitizedId(title)}`;
       if (this.recruitedAgents.has(id)) {
@@ -292,27 +403,23 @@ export class SessionRuntime {
       this.agentExecutor.register(worker);
       this.recruitedAgents.set(id, worker);
       workers.push(worker);
+      created++;
     }
 
-    this.port.postEvent({
-      type: "chunk",
-      chunk: {
-        type: "tool_event",
-        event: {
-          type: "tool_execution_end",
-          toolName: "recruit_workers",
-          startedAt: Date.now(),
-          endedAt: Date.now(),
-          isError: false,
-          args: { workers: titles },
-          result: { workers: titles },
-          durationMs: 0,
-        },
-      },
-    });
-
-    this.emitStatus();
+    // 只有真正新建了 Worker 才发招聘卡片，避免 LLM 多次触发 recruit_workers 时重复展示
+    if (created > 0) {
+      const workerDescriptions = workers
+        .map((worker) => `${getAgentTitleLabel("worker", worker.title)} ${worker.name}`)
+        .join("、");
+      this.emitAgentStatusCard(sentinel, `正在招聘 ${workerDescriptions}`);
+      this.emitStatus();
+    }
     return workers;
+  }
+
+  private recruitWorkersIfNeeded(sentinel: AgentRuntime, titles: string[]): AgentRuntime[] {
+    // 每次都用最新的 titles 创建/复用 Worker，避免 LLM 先给 1 个后又给 3 个时只保留最早的 1 个
+    return this.recruitWorkers(sentinel, titles);
   }
 
   private getSanitizedId(title: string): string {
@@ -359,9 +466,13 @@ export class SessionRuntime {
   private createStatus(): TeammateStatus & { visibility: SessionVisibility; runStatus: SessionRunStatus } {
     const snapshots = this.crystalBall.getSnapshot();
     const leaderSnapshot = snapshots.find((agent) => agent.role === "elder");
+    const sentinelSnapshot = snapshots.find((agent) => agent.role === "sentinel");
+    const teammateName = sentinelSnapshot
+      ? `${getAgentTitleLabel("sentinel", sentinelSnapshot.title)}团队`
+      : "默认团队";
     return {
       sessionId: this.sessionId,
-      teammateName: "默认团队",
+      teammateName,
       leader: leaderSnapshot ? this.toAgentStatus(leaderSnapshot) : undefined,
       members: snapshots.filter((agent) => agent.agentId !== leaderSnapshot?.agentId).map((agent) => this.toAgentStatus(agent)),
       visibility: this.visibility,

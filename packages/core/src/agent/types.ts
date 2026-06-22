@@ -132,5 +132,7 @@ export type AgentDriverChunk =
   | { type: "text_delta"; text: string }
   | { type: "reasoning_delta"; text: string }
   | { type: "tool_event"; event: unknown }
+  | { type: "status_card"; text: string; agentId?: AgentId; agentName?: string; agentTitle?: AgentTitle; role?: AgentRole }
+  | { type: "agent_chunk"; agentId: AgentId; agentName: string; agentTitle: AgentTitle; role: AgentRole; chunk: AgentDriverChunk }
   | { type: "done" }
   | { type: "error"; error: string };
