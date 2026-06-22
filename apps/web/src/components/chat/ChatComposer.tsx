@@ -160,7 +160,6 @@ export function ChatComposer({
                   ))}
                 </DropdownMenuContent>
               </DropdownMenu>
-              <PromptPicker inputRef={inputRef} />
               <DropdownMenu>
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -186,6 +185,7 @@ export function ChatComposer({
                   ))}
                 </DropdownMenuContent>
               </DropdownMenu>
+              <PromptPicker inputRef={inputRef} />
               <TeamSelector selected={selectedTeam} onSelect={onTeamChange} />
             </div>
             <div className="absolute bottom-1.5 right-2">
