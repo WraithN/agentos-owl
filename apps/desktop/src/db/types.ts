@@ -156,6 +156,7 @@ export interface Prompt {
   description: string;
   content: string;
   official: boolean;
+  isFavorite: boolean;
   tags: string[];
   createdAt: number;
   updatedAt: number;

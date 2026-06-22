@@ -30,7 +30,7 @@ const SKILLS: Omit<Skill, "createdAt" | "updatedAt">[] = [
   { id: "s13", name: "合同审查",   category: "文档", description: "法律合同条款自动审查与风险提示",       icon: "Shield",          iconBg: "from-rose-500 to-pink-600",     stars: 4.4, installs: 6700,  official: false, tags: ["法律", "合规"] },
 ];
 
-const PROMPTS: Omit<Prompt, "createdAt" | "updatedAt">[] = [
+const PROMPTS: Omit<Prompt, "createdAt" | "updatedAt" | "isFavorite">[] = [
   { id: "p1",  name: "专业邮件写作",   category: "写作", description: "生成商务场景专业邮件，语气正式，逻辑清晰", content: "你是一位专业的商务写作助手，请根据用户描述生成语气正式、逻辑清晰的商务邮件。", official: true,  tags: ["写作", "商务"] },
   { id: "p2",  name: "代码注释生成",   category: "代码", description: "为任意代码片段自动生成规范注释与文档",     content: "你是一位资深工程师，请为以下代码生成清晰规范的注释和文档说明。",                official: true,  tags: ["代码", "文档"] },
   { id: "p3",  name: "产品需求分析",   category: "产品", description: "将用户描述转化为结构化 PRD，包含用户故事",  content: "你是一位产品经理，请将用户描述转化为结构化的产品需求文档，包含用户故事和验收标准。", official: false, tags: ["产品", "PRD"] },
@@ -79,7 +79,7 @@ function seedPrompts(db: Database.Database): void {
 
   const t = daysAgo(60);
   for (const p of PROMPTS) {
-    queries.upsertPrompt(db, { ...p, createdAt: t, updatedAt: t });
+    queries.upsertPrompt(db, { ...p, isFavorite: false, createdAt: t, updatedAt: t });
   }
 }
 
