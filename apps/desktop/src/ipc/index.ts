@@ -5,7 +5,9 @@ import { registerAuthHandlers } from "./auth.js";
 import { registerBillingHandlers } from "./billing.js";
 import { registerExtensionHandlers } from "./extensions.js";
 import { registerFileHandlers } from "./files.js";
+import { registerFilePreviewHandlers } from "./filePreview.js";
 import { registerConversationHandlers } from "./conversations.js";
+import { registerHtmlPreviewHandlers } from "./htmlPreview.js";
 import { registerKnowledgeHandlers } from "./knowledge.js";
 import { registerLlmHandlers } from "./llm.js";
 import { registerMarketToolHandlers } from "./marketTools.js";
@@ -42,6 +44,8 @@ export function registerIpcHandlers(): void {
   registerWebhookHandlers();
   registerAuditLogHandlers();
   registerFileHandlers();
+  registerFilePreviewHandlers();
+  registerHtmlPreviewHandlers();
   registerShellHandlers();
   registerLlmHandlers();
   registerParseDocumentHandlers();

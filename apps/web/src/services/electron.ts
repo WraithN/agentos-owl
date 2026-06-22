@@ -499,6 +499,77 @@ export const showOpenDialog = (options: unknown) =>
 export const showSaveDialog = (options: unknown) =>
   invoke<{ canceled: boolean; filePath?: string }>('show_save_dialog', options);
 
+export interface HtmlPreviewCreateRequest {
+  sessionId: string;
+  html: string;
+  title?: string;
+}
+
+export interface HtmlPreviewCreateResult {
+  previewId: string;
+  fileName: string;
+  sizeBytes: number;
+  expiresAt: number;
+  maxPreviewBytes: number;
+}
+
+export interface HtmlPreviewReadResult {
+  previewId: string;
+  fileName: string;
+  html: string;
+  sizeBytes: number;
+  expiresAt: number;
+}
+
+export interface HtmlPreviewSaveRequest {
+  html: string;
+  defaultName?: string;
+}
+
+export const createHtmlPreviewTempFile = (req: HtmlPreviewCreateRequest) =>
+  invoke<HtmlPreviewCreateResult>('html_preview_create_temp_file', req);
+export const readHtmlPreview = (previewId: string) =>
+  invoke<HtmlPreviewReadResult | null>('html_preview_read', { previewId });
+export const saveHtmlPreviewAs = (req: HtmlPreviewSaveRequest) =>
+  invoke<{ canceled: boolean; filePath?: string }>('html_preview_save_as', req);
+export const openHtmlPreviewWindow = (previewId: string) =>
+  invoke<{ ok: boolean }>('html_preview_open_window', { previewId });
+export const closeHtmlPreviewWindow = (previewId: string) =>
+  invoke<{ ok: boolean }>('html_preview_close_window', { previewId });
+
+export interface FilePreviewCreateRequest {
+  sessionId: string;
+  fileName: string;
+  data: ArrayBuffer;
+}
+
+export interface FilePreviewCreateResult {
+  previewId: string;
+  fileName: string;
+  sizeBytes: number;
+  expiresAt: number;
+  maxPreviewBytes: number;
+}
+
+export interface FilePreviewReadResult {
+  previewId: string;
+  fileName: string;
+  html: string;
+  sizeBytes: number;
+  expiresAt: number;
+}
+
+export const createFilePreviewTempFile = (req: FilePreviewCreateRequest) =>
+  invoke<FilePreviewCreateResult>('file_preview_create_temp_file', req);
+export const readFilePreview = (previewId: string) =>
+  invoke<FilePreviewReadResult | null>('file_preview_read', { previewId });
+export const saveFilePreviewAs = (previewId: string) =>
+  invoke<{ canceled: boolean; filePath?: string }>('file_preview_save_as', { previewId });
+export const openFilePreviewWindow = (previewId: string) =>
+  invoke<{ ok: boolean }>('file_preview_open_window', { previewId });
+export const closeFilePreviewWindow = (previewId: string) =>
+  invoke<{ ok: boolean }>('file_preview_close_window', { previewId });
+
 export interface LlmChatRequest {
   provider?: string;
   model?: string;
