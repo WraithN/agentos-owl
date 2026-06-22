@@ -26,6 +26,7 @@ export interface PromptItem {
   description: string;
   content: string;
   official: boolean;
+  isFavorite: boolean;
   tags: string[];
 }
 

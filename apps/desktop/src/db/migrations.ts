@@ -17,11 +17,12 @@ export function runMigrations(db: Database.Database): void {
   ensureSessionLogDetailPath(db);
   purgeExpiredSessionLogs(db);
   ensureExtensionTables(db);
+  ensurePromptFavoriteColumn(db);
   normalizeMarketToolTypes(db);
   importDeepSeekConfig(db);
   purgeSeedConversations(db);
   purgeMockLogs(db);
-  bumpSchemaVersion(db, 7);
+  bumpSchemaVersion(db, 8);
 }
 
 /**
@@ -236,6 +237,13 @@ function ensureExtensionTables(db: Database.Database): void {
       INSERT OR IGNORE INTO extension_tags (id, scope, name, sort_order, created_at)
       SELECT id, scope, name, sort_order, created_at FROM tool_categories;
     `);
+  }
+}
+
+function ensurePromptFavoriteColumn(db: Database.Database): void {
+  const cols = tableColumns(db, "prompts");
+  if (!cols.has("is_favorite")) {
+    db.exec("ALTER TABLE prompts ADD COLUMN is_favorite INTEGER NOT NULL DEFAULT 0");
   }
 }
 

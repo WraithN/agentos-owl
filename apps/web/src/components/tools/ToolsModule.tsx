@@ -23,6 +23,7 @@ import {
 import type { MarketTool as DbMarketTool } from '@/types';
 
 const ALL_CATEGORY = '全部';
+const MAX_FAVORITE_PROMPTS = 20;
 
 function toDate(value: unknown): Date {
   if (value instanceof Date) return value;
@@ -84,6 +85,7 @@ export default function ToolsModuleContainer() {
       description: p.description,
       content: p.content,
       official: p.official,
+      isFavorite: p.isFavorite,
       tags: p.tags,
     })),
     [prompts]
@@ -194,6 +196,7 @@ export default function ToolsModuleContainer() {
         content: p.content,
         official: p.official,
         tags: p.tags,
+        isFavorite: p.isFavorite,
         createdAt: existing?.createdAt,
       });
       setPrompts(prev => prev.map(x => (x.id === saved.id ? saved : x)));
@@ -210,6 +213,32 @@ export default function ToolsModuleContainer() {
       toast.error('删除提示词失败');
     }
   }, []);
+
+  const onToggleFavoritePrompt = useCallback(async (id: string, isFavorite: boolean) => {
+    const existing = prompts.find(p => p.id === id);
+    if (!existing) return;
+    const currentFavorites = prompts.filter(p => p.isFavorite).length;
+    if (isFavorite && !existing.isFavorite && currentFavorites >= MAX_FAVORITE_PROMPTS) {
+      toast.error(`最多只能收藏 ${MAX_FAVORITE_PROMPTS} 个常用提示词`);
+      return;
+    }
+    try {
+      const saved = await savePrompt({
+        id,
+        name: existing.name,
+        category: existing.category,
+        description: existing.description,
+        content: existing.content,
+        official: existing.official,
+        tags: existing.tags,
+        isFavorite,
+        createdAt: existing.createdAt,
+      });
+      setPrompts(prev => prev.map(p => (p.id === saved.id ? saved : p)));
+    } catch {
+      toast.error('更新收藏状态失败');
+    }
+  }, [prompts]);
 
   const onCreateTool = useCallback(async (t: PkgMarketTool) => {
     try {
@@ -277,6 +306,7 @@ export default function ToolsModuleContainer() {
     onCreatePrompt,
     onUpdatePrompt,
     onDeletePrompt,
+    onToggleFavoritePrompt,
     onCreateTool,
     onUpdateTool,
     onDeleteTool,
@@ -292,6 +322,7 @@ export default function ToolsModuleContainer() {
     onCreatePrompt,
     onUpdatePrompt,
     onDeletePrompt,
+    onToggleFavoritePrompt,
     onCreateTool,
     onUpdateTool,
     onDeleteTool,

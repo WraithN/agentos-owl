@@ -1,6 +1,6 @@
 # 聊天输入框提示词功能实施计划
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** 让提示词收藏状态入库并在聊天输入框中按 category Tabs 展示常用提示词，同时统一输入框按钮为图标 + Tooltip。
 
@@ -34,7 +34,7 @@
 - Modify: `apps/desktop/src/db/schema.sql:207-217`
 - Modify: `apps/desktop/src/db/migrations.ts:11-24, 186-240`
 
-- [ ] **Step 1: 修改 schema.sql 增加 is_favorite 列**
+- [x] **Step 1: 修改 schema.sql 增加 is_favorite 列**
 
 在 `prompts` 表定义中加入 `is_favorite`：
 
@@ -53,7 +53,7 @@ CREATE TABLE IF NOT EXISTS prompts (
 );
 ```
 
-- [ ] **Step 2: 在 migrations.ts 增加幂用迁移函数**
+- [x] **Step 2: 在 migrations.ts 增加幂用迁移函数**
 
 在 `ensureExtensionTables` 之后新增：
 
@@ -78,7 +78,7 @@ export function runMigrations(db: Database.Database): void {
 }
 ```
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add apps/desktop/src/db/schema.sql apps/desktop/src/db/migrations.ts
@@ -93,7 +93,7 @@ git commit -m "feat(db): add is_favorite column to prompts table"
 - Modify: `apps/desktop/src/db/queries/prompts.ts`
 - Modify: `apps/desktop/src/ipc/extensions.ts`
 
-- [ ] **Step 1: 更新 prompts.ts 查询和映射**
+- [x] **Step 1: 更新 prompts.ts 查询和映射**
 
 ```ts
 const selectColumns = `
@@ -141,7 +141,7 @@ export function upsertPrompt(db: Database.Database, prompt: Prompt): void {
 }
 ```
 
-- [ ] **Step 2: 更新 extensions.ts save_prompt handler**
+- [x] **Step 2: 更新 extensions.ts save_prompt handler**
 
 ```ts
 ipcMain.handle("save_prompt", (_event, raw: Partial<Prompt>): Prompt => {
@@ -164,7 +164,7 @@ ipcMain.handle("save_prompt", (_event, raw: Partial<Prompt>): Prompt => {
 });
 ```
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add apps/desktop/src/db/queries/prompts.ts apps/desktop/src/ipc/extensions.ts
@@ -182,7 +182,7 @@ git commit -m "feat(ipc,db): persist and return prompt isFavorite"
 - Modify: `packages/tools/src/components/ToolsModule.tsx`
 - Modify: `apps/web/src/components/tools/ToolsModule.tsx`
 
-- [ ] **Step 1: 扩展 Prompt 类型**
+- [x] **Step 1: 扩展 Prompt 类型**
 
 `apps/web/src/services/electron.ts`：
 
@@ -216,7 +216,7 @@ export interface PromptItem {
 }
 ```
 
-- [ ] **Step 2: 在 ToolsModuleDataSource 增加 toggle favorite 接口**
+- [x] **Step 2: 在 ToolsModuleDataSource 增加 toggle favorite 接口**
 
 `packages/tools/src/components/ToolsModule.tsx` 的 `ToolsModuleDataSource`：
 
@@ -227,7 +227,7 @@ export interface ToolsModuleDataSource {
 }
 ```
 
-- [ ] **Step 3: PromptCard 使用 dataSource 的 toggle 回调**
+- [x] **Step 3: PromptCard 使用 dataSource 的 toggle 回调**
 
 `packages/tools/src/components/PromptCard.tsx`：
 
@@ -264,7 +264,7 @@ export default function PromptCard({
 </button>
 ```
 
-- [ ] **Step 4: ToolsModule 去掉本地 favPrompts，使用 dataSource**
+- [x] **Step 4: ToolsModule 去掉本地 favPrompts，使用 dataSource**
 
 `packages/tools/src/components/ToolsModule.tsx`：
 
@@ -281,7 +281,7 @@ export default function PromptCard({
 
 删除 `favPrompts` state 及所有相关逻辑。
 
-- [ ] **Step 5: 容器实现 onToggleFavoritePrompt**
+- [x] **Step 5: 容器实现 onToggleFavoritePrompt**
 
 `apps/web/src/components/tools/ToolsModule.tsx`：
 
@@ -322,7 +322,7 @@ const promptItems: PromptItem[] = useMemo(
 );
 ```
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add apps/web/src/services/electron.ts packages/tools/src/types.ts \
@@ -339,7 +339,7 @@ git commit -m "feat(tools): wire prompt favorite toggle to SQLite"
 **Files:**
 - Create: `apps/web/src/components/chat/PromptPicker.tsx`
 
-- [ ] **Step 1: 创建组件文件**
+- [x] **Step 1: 创建组件文件**
 
 ```tsx
 import { useEffect, useMemo, useState } from 'react';
@@ -491,7 +491,7 @@ export function PromptPicker({ inputRef }: PromptPickerProps) {
 }
 ```
 
-- [ ] **Step 2: Commit**
+- [x] **Step 2: Commit**
 
 ```bash
 git add apps/web/src/components/chat/PromptPicker.tsx
@@ -505,7 +505,7 @@ git commit -m "feat(chat): add PromptPicker component for favorite prompts"
 **Files:**
 - Modify: `apps/web/src/components/chat/ChatComposer.tsx`
 
-- [ ] **Step 1: 引入 PromptPicker 和 TooltipProvider/Tooltip 组件**
+- [x] **Step 1: 引入 PromptPicker 和 TooltipProvider/Tooltip 组件**
 
 在文件顶部引入：
 
@@ -519,7 +519,7 @@ import {
 } from '@/components/ui/tooltip';
 ```
 
-- [ ] **Step 2: 把现有图标按钮包上 Tooltip**
+- [x] **Step 2: 把现有图标按钮包上 Tooltip**
 
 例如语音按钮：
 
@@ -536,7 +536,7 @@ import {
 
 对附件、快捷指令、技能、发送按钮同理。若文件内已存在 `TooltipProvider` 包裹，确保只包一层最外层（可在整个按钮组外统一包 `TooltipProvider`）。
 
-- [ ] **Step 3: 在按钮组中插入 PromptPicker**
+- [x] **Step 3: 在按钮组中插入 PromptPicker**
 
 在技能按钮之后、`TeamSelector` 之前插入：
 
@@ -544,7 +544,7 @@ import {
 <PromptPicker inputRef={inputRef} />
 ```
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add apps/web/src/components/chat/ChatComposer.tsx
@@ -559,7 +559,7 @@ git commit -m "feat(chat): integrate PromptPicker and add tooltips to composer b
 - Modify: `apps/web/src/components/tools/ToolsModule.tsx`
 - Modify: `packages/tools/src/components/PromptCard.tsx`
 
-- [ ] **Step 1: 在容器层校验上限**
+- [x] **Step 1: 在容器层校验上限**
 
 `apps/web/src/components/tools/ToolsModule.tsx`：
 
@@ -578,11 +578,11 @@ const onToggleFavoritePrompt = useCallback(async (id: string, isFavorite: boolea
 }, [prompts]);
 ```
 
-- [ ] **Step 2: 可选 - 在 PromptCard 视觉提示**
+- [x] **Step 2: 可选 - 在 PromptCard 视觉提示**
 
 若 `isFavorite === false` 且当前收藏数已达上限，收藏按钮可置灰。该信息通过 dataSource 传入：`favoriteCount` 和 `maxFavoriteCount`，或简单 toast 足够。本计划采用 toast 方案，保持改动最小。
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add apps/web/src/components/tools/ToolsModule.tsx
@@ -593,7 +593,7 @@ git commit -m "feat(tools): enforce max 20 favorite prompts"
 
 ## Task 7: 验证
 
-- [ ] **Step 1: 类型与静态检查**
+- [x] **Step 1: 类型与静态检查**
 
 ```bash
 pnpm typecheck
@@ -601,7 +601,7 @@ pnpm typecheck
 
 Expected: all packages pass.
 
-- [ ] **Step 2: 代码风格检查**
+- [x] **Step 2: 代码风格检查**
 
 ```bash
 pnpm lint
@@ -609,7 +609,7 @@ pnpm lint
 
 Expected: no Biome/ast-grep errors.
 
-- [ ] **Step 3: 运行测试**
+- [x] **Step 3: 运行测试**
 
 ```bash
 pnpm test
@@ -617,7 +617,7 @@ pnpm test
 
 Expected: desktop & core tests pass.
 
-- [ ] **Step 4: 构建验证**
+- [x] **Step 4: 构建验证**
 
 ```bash
 pnpm build
@@ -625,14 +625,14 @@ pnpm build
 
 Expected: web & desktop build successfully.
 
-- [ ] **Step 5: 手工验证**
+- [x] **Step 5: 手工验证**
 
 1. 打开工具市场 > 提示词，给 3 个不同 category 的提示词点收藏。
 2. 打开聊天输入框，点击“常用提示词”图标，确认 Tabs 为 category 名称 + 未分类，点击提示词内容插入输入框。
 3. 取消某个收藏，重新打开 Popover，确认该提示词消失。
 4. hover 输入框所有图标按钮，确认均有 Tooltip。
 
-- [ ] **Step 6: Commit any fixes**
+- [x] **Step 6: Commit any fixes**
 
 ```bash
 git add -A

@@ -38,6 +38,7 @@ export default function CreatePromptDialog({
       description: content.slice(0, 40) + (content.length > 40 ? '...' : ''),
       content: content.trim(),
       official: false,
+      isFavorite: false,
       tags: tags.split(/[,，\s]+/).map(t => t.trim()).filter(Boolean),
     });
   }

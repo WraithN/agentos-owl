@@ -41,18 +41,18 @@ export const INIT_SKILLS: SkillItem[] = [
 
 /* ── 提示词市场初始数据 ────────────────────────────────────────────── */
 export const INIT_PROMPTS: PromptItem[] = [
-  { id: 'p1', name: '专业邮件写作', category: '写作', description: '生成商务场景专业邮件，语气正式，逻辑清晰', content: '你是一位专业的商务写作助手，请根据用户描述生成语气正式、逻辑清晰的商务邮件。', official: true, tags: ['写作', '商务'] },
-  { id: 'p2', name: '代码注释生成', category: '代码', description: '为任意代码片段自动生成规范注释与文档', content: '你是一位资深工程师，请为以下代码生成清晰规范的注释和文档说明。', official: true, tags: ['代码', '文档'] },
-  { id: 'p3', name: '产品需求分析', category: '产品', description: '将用户描述转化为结构化 PRD，包含用户故事', content: '你是一位产品经理，请将用户描述转化为结构化的产品需求文档，包含用户故事和验收标准。', official: false, tags: ['产品', 'PRD'] },
-  { id: 'p4', name: '面试问题生成', category: 'HR', description: '根据岗位 JD 生成针对性面试题目与评分标准', content: '你是一位 HR 专家，请根据以下岗位描述生成有针对性的面试题目和评分标准。', official: false, tags: ['HR', '面试'] },
-  { id: 'p5', name: '市场竞品分析', category: '分析', description: '多维度竞品对比框架，输出结构化分析报告', content: '你是一位市场分析师，请对以下产品进行多维度竞品分析并输出结构化报告。', official: true, tags: ['分析', '竞品'] },
-  { id: 'p6', name: '用户故事提炼', category: '产品', description: '从访谈记录或反馈中提炼关键用户故事', content: '你是一位用户研究专家，请从以下访谈记录中提炼关键用户故事和核心痛点。', official: false, tags: ['产品', '用户研究'] },
-  { id: 'p7', name: '技术方案撰写', category: '代码', description: '根据需求描述生成详细技术实现方案文档', content: '你是一位架构师，请根据以下需求描述生成详细的技术实现方案，包含架构设计、技术选型和实施步骤。', official: true, tags: ['代码', '文档'] },
-  { id: 'p8', name: '社媒文案创作', category: '写作', description: '针对微博/小红书/朋友圈生成高互动文案', content: '你是一位社交媒体运营专家，请为以下主题创作适合微博/小红书/朋友圈的高互动文案。', official: false, tags: ['写作', '营销'] },
-  { id: 'p9', name: '周报自动撰写', category: '写作', description: '结合工作记录生成专业周报，一键完成汇报', content: '你是一位专业助手，请根据以下工作记录生成结构清晰、重点突出的工作周报。', official: true, tags: ['写作', '效率'] },
-  { id: 'p10', name: 'API 文档生成', category: '代码', description: '为接口自动生成 OpenAPI 规范文档', content: '你是一位后端架构师，请根据以下接口描述生成符合 OpenAPI 3.0 规范的接口文档。', official: false, tags: ['代码', '文档'] },
-  { id: 'p11', name: '招聘 JD 撰写', category: 'HR', description: '根据岗位需求生成专业招聘描述', content: '你是一位资深 HR 招聘专家，请根据以下岗位需求生成吸引人才的招聘 JD 描述。', official: true, tags: ['HR', '招聘'] },
-  { id: 'p12', name: '数据洞察提炼', category: '分析', description: '从数据中提取关键发现与商业建议', content: '你是一位数据分析专家，请从以下数据中提炼关键发现，并给出可操作的商业建议。', official: false, tags: ['分析', '洞察'] },
+  { id: 'p1', name: '专业邮件写作', category: '写作', description: '生成商务场景专业邮件，语气正式，逻辑清晰', content: '你是一位专业的商务写作助手，请根据用户描述生成语气正式、逻辑清晰的商务邮件。', official: true, isFavorite: false, tags: ['写作', '商务'] },
+  { id: 'p2', name: '代码注释生成', category: '代码', description: '为任意代码片段自动生成规范注释与文档', content: '你是一位资深工程师，请为以下代码生成清晰规范的注释和文档说明。', official: true, isFavorite: false, tags: ['代码', '文档'] },
+  { id: 'p3', name: '产品需求分析', category: '产品', description: '将用户描述转化为结构化 PRD，包含用户故事', content: '你是一位产品经理，请将用户描述转化为结构化的产品需求文档，包含用户故事和验收标准。', official: false, isFavorite: false, tags: ['产品', 'PRD'] },
+  { id: 'p4', name: '面试问题生成', category: 'HR', description: '根据岗位 JD 生成针对性面试题目与评分标准', content: '你是一位 HR 专家，请根据以下岗位描述生成有针对性的面试题目和评分标准。', official: false, isFavorite: false, tags: ['HR', '面试'] },
+  { id: 'p5', name: '市场竞品分析', category: '分析', description: '多维度竞品对比框架，输出结构化分析报告', content: '你是一位市场分析师，请对以下产品进行多维度竞品分析并输出结构化报告。', official: true, isFavorite: false, tags: ['分析', '竞品'] },
+  { id: 'p6', name: '用户故事提炼', category: '产品', description: '从访谈记录或反馈中提炼关键用户故事', content: '你是一位用户研究专家，请从以下访谈记录中提炼关键用户故事和核心痛点。', official: false, isFavorite: false, tags: ['产品', '用户研究'] },
+  { id: 'p7', name: '技术方案撰写', category: '代码', description: '根据需求描述生成详细技术实现方案文档', content: '你是一位架构师，请根据以下需求描述生成详细的技术实现方案，包含架构设计、技术选型和实施步骤。', official: true, isFavorite: false, tags: ['代码', '文档'] },
+  { id: 'p8', name: '社媒文案创作', category: '写作', description: '针对微博/小红书/朋友圈生成高互动文案', content: '你是一位社交媒体运营专家，请为以下主题创作适合微博/小红书/朋友圈的高互动文案。', official: false, isFavorite: false, tags: ['写作', '营销'] },
+  { id: 'p9', name: '周报自动撰写', category: '写作', description: '结合工作记录生成专业周报，一键完成汇报', content: '你是一位专业助手，请根据以下工作记录生成结构清晰、重点突出的工作周报。', official: true, isFavorite: false, tags: ['写作', '效率'] },
+  { id: 'p10', name: 'API 文档生成', category: '代码', description: '为接口自动生成 OpenAPI 规范文档', content: '你是一位后端架构师，请根据以下接口描述生成符合 OpenAPI 3.0 规范的接口文档。', official: false, isFavorite: false, tags: ['代码', '文档'] },
+  { id: 'p11', name: '招聘 JD 撰写', category: 'HR', description: '根据岗位需求生成专业招聘描述', content: '你是一位资深 HR 招聘专家，请根据以下岗位需求生成吸引人才的招聘 JD 描述。', official: true, isFavorite: false, tags: ['HR', '招聘'] },
+  { id: 'p12', name: '数据洞察提炼', category: '分析', description: '从数据中提取关键发现与商业建议', content: '你是一位数据分析专家，请从以下数据中提炼关键发现，并给出可操作的商业建议。', official: false, isFavorite: false, tags: ['分析', '洞察'] },
 ];
 
 export const SKILL_CATEGORIES_DEFAULT = ['全部', '文档', '代码', '分析', '通信', '数据'];

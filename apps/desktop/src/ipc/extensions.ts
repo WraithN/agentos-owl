@@ -68,6 +68,7 @@ export function registerExtensionHandlers(): void {
       description: raw.description ?? "",
       content: raw.content ?? "",
       official: raw.official ?? false,
+      isFavorite: raw.isFavorite ?? false,
       tags: raw.tags ?? [],
       createdAt: raw.createdAt ?? now,
       updatedAt: now,

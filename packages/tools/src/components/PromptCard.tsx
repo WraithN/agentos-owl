@@ -11,14 +11,12 @@ export default function PromptCard({
   onDelete,
   onFav,
   onSave,
-  faved,
   index,
 }: {
   item: PromptItem;
   onDelete: () => void;
   onFav: () => void;
   onSave: (p: PromptItem) => void;
-  faved: boolean;
   index: number;
 }) {
   const [copied, setCopied] = useState(false);
@@ -65,6 +63,7 @@ export default function PromptCard({
           {/* 常驻操作按钮 */}
           <div className="flex items-center gap-1 shrink-0" onClick={e => e.stopPropagation()}>
             <button
+              type="button"
               onClick={e => {
                 e.stopPropagation();
                 setEditOpen(true);
@@ -75,19 +74,21 @@ export default function PromptCard({
               <Pencil className="w-3.5 h-3.5" />
             </button>
             <button
+              type="button"
               onClick={e => {
                 e.stopPropagation();
                 onFav();
               }}
-              title={faved ? '取消常用' : '添加到常用'}
+              title={item.isFavorite ? '取消常用' : '添加到常用'}
               className={cn(
                 'p-1.5 rounded-lg transition-all',
-                faved ? 'text-amber-400 bg-amber-500/15' : 'text-slate-400 hover:text-amber-400 hover:bg-amber-500/10'
+                item.isFavorite ? 'text-amber-400 bg-amber-500/15' : 'text-slate-400 hover:text-amber-400 hover:bg-amber-500/10'
               )}
             >
-              <Bookmark className={cn('w-3.5 h-3.5', faved && 'fill-amber-400')} />
+              <Bookmark className={cn('w-3.5 h-3.5', item.isFavorite && 'fill-amber-400')} />
             </button>
             <button
+              type="button"
               onClick={copy}
               title={copied ? '已复制' : '复制提示词'}
               className={cn(
@@ -98,6 +99,7 @@ export default function PromptCard({
               <Copy className="w-3.5 h-3.5" />
             </button>
             <button
+              type="button"
               onClick={e => {
                 e.stopPropagation();
                 setConfirmDelete(true);
