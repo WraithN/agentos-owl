@@ -44,6 +44,7 @@ export interface ToolsModuleDataSource {
   onCreatePrompt: (prompt: PromptItem) => void;
   onUpdatePrompt: (prompt: PromptItem) => void;
   onDeletePrompt: (id: string) => void;
+  onToggleFavoritePrompt: (id: string, isFavorite: boolean) => void;
 
   onCreateTool: (tool: MarketTool) => void;
   onUpdateTool: (tool: MarketTool) => void;
@@ -70,7 +71,6 @@ export default function ToolsModule({ dataSource }: ToolsModuleProps = {}) {
   const importSkillRef = useRef<HTMLInputElement>(null);
 
   const [localPrompts, setLocalPrompts] = useState<PromptItem[]>(INIT_PROMPTS);
-  const [favPrompts, setFavPrompts] = useState<Set<string>>(new Set());
   const [createPromptOpen, setCreatePromptOpen] = useState(false);
 
   const [localTools, setLocalTools] = useState<MarketTool[]>(
@@ -395,15 +395,8 @@ export default function ToolsModule({ dataSource }: ToolsModuleProps = {}) {
                     key={p.id}
                     item={p}
                     onDelete={() => deletePrompt(p.id)}
-                    onFav={() =>
-                      setFavPrompts(prev => {
-                        const n = new Set(prev);
-                        n.has(p.id) ? n.delete(p.id) : n.add(p.id);
-                        return n;
-                      })
-                    }
+                    onFav={() => dataSource?.onToggleFavoritePrompt?.(p.id, !p.isFavorite)}
                     onSave={updatePrompt}
-                    faved={favPrompts.has(p.id)}
                     index={i}
                   />
                 ))}

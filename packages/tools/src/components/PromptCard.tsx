@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { BookOpen, Pencil, Bookmark, Copy, Trash2 } from 'lucide-react';
+import { BookOpen, Pencil, Bookmark, BookmarkIcon, Copy, Trash2 } from 'lucide-react';
 import { cn } from '@owl-os/core';
 import DeleteConfirmDialog from './DeleteConfirmDialog.js';
 import EditPromptDialog from './EditPromptDialog.js';
@@ -11,14 +11,12 @@ export default function PromptCard({
   onDelete,
   onFav,
   onSave,
-  faved,
   index,
 }: {
   item: PromptItem;
   onDelete: () => void;
   onFav: () => void;
   onSave: (p: PromptItem) => void;
-  faved: boolean;
   index: number;
 }) {
   const [copied, setCopied] = useState(false);
@@ -75,17 +73,18 @@ export default function PromptCard({
               <Pencil className="w-3.5 h-3.5" />
             </button>
             <button
+              type="button"
               onClick={e => {
                 e.stopPropagation();
                 onFav();
               }}
-              title={faved ? '取消常用' : '添加到常用'}
+              title={item.isFavorite ? '取消常用' : '添加到常用'}
               className={cn(
                 'p-1.5 rounded-lg transition-all',
-                faved ? 'text-amber-400 bg-amber-500/15' : 'text-slate-400 hover:text-amber-400 hover:bg-amber-500/10'
+                item.isFavorite ? 'text-amber-400 bg-amber-500/15' : 'text-slate-400 hover:text-amber-400 hover:bg-amber-500/10'
               )}
             >
-              <Bookmark className={cn('w-3.5 h-3.5', faved && 'fill-amber-400')} />
+              {item.isFavorite ? <Bookmark className="w-3.5 h-3.5 fill-amber-400" /> : <BookmarkIcon className="w-3.5 h-3.5" />}
             </button>
             <button
               onClick={copy}

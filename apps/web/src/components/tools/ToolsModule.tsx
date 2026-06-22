@@ -84,6 +84,7 @@ export default function ToolsModuleContainer() {
       description: p.description,
       content: p.content,
       official: p.official,
+      isFavorite: p.isFavorite,
       tags: p.tags,
     })),
     [prompts]
@@ -211,6 +212,27 @@ export default function ToolsModuleContainer() {
     }
   }, []);
 
+  const onToggleFavoritePrompt = useCallback(async (id: string, isFavorite: boolean) => {
+    const existing = prompts.find(p => p.id === id);
+    if (!existing) return;
+    try {
+      const saved = await savePrompt({
+        id,
+        name: existing.name,
+        category: existing.category,
+        description: existing.description,
+        content: existing.content,
+        official: existing.official,
+        tags: existing.tags,
+        isFavorite,
+        createdAt: existing.createdAt,
+      });
+      setPrompts(prev => prev.map(p => (p.id === saved.id ? saved : p)));
+    } catch {
+      toast.error('更新收藏状态失败');
+    }
+  }, [prompts]);
+
   const onCreateTool = useCallback(async (t: PkgMarketTool) => {
     try {
       const dbTool: DbMarketTool = {
@@ -277,6 +299,7 @@ export default function ToolsModuleContainer() {
     onCreatePrompt,
     onUpdatePrompt,
     onDeletePrompt,
+    onToggleFavoritePrompt,
     onCreateTool,
     onUpdateTool,
     onDeleteTool,
@@ -292,6 +315,7 @@ export default function ToolsModuleContainer() {
     onCreatePrompt,
     onUpdatePrompt,
     onDeletePrompt,
+    onToggleFavoritePrompt,
     onCreateTool,
     onUpdateTool,
     onDeleteTool,
