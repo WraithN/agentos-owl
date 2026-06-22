@@ -176,7 +176,7 @@ const driverFactory: AgentDriverFactory = (input) => {
   if (!hasDefaultLlm()) throw new NoDefaultLlmError();
   const systemPrompt =
     input.role === "elder"
-      ? loadSystemPrompt("boss_agent")
+      ? loadSystemPrompt("elder_boss")
       : loadSystemPrompt(`sentinel_${sanitizeTitle(input.title)}`);
 
   const tools: AgentTool[] =
@@ -208,12 +208,12 @@ Expected: 通过。
 
 ---
 
-## Task 4: 更新 boss_agent.md 增加 recruit_sentinel 工具说明
+## Task 4: 更新 elder_boss.md 增加 recruit_sentinel 工具说明
 
 **Files:**
-- Modify: `prompt/boss_agent.md`
+- Modify: `prompt/elder_boss.md`
 
-- [ ] **Step 1: 在 boss_agent.md 增加工具说明段落**
+- [ ] **Step 1: 在 elder_boss.md 增加工具说明段落**
 
 在 "## 二、核心调度流程" 的 "分支B：复杂委派任务" 下，第一步之后插入：
 
@@ -1016,7 +1016,7 @@ async function handleNewConv(options?: {
     // ...
     mode: options?.mode ?? 'chat',
     teamTemplateId: options?.teamTemplateId,
-    agentIds: options?.teamTemplateId ? [] : ['boss_agent'],
+    agentIds: options?.teamTemplateId ? [] : ['elder_boss'],
   });
   // ...
 }

@@ -77,7 +77,7 @@ function loadSentinelPrompt(title: string): string {
   const specific = tryLoadSystemPrompt(`sentinel_${sanitizeTitle(title)}`);
   const parts = [common, specific].filter((text): text is string => Boolean(text));
   if (parts.length === 0) {
-    return loadSystemPrompt("boss_agent");
+    return loadSystemPrompt("elder_boss");
   }
   return parts.join("\n\n---\n\n");
 }
@@ -87,7 +87,7 @@ export function createOwleryAgentFactory(): AgentFactory {
   const driverFactory: AgentDriverFactory = (input) => {
     if (!hasDefaultLlm()) throw new NoDefaultLlmError();
     const systemPrompt =
-      input.role === "elder" ? loadSystemPrompt("boss_agent") : loadSentinelPrompt(input.title);
+      input.role === "elder" ? loadSystemPrompt("elder_boss") : loadSentinelPrompt(input.title);
 
     const tools: AgentTool[] =
       input.role === "elder"
@@ -121,7 +121,7 @@ export function createOwleryAgentFactoryWithConfig(config: LlmConfig): AgentFact
   const driverFactory: AgentDriverFactory = (input) => {
     if (!hasDefaultLlm(config.models)) throw new NoDefaultLlmError();
     const systemPrompt =
-      input.role === "elder" ? loadSystemPrompt("boss_agent") : loadSentinelPrompt(input.title);
+      input.role === "elder" ? loadSystemPrompt("elder_boss") : loadSentinelPrompt(input.title);
 
     const tools: AgentTool[] =
       input.role === "elder"

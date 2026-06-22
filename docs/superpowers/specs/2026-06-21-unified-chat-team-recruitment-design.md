@@ -120,7 +120,7 @@
 
 #### 3.4.1 更新
 
-- `prompt/boss_agent.md`：
+- `prompt/elder_boss.md`：
   - 增加 `recruit_sentinel` 工具说明。
   - 要求 Elder 根据任务类型从 `{planner, supervisor, coordinator, cto}` 中选择最合适的 Sentinel title。
   - 明确：选择完成后仍需输出自然语言委派提示，不要在回复中暴露内部 JSON。

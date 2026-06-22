@@ -88,7 +88,7 @@ export default function ChatContainer({
       lastMessage: '',
       lastTime: now,
       unread: 0,
-      agentIds: options?.teamTemplateId ? [] : ['boss_agent'],
+      agentIds: options?.teamTemplateId ? [] : ['elder_boss'],
       pinned: false,
       createdAt: now,
       updatedAt: now,

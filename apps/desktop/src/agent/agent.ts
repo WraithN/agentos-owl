@@ -70,7 +70,7 @@ export function tryLoadSystemPrompt(role: string): string | undefined {
   }
 }
 
-export function loadSystemPrompt(role: string = "boss_agent"): string {
+export function loadSystemPrompt(role: string = "elder_boss"): string {
   const text = tryLoadSystemPrompt(role);
   if (text) return text;
   console.warn(`[agent] ${role}.md 未找到或读取失败，使用内置默认提示词`);

@@ -65,7 +65,7 @@ ChatContainer
 
 - 仅 `single` 模式渲染真实对话组件。
 - `squad` / `auto` 模式目前统一回退到 `EmptyState`。
-- `handleNewConv` 新建会话时写死 `mode: 'single'`、`agentIds: ['boss_agent']`。
+- `handleNewConv` 新建会话时写死 `mode: 'single'`、`agentIds: ['elder_boss']`。
 - 右侧抽屉：`squad` → `TaskBoard`；`auto` → `ExecutionLog`；其他 → `TaskBoard`。
 
 #### 2.1.3 SingleAgentChat（消息流与输入区）
@@ -122,7 +122,7 @@ export const onOwleryChunk = (callback) => subscribe('owlery:chunk', callback);
 const driverFactory: AgentDriverFactory = (input) => {
   if (!hasDefaultLlm()) throw new NoDefaultLlmError();
   const systemPrompt = input.role === "elder"
-    ? loadSystemPrompt("boss_agent")
+    ? loadSystemPrompt("elder_boss")
     : `你是 ${input.title}，负责在 Agent 团队中完成 ${input.role} 职责。`;
   return new PiAgentDriver(createPlainAgent(input.sessionId, 0, { systemPrompt }));
 };
@@ -204,7 +204,7 @@ owlery:start_chat → Owlery.startChat → Owlery.runSession
   ↓
 if (!teammates) Owlery.recruitForSession
   ↓
-  ├─ create Elder (boss_agent.md)
+  ├─ create Elder (elder_boss.md)
   ├─ create AgentPool + Primary Sentinel (supervisor)
   ├─ recruitMembersByPrimary → fallback 默认 workers (planner/operator/cto)
   └─ createBasicTeammates → TeammateManager
@@ -401,7 +401,7 @@ Bot Popover 渲染各 Agent 状态
 
 - 用户消息发送时立即 `saveMessage`。
 - 助手消息在 `done` chunk 到达后持久化，同时更新会话标题与 `lastMessage`。
-- `buildConversationUpdate` 固定 `agentIds: ['boss_agent']`，未反映真实参与 Agent。
+- `buildConversationUpdate` 固定 `agentIds: ['elder_boss']`，未反映真实参与 Agent。
 
 ### 6.3 历史消息与上下文
 
@@ -432,7 +432,7 @@ Bot Popover 渲染各 Agent 状态
 
 1. `AppContext` 默认 `chatMode='squad'` 且自动选中第一条会话，违反 PRD「默认展示对话模块空状态」。
 2. `ChatContainer` 中 `squad` / `auto` 模式统一回退到 `EmptyState`，没有真实对话界面。
-3. 新建会话硬编码 `mode: 'single'`、`agentIds: ['boss_agent']`，未按当前模式创建。
+3. 新建会话硬编码 `mode: 'single'`、`agentIds: ['elder_boss']`，未按当前模式创建。
 4. `startOwleryChat` 未传递前端模式或团队模板，Owlery 后端无法感知 UI 意图。
 5. `UpgradeBar` 只支持 `single → squad`，缺少 `single → auto` 升级路径。
 6. `EmptyState` 快捷操作写死 mock 会话，不会真正创建新会话并发送。

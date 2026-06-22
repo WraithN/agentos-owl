@@ -216,7 +216,7 @@
 - [x] Task 1：创建 Sentinel prompt 占位文件 — 状态：`COMPLETED`
 - [x] Task 2：扩展 AgentTitle 为字符串类型 — 状态：`COMPLETED`
 - [x] Task 3：给 Elder/Sentinel 添加 recruit_sentinel / recruit_workers 工具 — 状态：`COMPLETED`
-- [x] Task 4：更新 boss_agent.md 增加工具说明 — 状态：`COMPLETED`
+- [x] Task 4：更新 elder_boss.md 增加工具说明 — 状态：`COMPLETED`
 - [x] Task 5：更新运行时类型与控制命令 — 状态：`COMPLETED`
 - [x] Task 6：重构 SessionRuntime 支持动态招募 — 状态：`COMPLETED`
 - [x] Task 7：主线程 Owlery 透传 teamTemplateId — 状态：`COMPLETED`
@@ -236,7 +236,7 @@
 | # | 功能点 | 现状 | 问题/差距 | 预期交付 | 负责文件 |
 |---|--------|------|-----------|----------|----------|
 | P0-9 | 前端模式 → 后端 TeammateMode 映射 | `startOwleryChat` 已透传 `teammateMode`，`saveConversation` 已持久化 `teammate_mode`，desktop 侧校验后传入 Owlery，Owlery 按偏好模式招募团队 | 已完成；后续可扩展 AppMode → TeammateMode 默认映射策略 | 状态：`COMPLETED` | `apps/web/src/services/electron.ts`、`apps/desktop/src/ipc/owlery.ts`、`packages/core/src/owlery/Owlery.ts` |
-| P1-13 | 新建会话跟随当前模式 | `handleNewConv` 写死 `mode: 'single'`、`agentIds: ['boss_agent']` | 用户在 squad/auto 下新建会话仍被切回 single | 按当前 `chatMode` 创建会话，并允许传入团队模板 | `apps/web/src/components/chat/ChatContainer.tsx` |
+| P1-13 | 新建会话跟随当前模式 | `handleNewConv` 写死 `mode: 'single'`、`agentIds: ['elder_boss']` | 用户在 squad/auto 下新建会话仍被切回 single | 按当前 `chatMode` 创建会话，并允许传入团队模板 | `apps/web/src/components/chat/ChatContainer.tsx` |
 
 ### 10.2 招募与 Agent 调度（P1）
 

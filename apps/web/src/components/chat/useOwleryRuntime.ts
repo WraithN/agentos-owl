@@ -123,7 +123,7 @@ function buildConversationUpdate(conversationId: string, title: string, mode: Ap
     lastMessage: lastMessage.slice(0, LAST_MESSAGE_MAX_LENGTH),
     lastTime: now,
     unread: 0,
-    agentIds: ['boss_agent'],
+    agentIds: ['elder_boss'],
     pinned: false,
     createdAt: now,
     updatedAt: now,

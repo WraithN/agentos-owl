@@ -86,7 +86,7 @@ export function registerOwleryHandlers(): void {
       return {
         sessionId,
         teammateName: "默认团队",
-        leader: { agentId: `${sessionId}:boss_agent`, name: "Boss Agent", title: "boss", role: "elder", status: "not_started" },
+        leader: { agentId: `${sessionId}:elder_boss`, name: "Elder Agent", title: "boss", role: "elder", status: "not_started" },
         members: [],
       };
     }
