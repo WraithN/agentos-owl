@@ -1,7 +1,11 @@
 import { Type } from "@earendil-works/pi-ai";
 import type { AgentTool, AgentToolResult } from "@earendil-works/pi-agent-core";
 import { AgentFactory } from "@owl-os/core";
-import type { AgentDriverFactory, AgentNameGenerator, AgentToolFactory } from "@owl-os/core";
+import type {
+  AgentDriverFactory,
+  AgentNameGenerator,
+  AgentToolFactory,
+} from "@owl-os/core";
 import {
   createPlainAgent,
   createPlainAgentWithConfig,
@@ -91,34 +95,52 @@ function loadSentinelPrompt(title: string): string {
   return parts.join("\n\n---\n\n");
 }
 
+type OwleryDriverInput = Parameters<AgentDriverFactory>[0];
+
+function buildOwlerySystemPrompt(input: OwleryDriverInput): string {
+  return input.role === "elder"
+    ? loadSystemPrompt("elder_boss")
+    : input.role === "sentinel"
+      ? loadSentinelPrompt(input.title)
+      : loadSystemPrompt("worker");
+}
+
+function buildOwleryTools(input: OwleryDriverInput): AgentTool[] {
+  if (input.role === "elder") {
+    return [buildRecruitSentinelTool()];
+  }
+
+  const allTools = buildTools(input.sessionId);
+  const readFileTool = pickTool(allTools, "read_file");
+  const listDirectoryTool = pickTool(allTools, "list_directory");
+
+  if (input.role === "sentinel") {
+    return [
+      readFileTool,
+      listDirectoryTool,
+      buildRecruitWorkersTool(),
+      ...buildPlannerTools(input.sessionId),
+    ];
+  }
+
+  const createXFileTool = pickTool(allTools, "create_x_file");
+  const executeCommandTool = pickTool(allTools, "execute_command");
+  return [readFileTool, listDirectoryTool, createXFileTool, executeCommandTool];
+}
+
+function buildOwleryToolFactory(): AgentToolFactory {
+  return (input) => {
+    if (input.role !== "sentinel" || input.title !== "supervisor") return [];
+    return [{ name: "recruit", description: "评估任务并招募当前 Teammate 的后续成员" }];
+  };
+}
+
 // 主线程内运行的 Owlery（如 IPC 回退路径）使用：直接读取数据库
 export function createOwleryAgentFactory(): AgentFactory {
   const driverFactory: AgentDriverFactory = (input) => {
     if (!hasDefaultLlm()) throw new NoDefaultLlmError();
-    const systemPrompt =
-      input.role === "elder"
-        ? loadSystemPrompt("elder_boss")
-        : input.role === "sentinel"
-          ? loadSentinelPrompt(input.title)
-          : loadSystemPrompt("worker");
-
-    const allTools = buildTools(input.sessionId);
-    const readFileTool = pickTool(allTools, "read_file");
-    const listDirectoryTool = pickTool(allTools, "list_directory");
-    const createXFileTool = pickTool(allTools, "create_x_file");
-    const executeCommandTool = pickTool(allTools, "execute_command");
-
-    const tools: AgentTool[] =
-      input.role === "elder"
-        ? [buildRecruitSentinelTool()]
-        : input.role === "sentinel"
-          ? [
-              readFileTool,
-              listDirectoryTool,
-              buildRecruitWorkersTool(),
-              ...buildPlannerTools(input.sessionId),
-            ]
-          : [readFileTool, listDirectoryTool, createXFileTool, executeCommandTool];
+    const systemPrompt = buildOwlerySystemPrompt(input);
+    const tools = buildOwleryTools(input);
 
     return new PiAgentDriver(
       createPlainAgent(input.sessionId, 0, {
@@ -128,15 +150,10 @@ export function createOwleryAgentFactory(): AgentFactory {
     );
   };
 
-  const toolFactory: AgentToolFactory = (input) => {
-    if (input.role !== "sentinel" || input.title !== "supervisor") return [];
-    return [{ name: "recruit", description: "评估任务并招募当前 Teammate 的后续成员" }];
-  };
-
   return new AgentFactory({
     driverFactory,
     nameGenerator: owleryNameGenerator,
-    toolFactory,
+    toolFactory: buildOwleryToolFactory(),
   });
 }
 
@@ -144,30 +161,8 @@ export function createOwleryAgentFactory(): AgentFactory {
 export function createOwleryAgentFactoryWithConfig(config: LlmConfig): AgentFactory {
   const driverFactory: AgentDriverFactory = (input) => {
     if (!hasDefaultLlm(config.models)) throw new NoDefaultLlmError();
-    const systemPrompt =
-      input.role === "elder"
-        ? loadSystemPrompt("elder_boss")
-        : input.role === "sentinel"
-          ? loadSentinelPrompt(input.title)
-          : loadSystemPrompt("worker");
-
-    const allTools = buildTools(input.sessionId);
-    const readFileTool = pickTool(allTools, "read_file");
-    const listDirectoryTool = pickTool(allTools, "list_directory");
-    const createXFileTool = pickTool(allTools, "create_x_file");
-    const executeCommandTool = pickTool(allTools, "execute_command");
-
-    const tools: AgentTool[] =
-      input.role === "elder"
-        ? [buildRecruitSentinelTool()]
-        : input.role === "sentinel"
-          ? [
-              readFileTool,
-              listDirectoryTool,
-              buildRecruitWorkersTool(),
-              ...buildPlannerTools(input.sessionId),
-            ]
-          : [readFileTool, listDirectoryTool, createXFileTool, executeCommandTool];
+    const systemPrompt = buildOwlerySystemPrompt(input);
+    const tools = buildOwleryTools(input);
 
     return new PiAgentDriver(
       createPlainAgentWithConfig(input.sessionId, config, {
@@ -177,14 +172,9 @@ export function createOwleryAgentFactoryWithConfig(config: LlmConfig): AgentFact
     );
   };
 
-  const toolFactory: AgentToolFactory = (input) => {
-    if (input.role !== "sentinel" || input.title !== "supervisor") return [];
-    return [{ name: "recruit", description: "评估任务并招募当前 Teammate 的后续成员" }];
-  };
-
   return new AgentFactory({
     driverFactory,
     nameGenerator: owleryNameGenerator,
-    toolFactory,
+    toolFactory: buildOwleryToolFactory(),
   });
 }
