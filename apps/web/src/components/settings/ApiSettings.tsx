@@ -125,8 +125,8 @@ function ModelCard({ model, onDelete, onSave, onToggleDefault }: {
       <div className={cn('glass rounded-xl overflow-hidden transition-all', editing && 'ring-1 ring-cyan-500/40')}>
         {/* 行头 — 点击内容区开启编辑 */}
         <div
-          className={cn('w-full text-left flex items-center gap-3 px-4 py-3 select-none', !editing && 'hover:bg-white/4 cursor-pointer')}
-          onClick={() => !editing && setEditing(true)}>
+          className={cn('w-full text-left flex items-center gap-3 px-4 py-3 select-none cursor-pointer hover:bg-white/4')}
+          onClick={() => setEditing(v => !v)}>
           <div className={cn('w-7 h-7 rounded-lg flex items-center justify-center shrink-0 border', cfg.bg)}>
             <Icon className={cn('w-3.5 h-3.5', cfg.color)} />
           </div>

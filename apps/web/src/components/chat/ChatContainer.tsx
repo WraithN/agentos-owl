@@ -142,6 +142,18 @@ export default function ChatContainer({
 
       {/* ── 主区域 ── */}
       <div className="flex-1 min-h-0 flex overflow-hidden relative">
+        {/* 抽屉打开时的遮罩，点击关闭所有抽屉 */}
+        {(conversationListOpen || taskBoardOpen || monitorOpen) && (
+          <div
+            className="absolute inset-0 z-20 bg-black/20"
+            onClick={() => {
+              setConversationListOpen(false);
+              setTaskBoardOpen(false);
+              setMonitorOpen(false);
+            }}
+          />
+        )}
+
         <AnimatePresence>
           {conversationListOpen && (
             <motion.div

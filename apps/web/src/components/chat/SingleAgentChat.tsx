@@ -412,11 +412,12 @@ function MessageContent({
                   size="icon"
                   className="h-6 w-6"
                   onClick={copyToClipboard}
+                  disabled={assistantState === 'running'}
                 >
                   {copied ? <Check className="h-3 w-3 text-emerald-400" /> : <Copy className="h-3 w-3" />}
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>复制</TooltipContent>
+              <TooltipContent>{assistantState === 'running' ? '生成中，暂不可复制' : '复制'}</TooltipContent>
             </Tooltip>
           </TooltipProvider>
 
