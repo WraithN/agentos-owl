@@ -121,8 +121,8 @@ function localPathFromHref(href: string) {
 
 function handleLinkClick(href: string, sessionId?: string) {
   if (isDocxHref(href) && sessionId) {
-    // 裸文件名默认到 /tmp 查找，与 execute_command 默认工作目录保持一致
-    const resolvedHref = /^(file:\/\/|\/|[A-Za-z]:[\\/]|~\/)/.test(href) ? href : `/tmp/${href}`;
+    // 裸文件名默认到 agent workspace 查找，与 create_x_file 默认目录保持一致
+    const resolvedHref = /^(file:\/\/|\/|[A-Za-z]:[\\/]|~\/)/.test(href) ? href : `~/.config/owl-os/workspace/${href}`;
     void openLocalFilePreview(sessionId, localPathFromHref(resolvedHref))
       .catch((error: unknown) => {
         const detail = error as { code?: string; message?: string };

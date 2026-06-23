@@ -4,7 +4,7 @@ const DOCX_FILE_PATTERN = /((?:file:\/\/|\/|[A-Za-z]:[\\/]|~\/)[^\s]+\.docx|[A-Z
 
 function resolveDocxPath(value: string): string {
   if (/^(file:\/\/|\/|[A-Za-z]:[\\/]|~\/)/.test(value)) return value;
-  return `/tmp/${value}`;
+  return `~/.config/owl-os/workspace/${value}`;
 }
 
 function extractDocxPathsFromText(text: string): string[] {
