@@ -48,19 +48,21 @@ function FileResultCard({ sessionId, info }: { sessionId: string; info: LocalFil
   };
 
   return (
-    <div className="flex items-center gap-3 rounded-xl border border-border/50 bg-background/50 p-3 transition-colors hover:bg-background/70">
-      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-cyan-500/10 text-cyan-400">
+    <div className={`flex items-center gap-3 rounded-xl border p-3 transition-colors ${info.exists ? 'border-border/50 bg-background/50 hover:bg-background/70' : 'border-destructive/30 bg-destructive/5'}`}>
+      <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${info.exists ? 'bg-cyan-500/10 text-cyan-400' : 'bg-muted text-muted-foreground'}`}>
         <FileText className="h-5 w-5" />
       </div>
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-medium text-foreground">{info.fileName}</p>
-        <p className="text-xs text-muted-foreground">创建时间：{formatFileTime(info.createdAt)}</p>
+        <p className="text-xs text-muted-foreground">
+          {info.exists ? `创建时间：${formatFileTime(info.createdAt)}` : '文件尚未生成或路径无效'}
+        </p>
       </div>
       <div className="flex shrink-0 items-center gap-1">
-        <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={handlePreview}>
+        <Button type="button" variant="ghost" size="icon" className="h-8 w-8" disabled={!info.exists} onClick={handlePreview}>
           <Eye className="h-4 w-4" />
         </Button>
-        <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={handleDownload}>
+        <Button type="button" variant="ghost" size="icon" className="h-8 w-8" disabled={!info.exists} onClick={handleDownload}>
           <Download className="h-4 w-4" />
         </Button>
       </div>
@@ -93,14 +95,13 @@ export function FileResultCards({ sessionId, filePaths }: FileResultCardsProps) 
     return <div className="text-xs text-muted-foreground">正在读取生成文件…</div>;
   }
 
-  const existing = infos.filter((info) => info.exists);
-  if (existing.length === 0) return null;
+  if (infos.length === 0) return null;
 
   return (
     <div className="mt-3 space-y-2">
       <p className="text-xs font-medium text-muted-foreground">生成文件</p>
       <div className="grid gap-2 sm:grid-cols-2">
-        {existing.map((info) => (
+        {infos.map((info) => (
           <FileResultCard key={info.filePath} sessionId={sessionId} info={info} />
         ))}
       </div>
