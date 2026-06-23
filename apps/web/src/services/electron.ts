@@ -568,6 +568,12 @@ export const openFilePreviewWindow = (previewId: string) =>
   invoke<{ ok: boolean }>('file_preview_open_window', { previewId });
 export const closeFilePreviewWindow = (previewId: string) =>
   invoke<{ ok: boolean }>('file_preview_close_window', { previewId });
+export const minimizeFilePreviewWindow = (previewId: string) =>
+  invoke<{ ok: boolean }>('file_preview_window_minimize', { previewId });
+export const maximizeFilePreviewWindow = (previewId: string) =>
+  invoke<{ ok: boolean; isMaximized?: boolean }>('file_preview_window_maximize', { previewId });
+export const isFilePreviewWindowMaximized = (previewId: string) =>
+  invoke<{ isMaximized: boolean }>('file_preview_window_is_maximized', { previewId });
 export const openLocalFilePreview = (sessionId: string, filePath: string) =>
   invoke<{ previewId: string; fileName: string }>('file_preview_open_local_file', { sessionId, filePath });
 

@@ -1,14 +1,22 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { Download, X } from 'lucide-react';
+import { Download, X, Minus, Maximize2, Minimize2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { closeFilePreviewWindow, readFilePreview, saveFilePreviewAs } from '@/services/electron';
+import {
+  closeFilePreviewWindow,
+  maximizeFilePreviewWindow,
+  minimizeFilePreviewWindow,
+  isFilePreviewWindowMaximized,
+  readFilePreview,
+  saveFilePreviewAs,
+} from '@/services/electron';
 
 export function FilePreviewPage() {
   const { previewId = '' } = useParams();
   const [html, setHtml] = useState('');
   const [fileName, setFileName] = useState('');
   const [expired, setExpired] = useState(false);
+  const [isMaximized, setIsMaximized] = useState(true);
 
   useEffect(() => {
     let mounted = true;
@@ -21,6 +29,11 @@ export function FilePreviewPage() {
       setHtml(result.html);
       setFileName(result.fileName);
     }).catch(() => setExpired(true));
+
+    isFilePreviewWindowMaximized(previewId).then((result) => {
+      if (mounted) setIsMaximized(result.isMaximized);
+    }).catch(() => { /* ignore */ });
+
     return () => {
       mounted = false;
     };
@@ -30,24 +43,50 @@ export function FilePreviewPage() {
     void closeFilePreviewWindow(previewId);
   }, [previewId]);
 
+  const handleMinimize = useCallback(() => {
+    void minimizeFilePreviewWindow(previewId);
+  }, [previewId]);
+
+  const handleMaximize = useCallback(() => {
+    void maximizeFilePreviewWindow(previewId).then((result) => {
+      if (typeof result.isMaximized === 'boolean') {
+        setIsMaximized(result.isMaximized);
+      } else {
+        setIsMaximized((prev) => !prev);
+      }
+    }).catch(() => { /* ignore */ });
+  }, [previewId]);
+
   const handleDownload = useCallback(() => {
     void saveFilePreviewAs(previewId);
   }, [previewId]);
 
   return (
     <main className="deep-space flex h-screen flex-col overflow-hidden text-foreground">
-      <header className="glass-l2 flex h-12 shrink-0 items-center justify-between border-b border-border/60 px-3">
-        <Button type="button" variant="ghost" size="sm" className="gap-1.5" onClick={handleClose}>
-          <X className="h-4 w-4" />
-          关闭
-        </Button>
+      <header
+        className="glass-l2 flex h-12 shrink-0 select-none items-center justify-between border-b border-border/60 px-3"
+        style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}
+      >
+        <div className="flex items-center gap-1" style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}>
+          <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={handleClose} title="关闭">
+            <X className="h-4 w-4" />
+          </Button>
+          <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={handleMinimize} title="最小化">
+            <Minus className="h-4 w-4" />
+          </Button>
+          <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={handleMaximize} title={isMaximized ? '还原' : '最大化'}>
+            {isMaximized ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+          </Button>
+        </div>
         <div className="min-w-0 px-4 text-center text-sm font-medium text-muted-foreground">
           <span className="truncate">{fileName || '文件安全预览'}</span>
         </div>
-        <Button type="button" variant="ghost" size="sm" className="gap-1.5" onClick={handleDownload} disabled={!fileName}>
-          <Download className="h-4 w-4" />
-          下载
-        </Button>
+        <div style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}>
+          <Button type="button" variant="ghost" size="sm" className="gap-1.5" onClick={handleDownload} disabled={!fileName}>
+            <Download className="h-4 w-4" />
+            下载
+          </Button>
+        </div>
       </header>
 
       {expired ? (

@@ -206,6 +206,9 @@ function createPreviewWindow(record: FilePreviewRecord): BrowserWindow {
     width: 1440,
     height: 900,
     title: "文件安全预览",
+    frame: false,
+    titleBarStyle: "hidden",
+    transparent: false,
     webPreferences: {
       preload: path.join(__dirname, "preload.cjs"),
       contextIsolation: true,
@@ -387,6 +390,26 @@ export function registerFilePreviewHandlers(): void {
     if (record?.window && !record.window.isDestroyed()) record.window.close();
     deletePreviewRecord(req.previewId);
     return { ok: true };
+  });
+  ipcMain.handle("file_preview_window_minimize", (_event, req: PreviewIdRequest) => {
+    const record = filePreviewRecords.get(req.previewId);
+    if (record?.window && !record.window.isDestroyed()) record.window.minimize();
+    return { ok: true };
+  });
+  ipcMain.handle("file_preview_window_maximize", (_event, req: PreviewIdRequest) => {
+    const record = filePreviewRecords.get(req.previewId);
+    if (record?.window && !record.window.isDestroyed()) {
+      if (record.window.isMaximized()) {
+        record.window.unmaximize();
+      } else {
+        record.window.maximize();
+      }
+    }
+    return { ok: true, isMaximized: record?.window?.isMaximized() ?? false };
+  });
+  ipcMain.handle("file_preview_window_is_maximized", (_event, req: PreviewIdRequest) => {
+    const record = filePreviewRecords.get(req.previewId);
+    return { isMaximized: record?.window?.isMaximized() ?? false };
   });
 
   app.on("before-quit", () => {
