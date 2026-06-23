@@ -41,6 +41,8 @@ import { Button } from '@/components/ui/button';
 import { MarkdownText } from './MarkdownText';
 import { useOwleryRuntime, type AgentOutput } from './useOwleryRuntime';
 import { ChatComposer } from './ChatComposer';
+import { extractGeneratedDocxPaths } from './file-result-utils';
+import { FileResultCards } from './FileResultCards';
 import {
   formatToolDuration,
   formatToolInput,
@@ -383,6 +385,10 @@ function MessageContent({
       )}
 
       {message.role !== 'user' && hasMainContent && <AssistantStateActions state={assistantState} />}
+
+      {message.role !== 'user' && assistantState === 'complete' && (
+        <FileResultCards sessionId={sessionId} filePaths={extractGeneratedDocxPaths(message)} />
+      )}
 
       {!hideActions && hasMainContent && (
         <div className={`message-actions flex items-center gap-1 mt-1 opacity-0 group-hover:opacity-100 transition-opacity ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>

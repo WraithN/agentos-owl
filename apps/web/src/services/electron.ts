@@ -570,6 +570,23 @@ export const openFilePreviewWindow = (previewId: string) =>
   invoke<{ ok: boolean }>('file_preview_open_window', { previewId });
 export const closeFilePreviewWindow = (previewId: string) =>
   invoke<{ ok: boolean }>('file_preview_close_window', { previewId });
+export const openLocalFilePreview = (sessionId: string, filePath: string) =>
+  invoke<{ previewId: string; fileName: string }>('file_preview_open_local_file', { sessionId, filePath });
+
+export interface LocalFileInfo {
+  exists: boolean;
+  filePath: string;
+  fileName: string;
+  sizeBytes?: number;
+  createdAt?: number;
+  modifiedAt?: number;
+}
+
+export const getLocalFileInfo = (filePath: string) =>
+  invoke<LocalFileInfo>('file_preview_get_local_file_info', { filePath });
+
+export const downloadLocalFile = (filePath: string) =>
+  invoke<{ canceled: boolean; filePath?: string }>('file_preview_download_local_file', { filePath });
 
 export interface LlmChatRequest {
   provider?: string;

@@ -9,6 +9,19 @@ import { fileURLToPath } from "node:url";
 import * as XLSX from "xlsx";
 import { FILE_PREVIEW_CONFIG } from "../config/filePreview.js";
 
+interface OpenLocalFilePreviewRequest {
+  sessionId: string;
+  filePath: string;
+}
+
+interface GetLocalFileInfoRequest {
+  filePath: string;
+}
+
+interface DownloadLocalFileRequest {
+  filePath: string;
+}
+
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const SAFE_SEGMENT_PATTERN = /[^a-zA-Z0-9._-]+/g;
 const SUPPORTED_EXTENSIONS = new Set([".docx", ".xlsx", ".pptx"]);
@@ -239,6 +252,64 @@ function readPreview(req: PreviewIdRequest) {
   };
 }
 
+function resolveLocalFilePath(filePath: string): string {
+  return filePath.startsWith("~")
+    ? path.join(os.homedir(), filePath.slice(1))
+    : filePath;
+}
+
+function getLocalFileInfo(req: GetLocalFileInfoRequest) {
+  const resolvedPath = resolveLocalFilePath(req.filePath);
+  if (!fs.existsSync(resolvedPath)) {
+    return { exists: false, filePath: req.filePath, fileName: path.basename(resolvedPath) };
+  }
+  const stat = fs.statSync(resolvedPath);
+  return {
+    exists: true,
+    filePath: req.filePath,
+    fileName: path.basename(resolvedPath),
+    sizeBytes: stat.size,
+    createdAt: stat.birthtimeMs,
+    modifiedAt: stat.mtimeMs,
+  };
+}
+
+async function downloadLocalFile(req: DownloadLocalFileRequest) {
+  const resolvedPath = resolveLocalFilePath(req.filePath);
+  if (!fs.existsSync(resolvedPath)) {
+    throw new Error("FILE_PREVIEW_FILE_NOT_FOUND");
+  }
+  const fileName = path.basename(resolvedPath);
+  const result = await dialog.showSaveDialog({
+    title: "保存原始文件",
+    defaultPath: fileName,
+  });
+  if (result.canceled || !result.filePath) return { canceled: true };
+  fs.copyFileSync(resolvedPath, result.filePath);
+  return { canceled: false, filePath: result.filePath };
+}
+
+async function openLocalFilePreview(req: OpenLocalFilePreviewRequest) {
+  const resolvedPath = resolveLocalFilePath(req.filePath);
+  if (!fs.existsSync(resolvedPath)) {
+    throw new Error("FILE_PREVIEW_FILE_NOT_FOUND");
+  }
+  const fileName = path.basename(resolvedPath);
+  const buffer = fs.readFileSync(resolvedPath);
+  const data = buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength);
+  const result = await createTempFile({ sessionId: req.sessionId, fileName, data });
+  const record = filePreviewRecords.get(result.previewId);
+  if (!record) {
+    throw new Error("FILE_PREVIEW_CREATE_FAILED");
+  }
+  if (record.window && !record.window.isDestroyed()) {
+    record.window.focus();
+  } else {
+    record.window = createPreviewWindow(record);
+  }
+  return { previewId: result.previewId, fileName: result.fileName };
+}
+
 async function saveAs(req: PreviewIdRequest) {
   const record = filePreviewRecords.get(req.previewId);
   if (!record || !fs.existsSync(record.filePath)) return { canceled: true };
@@ -257,6 +328,9 @@ export function registerFilePreviewHandlers(): void {
   ipcMain.handle("file_preview_create_temp_file", (_event, req: CreateFilePreviewRequest) => createTempFile(req));
   ipcMain.handle("file_preview_read", (_event, req: PreviewIdRequest) => readPreview(req));
   ipcMain.handle("file_preview_save_as", (_event, req: PreviewIdRequest) => saveAs(req));
+  ipcMain.handle("file_preview_open_local_file", (_event, req: OpenLocalFilePreviewRequest) => openLocalFilePreview(req));
+  ipcMain.handle("file_preview_get_local_file_info", (_event, req: GetLocalFileInfoRequest) => getLocalFileInfo(req));
+  ipcMain.handle("file_preview_download_local_file", (_event, req: DownloadLocalFileRequest) => downloadLocalFile(req));
   ipcMain.handle("file_preview_open_window", (_event, req: PreviewIdRequest) => {
     const record = filePreviewRecords.get(req.previewId);
     if (!record) return { ok: false };
