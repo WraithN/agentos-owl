@@ -724,3 +724,4 @@ html:not(.dark) .backdrop-blur-md { background-color: var(--node-bg); }
 .ai-message-row:has(+ .ai-message-row) .message-actions {
   display: none;
 }
+

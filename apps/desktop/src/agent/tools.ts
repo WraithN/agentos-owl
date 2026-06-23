@@ -78,5 +78,87 @@ export function buildTools(_sessionId: string): AgentTool[] {
         return textResult(stdout + (stderr ? `\n[stderr]\n${stderr}` : ""));
       },
     },
+    {
+      name: "create_docx",
+      label: "创建 Word 文档",
+      description:
+        "Create a formatted .docx file from structured sections. Use this when the user asks for a document, report, or any deliverable that should be a Word file. Relative paths are resolved under /tmp.",
+      parameters: Type.Object({
+        output_path: Type.String(),
+        title: Type.String(),
+        sections: Type.Array(
+          Type.Object({
+            heading: Type.String(),
+            level: Type.Number(),
+            paragraphs: Type.Array(Type.String()),
+            code_blocks: Type.Optional(Type.Array(Type.String())),
+          })
+        ),
+      }),
+      execute: async (_id, params) => {
+        const { output_path, title, sections } = params as {
+          output_path: string;
+          title: string;
+          sections: Array<{
+            heading: string;
+            level: number;
+            paragraphs: string[];
+            code_blocks?: string[];
+          }>;
+        };
+        const resolvedPath = nodePath.isAbsolute(output_path)
+          ? output_path
+          : nodePath.join("/tmp", output_path);
+        await fs.mkdir(nodePath.dirname(resolvedPath), { recursive: true });
+
+        const script = `
+import json
+import sys
+from docx import Document
+from docx.shared import Pt, Inches, RGBColor
+from docx.enum.text import WD_ALIGN_PARAGRAPH
+
+payload = json.loads(sys.argv[1])
+output_path = payload["output_path"]
+title = payload["title"]
+sections = payload["sections"]
+
+doc = Document()
+style = doc.styles["Normal"]
+style.font.name = "Calibri"
+style.font.size = Pt(11)
+
+doc_title = doc.add_heading(title, level=0)
+doc_title.alignment = WD_ALIGN_PARAGRAPH.CENTER
+for run in doc_title.runs:
+    run.font.size = Pt(22)
+    run.font.color.rgb = RGBColor(0, 0, 0)
+
+for section in sections:
+    level = max(1, min(int(section.get("level", 1)), 3))
+    h = doc.add_heading(section["heading"], level=level)
+    for run in h.runs:
+        run.font.color.rgb = RGBColor(0, 51, 102)
+    for para in section.get("paragraphs", []):
+        doc.add_paragraph(para, style="Normal")
+    for code in section.get("code_blocks", []):
+        p = doc.add_paragraph()
+        run = p.add_run(code)
+        run.font.name = "Consolas"
+        run.font.size = Pt(10)
+        run.font.color.rgb = RGBColor(64, 64, 64)
+        p.paragraph_format.left_indent = Inches(0.3)
+
+doc.save(output_path)
+print(output_path)
+`;
+        const { stdout, stderr } = await execFileAsync(
+          "python3",
+          ["-c", script, JSON.stringify({ output_path: resolvedPath, title, sections })],
+          { timeout: 30_000 }
+        );
+        return textResult(`DOCX created: ${resolvedPath}${stderr ? `\n[stderr]\n${stderr}` : ""}`);
+      },
+    },
   ];
 }

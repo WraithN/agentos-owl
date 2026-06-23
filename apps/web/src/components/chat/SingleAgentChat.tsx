@@ -365,7 +365,7 @@ function MessageContent({
           className={`rounded-2xl px-4 py-2.5 text-base break-words [overflow-wrap:anywhere] ${
             message.role === 'user'
               ? 'bg-primary text-primary-foreground'
-              : `bg-muted text-foreground ${isAssistantRunning ? 'border-marquee-yellow' : ''}`
+              : 'bg-muted text-foreground'
           }`}
         >
           {isEmptyComplete ? (
