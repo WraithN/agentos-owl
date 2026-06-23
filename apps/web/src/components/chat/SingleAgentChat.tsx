@@ -566,8 +566,25 @@ function WorkflowPanel({
   teamStatus: TeammateStatus | null;
   sessionId: string;
 }) {
-  if (Object.keys(agentOutputs).length === 0) return null;
-  const entries = Object.values(agentOutputs);
+  // 用 teamStatus 中已注册但未产生任何 chunk/status_card 的成员补充 agentOutputs，
+  // 避免「智能体团队」弹窗里有、会话卡片里缺的角色（如研究员）。
+  const mergedOutputs: Record<string, AgentOutput> = { ...agentOutputs };
+  if (teamStatus) {
+    for (const agent of [teamStatus.leader, ...teamStatus.members]) {
+      if (!agent || mergedOutputs[agent.agentId]) continue;
+      mergedOutputs[agent.agentId] = {
+        agentId: agent.agentId,
+        name: agent.name,
+        title: agent.title,
+        role: agent.role,
+        statusText: '',
+        chunks: [],
+      };
+    }
+  }
+
+  if (Object.keys(mergedOutputs).length === 0) return null;
+  const entries = Object.values(mergedOutputs);
   const isBoss = (agent: AgentOutput) => agent.role === 'elder' || agent.title === 'boss';
   const boss = entries.find(isBoss);
   const members = entries.filter((agent) => !isBoss(agent));
