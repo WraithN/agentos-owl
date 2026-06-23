@@ -501,18 +501,19 @@ function AgentCard({
   const isBoss = variant === 'boss';
 
   return (
-    <div className={`relative ${isBoss ? 'pl-12' : 'pl-16'} mb-3 animate-fade-in`}>
-      <div className={`absolute top-0 ${isBoss ? 'left-0' : 'left-5'} flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br ${gradient} text-white shadow-md shadow-black/10`}>
-        <Icon className="h-3.5 w-3.5" />
-      </div>
-      <div className="relative">
-        <div
-          className={`
-            relative rounded-xl px-4 py-3 transition-all duration-300
-            ${isProcessing ? 'bg-yellow-400/5' : isFailed ? 'glass-l3 border-destructive/40' : isDone ? 'border border-border/60 bg-background/50' : 'border border-border/40 glass-l3 opacity-75'}
-            ${hasContent ? 'cursor-pointer hover:shadow-md' : ''}
-          `}
-        >
+    <div className="relative mb-3 animate-fade-in">
+      <div className="flex items-center gap-3">
+        <div className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-gradient-to-br ${gradient} text-white shadow-md shadow-black/10`}>
+          <Icon className="h-2.5 w-2.5" />
+        </div>
+        <div className="relative flex-1">
+          <div
+            className={`
+              relative rounded-xl px-4 py-3 transition-all duration-300
+              ${isProcessing ? 'bg-yellow-400/5' : isFailed ? 'glass-l3 border-destructive/40' : isDone ? 'border border-border/60 bg-background/50' : 'border border-border/40 glass-l3 opacity-75'}
+              ${hasContent ? 'cursor-pointer hover:shadow-md' : ''}
+            `}
+          >
           {isProcessing && (
             <svg className="absolute inset-0 h-full w-full overflow-visible rounded-xl pointer-events-none" preserveAspectRatio="none">
               <rect x="0" y="0" width="100%" height="100%" rx="12" fill="none" stroke="rgba(250,204,21,0.25)" strokeWidth="2" vectorEffect="non-scaling-stroke" />
@@ -551,6 +552,7 @@ function AgentCard({
               )}
             </div>
           )}
+          </div>
         </div>
       </div>
     </div>
