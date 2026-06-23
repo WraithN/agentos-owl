@@ -41,7 +41,7 @@ import { Button } from '@/components/ui/button';
 import { MarkdownText } from './MarkdownText';
 import { useOwleryRuntime, type AgentOutput } from './useOwleryRuntime';
 import { ChatComposer } from './ChatComposer';
-import { extractGeneratedDocxPaths } from './file-result-utils';
+import { extractGeneratedFilePaths } from './file-result-utils';
 import { FileResultCards } from './FileResultCards';
 import {
   formatToolDuration,
@@ -389,7 +389,7 @@ function MessageContent({
       {message.role !== 'user' && hasMainContent && <AssistantStateActions state={assistantState} />}
 
       {message.role !== 'user' && assistantState === 'complete' && (
-        <FileResultCards sessionId={sessionId} filePaths={extractGeneratedDocxPaths(message)} />
+        <FileResultCards sessionId={sessionId} filePaths={extractGeneratedFilePaths(message)} />
       )}
 
       {!hideActions && hasMainContent && (

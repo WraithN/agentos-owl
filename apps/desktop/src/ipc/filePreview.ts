@@ -24,7 +24,16 @@ interface DownloadLocalFileRequest {
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const SAFE_SEGMENT_PATTERN = /[^a-zA-Z0-9._-]+/g;
-const SUPPORTED_EXTENSIONS = new Set([".docx", ".xlsx", ".pptx"]);
+const SUPPORTED_EXTENSIONS = new Set([
+  ".docx",
+  ".pptx",
+  ".xlsx",
+  ".csv",
+  ".pdf",
+  ".xmind",
+  ".md",
+  ".txt",
+]);
 const DEFAULT_FILE_NAME = "document";
 
 interface FilePreviewRecord {
@@ -101,6 +110,30 @@ function escapeHtml(value: string): string {
 
 function wrapOfficeHtml(title: string, body: string): string {
   return `<!doctype html><html><head><meta charset="utf-8"><style>body{margin:0;padding:24px;font-family:Inter,system-ui,sans-serif;background:#fff;color:#0f172a}.sheet{margin-bottom:32px}.sheet-title{margin:0 0 12px;font-size:18px;font-weight:700}table{width:max-content;min-width:100%;border-collapse:collapse;font-size:13px}td,th{border:1px solid #cbd5e1;padding:6px 8px;vertical-align:top;white-space:pre-wrap}th{background:#f1f5f9;font-weight:600}.docx{max-width:960px;margin:0 auto;line-height:1.65}.docx img{max-width:100%}.slides{display:grid;gap:24px;max-width:1040px;margin:0 auto}.slide{min-height:360px;border:1px solid #cbd5e1;border-radius:18px;background:linear-gradient(135deg,#f8fafc,#eef2ff);box-shadow:0 12px 40px rgba(15,23,42,.08);padding:28px}.slide-title{margin:0 0 18px;color:#475569;font-size:13px;font-weight:700;letter-spacing:.08em;text-transform:uppercase}.slide-content{display:grid;gap:10px;font-size:20px;line-height:1.5}.slide-content p{margin:0}</style><title>${escapeHtml(title)}</title></head><body>${body}</body></html>`;
+}
+
+function convertTextToHtml(filePath: string, fileName: string): string {
+  const text = fs.readFileSync(filePath, "utf-8");
+  return wrapOfficeHtml(fileName, `<pre style="white-space:pre-wrap;word-break:break-word">${escapeHtml(text)}</pre>`);
+}
+
+function convertMarkdownToHtml(filePath: string, fileName: string): string {
+  const text = fs.readFileSync(filePath, "utf-8");
+  return wrapOfficeHtml(fileName, `<pre style="white-space:pre-wrap;word-break:break-word">${escapeHtml(text)}</pre>`);
+}
+
+function convertCsvToHtml(filePath: string, fileName: string): string {
+  const text = fs.readFileSync(filePath, "utf-8");
+  const rows = text.split("\n").map((line) => line.split(","));
+  const body = rows.map((row) => `<tr>${row.map((cell) => `<td>${escapeHtml(cell)}</td>`).join("")}</tr>`).join("");
+  return wrapOfficeHtml(fileName, `<table style="width:100%;border-collapse:collapse">${body}</table>`);
+}
+
+function convertUnsupportedToHtml(fileName: string): string {
+  return wrapOfficeHtml(
+    fileName,
+    `<div style="text-align:center;padding:48px 24px"><p style="font-size:18px;margin-bottom:16px">该格式暂不支持预览，请使用下载按钮</p><p style="color:#64748b">建议保存到本地后使用对应应用打开</p></div>`
+  );
 }
 
 async function convertDocxToHtml(filePath: string, fileName: string): Promise<string> {
@@ -221,7 +254,15 @@ async function createTempFile(req: CreateFilePreviewRequest) {
     ? await convertDocxToHtml(filePath, fileName)
     : ext === ".pptx"
       ? await convertPptxToHtml(filePath, fileName)
-      : convertXlsxToHtml(filePath, fileName);
+      : ext === ".xlsx"
+        ? convertXlsxToHtml(filePath, fileName)
+        : ext === ".csv"
+          ? convertCsvToHtml(filePath, fileName)
+          : ext === ".md"
+            ? convertMarkdownToHtml(filePath, fileName)
+            : ext === ".txt"
+              ? convertTextToHtml(filePath, fileName)
+              : convertUnsupportedToHtml(fileName);
 
   const record: FilePreviewRecord = {
     previewId,

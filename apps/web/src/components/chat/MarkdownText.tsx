@@ -11,8 +11,10 @@ const CODE_FENCE_PATTERN = /```([^\n`]*)\n?([\s\S]*?)```/g;
 const DEFAULT_CODE_LANGUAGE = 'text';
 const COPY_RESET_DELAY_MS = 2000;
 const HTML_PREVIEW_TOO_LARGE_CODE = 'HTML_PREVIEW_TOO_LARGE';
-const DOCX_PATH_PATTERN = /([^\s]+\.docx)/i;
-const DOCX_FILENAME_PATTERN = /^[^\s/\\]+\.docx$/i;
+const SUPPORTED_FILE_EXTENSIONS = ['docx', 'pptx', 'xlsx', 'csv', 'pdf', 'xmind', 'md', 'txt'] as const;
+const FILE_EXTENSION_PATTERN = SUPPORTED_FILE_EXTENSIONS.join('|');
+const GENERATED_FILE_PATH_PATTERN = new RegExp(`([^\\s]+\\.(?:${FILE_EXTENSION_PATTERN}))`, 'i');
+const GENERATED_FILE_FILENAME_PATTERN = new RegExp(`^[^\\s/\\\\]+\\.(?:${FILE_EXTENSION_PATTERN})$`, 'i');
 const KEYWORDS_BY_LANGUAGE: Record<string, string[]> = {
   python: ['def', 'return', 'if', 'else', 'elif', 'for', 'while', 'import', 'from', 'class', 'try', 'except', 'with', 'as', 'in', 'not', 'and', 'or', 'True', 'False', 'None', 'lambda', 'yield', 'async', 'await', 'pass', 'raise'],
   default: ['function', 'const', 'let', 'var', 'return', 'if', 'else', 'for', 'while', 'class', 'import', 'export', 'default', 'from', 'async', 'await', 'new', 'this', 'typeof', 'instanceof', 'try', 'catch', 'throw', 'true', 'false', 'null', 'undefined', 'interface', 'type', 'extends', 'implements'],
@@ -106,8 +108,8 @@ function isLocalFileHref(href: string) {
   return /^(file:\/\/|\/|~\/|[A-Za-z]:[\\/])/.test(href);
 }
 
-function isDocxHref(href: string) {
-  return /\.docx$/i.test(href);
+function isGeneratedFileHref(href: string) {
+  return new RegExp(`\\.(?:${FILE_EXTENSION_PATTERN})$`, 'i').test(href);
 }
 
 function localPathFromHref(href: string) {
@@ -120,7 +122,7 @@ function localPathFromHref(href: string) {
 }
 
 function handleLinkClick(href: string, sessionId?: string) {
-  if (isDocxHref(href) && sessionId) {
+  if (isGeneratedFileHref(href) && sessionId) {
     // 裸文件名默认到 agent workspace 查找，与 create_x_file 默认目录保持一致
     const resolvedHref = /^(file:\/\/|\/|[A-Za-z]:[\\/]|~\/)/.test(href) ? href : `~/.config/owl-os/workspace/${href}`;
     void openLocalFilePreview(sessionId, localPathFromHref(resolvedHref))
@@ -149,7 +151,7 @@ function handleLinkClick(href: string, sessionId?: string) {
 
 function parseInline(text: string): InlineToken[] {
   const tokens: InlineToken[] = [];
-  const pattern = /(`[^`]+`|\*\*[^*]+\*\*|\*[^*]+\*|\[[^\]]+\]\([^\s)]+\)|((?:file:\/\/|\/|[A-Za-z]:[\\/]|~\/)[^\s]+\.docx|[^\s/\\]+\.docx))/gi;
+  const pattern = new RegExp(`(\`[^\`]+\`|\\*\\*[^*]+\\*\\*|\\*[^*]+\\*|\\[[^\\]]+\\]\\([^\\s)]+\\)|((?:file://|/|[A-Za-z]:[\\\\/]|~/)[^\\s]+\\.(?:${FILE_EXTENSION_PATTERN})|[^\\s/\\\\]+\\.(?:${FILE_EXTENSION_PATTERN})))`, 'gi');
   let lastIndex = 0;
 
   for (const match of text.matchAll(pattern)) {
@@ -169,9 +171,9 @@ function parseInline(text: string): InlineToken[] {
       const linkMatch = value.match(/^\[([^\]]+)\]\(([^\s)]+)\)$/);
       if (linkMatch) {
         tokens.push({ type: 'link', content: linkMatch[1], href: linkMatch[2] });
-      } else if (DOCX_PATH_PATTERN.test(value)) {
-        // 从匹配值中提取最可能的 docx 文件名，避免把前面的中文动词/标点包含进来
-        const fileMatch = value.match(/(?:^|[\s:：])([A-Za-z0-9_\\-\\.\\u4e00-\\u9fa5]+\.docx)$/i);
+      } else if (GENERATED_FILE_PATH_PATTERN.test(value)) {
+        // 从匹配值中提取最可能的生成文件名，避免把前面的中文动词/标点包含进来
+        const fileMatch = value.match(new RegExp(`(?:^|[\\s:：])([A-Za-z0-9_\\\\-\\\\.\\\\u4e00-\\\\u9fa5]+\\.(?:${FILE_EXTENSION_PATTERN}))$`, 'i'));
         const fileName = fileMatch ? fileMatch[1] : value;
         tokens.push({ type: 'link', content: fileName, href: fileName });
       }
@@ -192,7 +194,7 @@ function renderInline(text: string, sessionId?: string) {
     if (token.type === 'bold') return <strong key={index} className="font-semibold">{renderInline(token.content, sessionId)}</strong>;
     if (token.type === 'italic') return <em key={index} className="italic">{renderInline(token.content, sessionId)}</em>;
     if (token.type === 'code') return <code key={index} className="rounded bg-background/70 px-1.5 py-0.5 font-mono text-[0.85em] text-cyan-300">{token.content}</code>;
-    if (token.type === 'link' && token.href && (isExternalHref(token.href) || isLocalFileHref(token.href) || isDocxHref(token.href))) {
+    if (token.type === 'link' && token.href && (isExternalHref(token.href) || isLocalFileHref(token.href) || isGeneratedFileHref(token.href))) {
       return (
         <button
           key={index}

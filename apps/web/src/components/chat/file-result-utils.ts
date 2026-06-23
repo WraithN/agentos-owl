@@ -1,19 +1,21 @@
-/* 从 AI 消息内容中提取生成的本地文件（目前支持 .docx） */
+/* 从 AI 消息内容中提取生成的本地文件（目前支持 .docx/.pptx/.xlsx/.csv/.pdf/.xmind/.md/.txt） */
 
-const DOCX_FILE_PATTERN = /((?:file:\/\/|\/|[A-Za-z]:[\\/]|~\/)[^\s]+\.docx|[A-Za-z0-9_\-.\u4e00-\u9fa5]+\.docx)/gi;
+const SUPPORTED_FILE_EXTENSIONS = ['docx', 'pptx', 'xlsx', 'csv', 'pdf', 'xmind', 'md', 'txt'] as const;
+const FILE_EXTENSION_PATTERN = SUPPORTED_FILE_EXTENSIONS.join('|');
+const GENERATED_FILE_PATTERN = new RegExp(`((?:file://|/|[A-Za-z]:[\\\\/]|~/)[^\\s]+\\.(?:${FILE_EXTENSION_PATTERN})|[A-Za-z0-9_\\-.\\u4e00-\\u9fa5]+\\.(?:${FILE_EXTENSION_PATTERN}))`, 'gi');
 
-function resolveDocxPath(value: string): string {
+function resolveFilePath(value: string): string {
   if (/^(file:\/\/|\/|[A-Za-z]:[\\/]|~\/)/.test(value)) return value;
   return `~/.config/owl-os/workspace/${value}`;
 }
 
-function extractDocxPathsFromText(text: string): string[] {
+function extractFilePathsFromText(text: string): string[] {
   const paths: string[] = [];
-  for (const match of text.matchAll(DOCX_FILE_PATTERN)) {
+  for (const match of text.matchAll(GENERATED_FILE_PATTERN)) {
     const raw = match[1] ?? match[0];
     // 从可能包含中文动词/标点的匹配值中清洗出真正的文件名
-    const cleaned = raw.match(/(?:^|[\s:：])([^\s/\\]*\.docx)$/i)?.[1] ?? raw;
-    paths.push(resolveDocxPath(cleaned));
+    const cleaned = raw.match(new RegExp(`(?:^|[\\s:：])([^\\s/\\\\]*\\.(?:${FILE_EXTENSION_PATTERN}))$`, 'i'))?.[1] ?? raw;
+    paths.push(resolveFilePath(cleaned));
   }
   return paths;
 }
@@ -30,16 +32,16 @@ function extractTextFromToolResult(result: unknown): string {
   return String(result ?? '');
 }
 
-export function extractGeneratedDocxPaths(message: { content?: unknown }): string[] {
+export function extractGeneratedFilePaths(message: { content?: unknown }): string[] {
   const parts = Array.isArray(message.content) ? message.content : [{ type: 'text', text: typeof message.content === 'string' ? message.content : '' }];
   const paths: string[] = [];
   for (const part of parts as Array<Record<string, unknown>>) {
     if (part.type === 'text' && typeof part.text === 'string') {
-      paths.push(...extractDocxPathsFromText(part.text));
+      paths.push(...extractFilePathsFromText(part.text));
     }
     if (part.type === 'tool-call') {
       const resultText = extractTextFromToolResult(part.result ?? part.partialResult);
-      paths.push(...extractDocxPathsFromText(resultText));
+      paths.push(...extractFilePathsFromText(resultText));
     }
   }
   // 去重并保持顺序
