@@ -510,8 +510,8 @@ function AgentCard({
 
   return (
     <div className="relative mb-3 animate-fade-in">
-      <div className="flex items-center gap-3">
-        <div className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-gradient-to-br ${gradient} text-white shadow-md shadow-black/10`}>
+      <div className="flex items-start gap-3">
+        <div className={`mt-1 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-gradient-to-br ${gradient} text-white shadow-md shadow-black/10`}>
           <Icon className="h-2.5 w-2.5" />
         </div>
         <div className="relative flex-1">
