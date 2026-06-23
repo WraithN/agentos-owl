@@ -514,10 +514,10 @@ function AgentCard({
         <div className={`mt-1 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-gradient-to-br ${gradient} text-white shadow-md shadow-black/10`}>
           <Icon className="h-2.5 w-2.5" />
         </div>
-        <div className="relative flex-1">
+        <div className="relative min-w-0 flex-1">
           <div
             className={`
-              relative rounded-xl px-4 py-3 transition-all duration-300
+              relative overflow-hidden rounded-xl px-4 py-3 transition-all duration-300
               ${isProcessing ? 'bg-yellow-400/5' : isFailed ? 'glass-l3 border-destructive/40' : isDone ? 'border border-border/60 bg-background/50' : 'border border-border/40 glass-l3 opacity-75'}
               ${hasContent ? 'cursor-pointer hover:shadow-md' : ''}
             `}
@@ -550,7 +550,7 @@ function AgentCard({
             {hasContent && (open ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />)}
           </button>
           {open && hasContent && (
-            <div className="mt-3 space-y-2 border-t border-border/40 pt-2">
+            <div className="mt-3 break-words space-y-2 border-t border-border/40 pt-2">
               {reasoning.trim() && <ReasoningPanel text={reasoning} />}
               {tools.length > 0 && <ToolLogPanel tools={tools} />}
               {text.trim() && (
