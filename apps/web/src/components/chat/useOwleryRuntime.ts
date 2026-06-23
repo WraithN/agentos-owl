@@ -13,12 +13,14 @@ import {
   startOwleryChat,
 } from '@/services/electron';
 import type { AppMode, Conversation, Message, MessageType, TeammateMode } from '@/types';
+import { getToolEventId } from './tool-call-utils';
 
 const TITLE_MAX_LENGTH = 20;
 const LAST_MESSAGE_MAX_LENGTH = 80;
 const STATUS_CARD_MARKER = '__STATUS_CARD__';
 const OWLERY_STATUS_EVENT = 'owlery:teammate-status';
 const SESSION_STREAM = 'session';
+const STATUS_COMPLETED_TEXT = '已完成';
 
 type ThreadContentPart = any;
 
@@ -87,10 +89,6 @@ function buildPersistedMessage(params: {
     timestamp: new Date(),
     meta: params.meta,
   };
-}
-
-function getToolEventId(event: any) {
-  return event.toolCallId ?? event.id ?? event.toolName ?? event.name ?? 'tool';
 }
 
 function upsertTextPart(parts: ThreadContentPart[], text: string): ThreadContentPart[] {
@@ -163,6 +161,49 @@ function buildAssistantFromChunks(id: string, chunks: AgentDriverChunk[]): Threa
   } as ThreadMessageLike;
 }
 
+/**
+ * 从 buffer 中的 agent_chunk / status_card 重建 agentOutputs。
+ * 切换对话窗口时，running 会话的中间过程（Agent 卡片、工具调用）依赖此数据。
+ */
+function buildAgentOutputsFromChunks(chunks: AgentDriverChunk[]): Record<string, AgentOutput> {
+  const outputs: Record<string, AgentOutput> = {};
+  for (const chunk of chunks) {
+    if (chunk.type === 'agent_chunk') {
+      const existing = outputs[chunk.agentId];
+      if (existing) {
+        outputs[chunk.agentId] = { ...existing, chunks: [...existing.chunks, chunk.chunk] };
+      } else {
+        outputs[chunk.agentId] = {
+          agentId: chunk.agentId,
+          name: chunk.agentName,
+          title: chunk.agentTitle,
+          role: chunk.role,
+          statusText: '',
+          chunks: [chunk.chunk],
+        };
+      }
+    }
+    if (chunk.type === 'status_card' && chunk.agentId) {
+      const existing = outputs[chunk.agentId];
+      const doneChunk = chunk.text === STATUS_COMPLETED_TEXT ? ({ type: 'done' } as AgentDriverChunk) : undefined;
+      const nextChunks = doneChunk ? [...(existing?.chunks ?? []), doneChunk] : (existing?.chunks ?? []);
+      if (existing) {
+        outputs[chunk.agentId] = { ...existing, statusText: chunk.text, chunks: nextChunks };
+      } else {
+        outputs[chunk.agentId] = {
+          agentId: chunk.agentId,
+          name: chunk.agentName ?? '',
+          title: chunk.agentTitle ?? '',
+          role: chunk.role ?? 'worker',
+          statusText: chunk.text,
+          chunks: nextChunks,
+        };
+      }
+    }
+  }
+  return outputs;
+}
+
 export function useOwleryRuntime(
   conversationId: string,
   mode: AppMode = 'chat',
@@ -172,6 +213,7 @@ export function useOwleryRuntime(
   const [messages, setMessages] = useState<ThreadMessageLike[]>([]);
   const [isRunning, setIsRunning] = useState(false);
   const [agentOutputs, setAgentOutputs] = useState<Record<string, AgentOutput>>({});
+  const agentOutputsRef = useRef<Record<string, AgentOutput>>({});
   const assistantIdRef = useRef<string | null>(null);
   const assistantTextRef = useRef('');
   const assistantPartsRef = useRef<ThreadContentPart[]>([]);
@@ -217,20 +259,24 @@ export function useOwleryRuntime(
       if (statusAgentId) {
         setAgentOutputs((prev) => {
           const existing = prev[statusAgentId];
-          if (existing) {
-            return { ...prev, [statusAgentId]: { ...existing, statusText: chunk.text } };
-          }
-          return {
-            ...prev,
-            [statusAgentId]: {
-              agentId: statusAgentId,
-              name: chunk.agentName ?? '',
-              title: chunk.agentTitle ?? '',
-              role: chunk.role ?? 'worker',
-              statusText: chunk.text,
-              chunks: [],
-            },
-          };
+          // 状态卡片标记为“已完成”时同步追加 done chunk，保证异常关闭后仍能从状态推断完成态
+          const doneChunk = chunk.text === STATUS_COMPLETED_TEXT ? ({ type: 'done' } as AgentDriverChunk) : undefined;
+          const nextChunks = doneChunk ? [...(existing?.chunks ?? []), doneChunk] : (existing?.chunks ?? []);
+          const next = existing
+            ? { ...prev, [statusAgentId]: { ...existing, statusText: chunk.text, chunks: nextChunks } }
+            : {
+                ...prev,
+                [statusAgentId]: {
+                  agentId: statusAgentId,
+                  name: chunk.agentName ?? '',
+                  title: chunk.agentTitle ?? '',
+                  role: chunk.role ?? 'worker',
+                  statusText: chunk.text,
+                  chunks: nextChunks,
+                },
+              };
+          agentOutputsRef.current = next;
+          return next;
         });
       }
       return;
@@ -240,23 +286,21 @@ export function useOwleryRuntime(
       ensureAssistant();
       setAgentOutputs((prev) => {
         const existing = prev[chunk.agentId];
-        if (existing) {
-          return {
-            ...prev,
-            [chunk.agentId]: { ...existing, chunks: [...existing.chunks, chunk.chunk] },
-          };
-        }
-        return {
-          ...prev,
-          [chunk.agentId]: {
-            agentId: chunk.agentId,
-            name: chunk.agentName,
-            title: chunk.agentTitle,
-            role: chunk.role,
-            statusText: '',
-            chunks: [chunk.chunk],
-          },
-        };
+        const next = existing
+          ? { ...prev, [chunk.agentId]: { ...existing, chunks: [...existing.chunks, chunk.chunk] } }
+          : {
+              ...prev,
+              [chunk.agentId]: {
+                agentId: chunk.agentId,
+                name: chunk.agentName,
+                title: chunk.agentTitle,
+                role: chunk.role,
+                statusText: '',
+                chunks: [chunk.chunk],
+              },
+            };
+        agentOutputsRef.current = next;
+        return next;
       });
       return;
     }
@@ -307,6 +351,15 @@ export function useOwleryRuntime(
         content: nextParts,
         status: buildErrorStatus(chunk.error),
       } as ThreadMessageLike : message));
+      // 错误中断时同样保存已生成的内容，避免工具调用与思考过程丢失
+      const finalText = assistantTextRef.current || chunk.error;
+      const finalParts = assistantPartsRef.current;
+      const finalAgentOutputs = agentOutputsRef.current;
+      if (finalText.trim() || finalParts.length > 0) {
+        saveConversation(buildConversationUpdate(conversationId, conversationTitleRef.current, mode, finalText))
+          .then(() => saveMessage(buildPersistedMessage({ id, conversationId, type: 'agent', content: finalText, status: 'error', meta: { contentParts: finalParts, agentOutputs: finalAgentOutputs } })))
+          .catch((error: unknown) => console.error('保存 Owlery 助手消息失败:', error));
+      }
       assistantIdRef.current = null;
       assistantTextRef.current = '';
       assistantPartsRef.current = [];
@@ -317,18 +370,23 @@ export function useOwleryRuntime(
       setIsRunning(false);
       setMessages((prev) => prev.map((message) => message.id === id ? { ...message, status: buildCompleteStatus() } as ThreadMessageLike : message));
       // 会话完成后，将所有智能体（包括老板）标记为已完成
-      setAgentOutputs((prev) => Object.fromEntries(
-        Object.entries(prev).map(([agentId, agent]) => [
-          agentId,
-          { ...agent, statusText: agent.statusText || '已完成', chunks: [...agent.chunks, { type: 'done' } as AgentDriverChunk] },
-        ])
-      ));
+      setAgentOutputs((prev) => {
+        const next = Object.fromEntries(
+          Object.entries(prev).map(([agentId, agent]) => [
+            agentId,
+            { ...agent, statusText: STATUS_COMPLETED_TEXT, chunks: [...agent.chunks, { type: 'done' } as AgentDriverChunk] },
+          ])
+        );
+        agentOutputsRef.current = next;
+        return next;
+      });
       // 在重置引用前先捕获最终内容，避免异步 save 回调执行时引用已被清空导致保存空内容。
       const finalText = assistantTextRef.current;
       const finalParts = assistantPartsRef.current;
+      const finalAgentOutputs = agentOutputsRef.current;
       if (finalText.trim() || finalParts.length > 0) {
         saveConversation(buildConversationUpdate(conversationId, conversationTitleRef.current, mode, finalText))
-          .then(() => saveMessage(buildPersistedMessage({ id, conversationId, type: 'agent', content: finalText, meta: { contentParts: finalParts } })))
+          .then(() => saveMessage(buildPersistedMessage({ id, conversationId, type: 'agent', content: finalText, meta: { contentParts: finalParts, agentOutputs: finalAgentOutputs } })))
           .catch((error: unknown) => console.error('保存 Owlery 助手消息失败:', error));
       }
       assistantIdRef.current = null;
@@ -342,6 +400,8 @@ export function useOwleryRuntime(
     assistantIdRef.current = null;
     assistantTextRef.current = '';
     assistantPartsRef.current = [];
+    agentOutputsRef.current = {};
+    setAgentOutputs({});
     activateOwlerySession(conversationId)
       .then(() => Promise.all([listMessages(conversationId), getOwleryBufferedOutput(conversationId)]))
       .then(([items, chunks]) => {
@@ -349,11 +409,27 @@ export function useOwleryRuntime(
         const restored = items.map(persistedMessageToThread).filter((item): item is ThreadMessageLike => item !== null);
         const buffered = buildAssistantFromChunks(generateId(), chunks);
         const bufferedStatus = buffered?.status as { type?: string } | undefined;
+
+        // 1. 优先从已保存的最后一条 assistant 消息恢复 agentOutputs
+        const lastAgentMessage = [...items].reverse().find((msg) => msg.type === 'agent');
+        const persistedAgentOutputs = lastAgentMessage?.meta?.agentOutputs as Record<string, AgentOutput> | undefined;
+        if (persistedAgentOutputs && Object.keys(persistedAgentOutputs).length > 0) {
+          agentOutputsRef.current = persistedAgentOutputs;
+          setAgentOutputs(persistedAgentOutputs);
+        }
+
+        // 2. 若会话仍在 running，从 buffer 中的 agent_chunk/status_card 重建最新 agentOutputs
         if (buffered && bufferedStatus?.type === 'running') {
           assistantIdRef.current = buffered.id as string;
           assistantPartsRef.current = Array.isArray(buffered.content) ? buffered.content as ThreadContentPart[] : [{ type: 'text', text: buffered.content ?? '' }];
           assistantTextRef.current = assistantPartsRef.current.filter((part) => part['type'] === 'text').map((part) => String(part['text'] ?? '')).join('');
+          const bufferedAgentOutputs = buildAgentOutputsFromChunks(chunks);
+          if (Object.keys(bufferedAgentOutputs).length > 0) {
+            agentOutputsRef.current = bufferedAgentOutputs;
+            setAgentOutputs(bufferedAgentOutputs);
+          }
         }
+
         setMessages(buffered ? [...restored, buffered] : restored);
         setIsRunning(bufferedStatus?.type === 'running');
       })
@@ -393,6 +469,7 @@ export function useOwleryRuntime(
     assistantTextRef.current = '';
     assistantPartsRef.current = [];
     setAgentOutputs({});
+    agentOutputsRef.current = {};
     try {
       await saveConversation(buildConversationUpdate(conversationId, conversationTitle === '新对话' ? text.slice(0, TITLE_MAX_LENGTH) : conversationTitle, mode, text));
       await saveMessage(buildPersistedMessage({ id: userId, conversationId, type: 'user', content: text }));

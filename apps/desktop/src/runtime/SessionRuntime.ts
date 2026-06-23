@@ -198,6 +198,7 @@ export class SessionRuntime {
           draft || "（无额外工作成果）",
         ].join("\n");
         await this.streamAgent(elder, finalPrompt, { forwardText: true });
+        this.emitAgentStatusCard(elder, "已完成");
       } else if (sentinelPlan) {
         // 简单任务未招募 Worker，由 Elder 直接输出结论
         this.emitAgentStatusCard(elder, "正在对工作进行评审");
@@ -207,6 +208,7 @@ export class SessionRuntime {
           sentinelPlan,
         ].join("\n");
         await this.streamAgent(elder, finalPrompt, { forwardText: true });
+        this.emitAgentStatusCard(elder, "已完成");
       }
 
       if (this.runStatus === "running") {

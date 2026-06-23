@@ -2,7 +2,7 @@ import { useCallback, useState, type ReactNode } from 'react';
 import { Check, ChevronDown, ChevronRight, Copy, Download, Eye } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
-import { createHtmlPreviewTempFile, openExternal, openHtmlPreviewWindow, openPath, saveHtmlPreviewAs } from '@/services/electron';
+import { createHtmlPreviewTempFile, openExternal, openHtmlPreviewWindow, openLocalFilePreview, openPath, saveHtmlPreviewAs } from '@/services/electron';
 import { getHtmlDefaultFileName, getHtmlTitle, isHtmlCode } from '@/components/html-preview/htmlPreviewUtils';
 
 const CODE_BLOCK_COLLAPSE_LINE_COUNT = 100;
@@ -11,6 +11,7 @@ const CODE_FENCE_PATTERN = /```([^\n`]*)\n?([\s\S]*?)```/g;
 const DEFAULT_CODE_LANGUAGE = 'text';
 const COPY_RESET_DELAY_MS = 2000;
 const HTML_PREVIEW_TOO_LARGE_CODE = 'HTML_PREVIEW_TOO_LARGE';
+const DOCX_PATH_PATTERN = /([^\s]+\.docx)/i;
 const KEYWORDS_BY_LANGUAGE: Record<string, string[]> = {
   python: ['def', 'return', 'if', 'else', 'elif', 'for', 'while', 'import', 'from', 'class', 'try', 'except', 'with', 'as', 'in', 'not', 'and', 'or', 'True', 'False', 'None', 'lambda', 'yield', 'async', 'await', 'pass', 'raise'],
   default: ['function', 'const', 'let', 'var', 'return', 'if', 'else', 'for', 'while', 'class', 'import', 'export', 'default', 'from', 'async', 'await', 'new', 'this', 'typeof', 'instanceof', 'try', 'catch', 'throw', 'true', 'false', 'null', 'undefined', 'interface', 'type', 'extends', 'implements'],
@@ -104,6 +105,10 @@ function isLocalFileHref(href: string) {
   return /^(file:\/\/|\/|~\/|[A-Za-z]:[\\/])/.test(href);
 }
 
+function isDocxHref(href: string) {
+  return /\.docx$/i.test(href);
+}
+
 function localPathFromHref(href: string) {
   if (!href.startsWith('file://')) return href;
   try {
@@ -113,7 +118,27 @@ function localPathFromHref(href: string) {
   }
 }
 
-function handleLinkClick(href: string) {
+function handleLinkClick(href: string, sessionId?: string) {
+  if (isDocxHref(href) && sessionId) {
+    if (!/^(file:\/\/|\/|[A-Za-z]:[\\/]|~\/)/.test(href)) {
+      toast.error(`无法预览“${href}”：路径不完整，请在工具调用输出中查看完整路径`);
+      return;
+    }
+    void openLocalFilePreview(sessionId, localPathFromHref(href))
+      .catch((error: unknown) => {
+        const detail = error as { code?: string; message?: string };
+        if (detail.code === 'FILE_PREVIEW_FILE_NOT_FOUND' || detail.message?.includes('FILE_PREVIEW_FILE_NOT_FOUND')) {
+          toast.error('文件不存在，请确认路径正确');
+          return;
+        }
+        if (detail.code === 'FILE_PREVIEW_UNSUPPORTED_TYPE' || detail.message?.includes('FILE_PREVIEW_UNSUPPORTED_TYPE')) {
+          toast.error('暂不支持该文件类型预览');
+          return;
+        }
+        toast.error(`预览失败：${detail.message ?? '未知错误'}`);
+      });
+    return;
+  }
   if (isLocalFileHref(href)) {
     openPath(localPathFromHref(href));
     return;
@@ -125,7 +150,7 @@ function handleLinkClick(href: string) {
 
 function parseInline(text: string): InlineToken[] {
   const tokens: InlineToken[] = [];
-  const pattern = /(`[^`]+`|\*\*[^*]+\*\*|\*[^*]+\*|\[[^\]]+\]\([^\s)]+\))/g;
+  const pattern = /(`[^`]+`|\*\*[^*]+\*\*|\*[^*]+\*|\[[^\]]+\]\([^\s)]+\)|((?:file:\/\/|\/|[A-Za-z]:[\\/]|~\/)[^\s]+\.docx))/gi;
   let lastIndex = 0;
 
   for (const match of text.matchAll(pattern)) {
@@ -145,6 +170,8 @@ function parseInline(text: string): InlineToken[] {
       const linkMatch = value.match(/^\[([^\]]+)\]\(([^\s)]+)\)$/);
       if (linkMatch) {
         tokens.push({ type: 'link', content: linkMatch[1], href: linkMatch[2] });
+      } else if (DOCX_PATH_PATTERN.test(value)) {
+        tokens.push({ type: 'link', content: value, href: value });
       }
     }
 
@@ -158,20 +185,20 @@ function parseInline(text: string): InlineToken[] {
   return tokens;
 }
 
-function renderInline(text: string) {
+function renderInline(text: string, sessionId?: string) {
   return parseInline(text).map((token, index) => {
-    if (token.type === 'bold') return <strong key={index} className="font-semibold">{renderInline(token.content)}</strong>;
-    if (token.type === 'italic') return <em key={index} className="italic">{renderInline(token.content)}</em>;
+    if (token.type === 'bold') return <strong key={index} className="font-semibold">{renderInline(token.content, sessionId)}</strong>;
+    if (token.type === 'italic') return <em key={index} className="italic">{renderInline(token.content, sessionId)}</em>;
     if (token.type === 'code') return <code key={index} className="rounded bg-background/70 px-1.5 py-0.5 font-mono text-[0.85em] text-cyan-300">{token.content}</code>;
-    if (token.type === 'link' && token.href && (isExternalHref(token.href) || isLocalFileHref(token.href))) {
+    if (token.type === 'link' && token.href && (isExternalHref(token.href) || isLocalFileHref(token.href) || isDocxHref(token.href))) {
       return (
         <button
           key={index}
           type="button"
           className="text-cyan-400 underline underline-offset-2 hover:text-cyan-300"
-          onClick={() => handleLinkClick(token.href ?? '')}
+          onClick={() => handleLinkClick(token.href ?? '', sessionId)}
         >
-          {renderInline(token.content)}
+          {token.content}
         </button>
       );
     }
@@ -207,7 +234,7 @@ function isTableBlock(block: string) {
   return lines.length >= 3 && lines[0].includes('|') && isTableSeparator(lines[1]);
 }
 
-function renderTableBlock(block: string, index: number) {
+function renderTableBlock(block: string, index: number, sessionId?: string) {
   const lines = block.split('\n').filter((line) => line.trim());
   const headers = splitTableRow(lines[0]);
   const alignments = getTableAlignments(lines[1]);
@@ -221,7 +248,7 @@ function renderTableBlock(block: string, index: number) {
             <tr>
               {headers.map((header, cellIndex) => (
                 <th key={cellIndex} className={`border-b border-border/60 px-3 py-2 font-semibold ${alignments[cellIndex] ?? 'text-left'}`}>
-                  {renderInline(header)}
+                  {renderInline(header, sessionId)}
                 </th>
               ))}
             </tr>
@@ -231,7 +258,7 @@ function renderTableBlock(block: string, index: number) {
               <tr key={rowIndex} className="border-b border-border/40 last:border-0 odd:bg-muted/20">
                 {headers.map((_, cellIndex) => (
                   <td key={cellIndex} className={`px-3 py-2 align-top text-foreground/90 ${alignments[cellIndex] ?? 'text-left'}`}>
-                    {renderInline(row[cellIndex] ?? '')}
+                    {renderInline(row[cellIndex] ?? '', sessionId)}
                   </td>
                 ))}
               </tr>
@@ -244,8 +271,8 @@ function renderTableBlock(block: string, index: number) {
           <div key={rowIndex} className="rounded-lg border border-border/40 bg-muted/20 p-2 text-xs">
             {headers.map((header, cellIndex) => (
               <div key={cellIndex} className="grid grid-cols-[6rem_1fr] gap-2 border-b border-border/30 py-1 last:border-0">
-                <span className="text-muted-foreground">{renderInline(header)}</span>
-                <span className="text-foreground/90">{renderInline(row[cellIndex] ?? '')}</span>
+                <span className="text-muted-foreground">{renderInline(header, sessionId)}</span>
+                <span className="text-foreground/90">{renderInline(row[cellIndex] ?? '', sessionId)}</span>
               </div>
             ))}
           </div>
@@ -255,10 +282,10 @@ function renderTableBlock(block: string, index: number) {
   );
 }
 
-function renderTextBlock(block: string, index: number) {
+function renderTextBlock(block: string, index: number, sessionId?: string) {
   const trimmed = block.trim();
   if (isTableBlock(block)) {
-    return renderTableBlock(block, index);
+    return renderTableBlock(block, index, sessionId);
   }
 
   const heading = trimmed.match(/^(#{1,6})\s+(.+)$/);
@@ -267,7 +294,7 @@ function renderTextBlock(block: string, index: number) {
     const className = level <= 2
       ? 'mt-3 mb-2 font-semibold text-base leading-snug'
       : 'mt-2 mb-1 font-semibold text-sm leading-snug';
-    const content = renderInline(heading[2]);
+    const content = renderInline(heading[2], sessionId);
     if (level === 1) return <h1 key={index} className={className}>{content}</h1>;
     if (level === 2) return <h2 key={index} className={className}>{content}</h2>;
     if (level === 3) return <h3 key={index} className={className}>{content}</h3>;
@@ -281,7 +308,7 @@ function renderTextBlock(block: string, index: number) {
   if (block.split('\n').every((line) => /^\s*[-*+]\s+/.test(line))) {
     return (
       <ul key={index} className="my-2 list-disc space-y-1 pl-5">
-        {block.split('\n').map((line, itemIndex) => <li key={itemIndex}>{renderInline(line.replace(/^\s*[-*+]\s+/, ''))}</li>)}
+        {block.split('\n').map((line, itemIndex) => <li key={itemIndex}>{renderInline(line.replace(/^\s*[-*+]\s+/, ''), sessionId)}</li>)}
       </ul>
     );
   }
@@ -289,7 +316,7 @@ function renderTextBlock(block: string, index: number) {
   if (block.split('\n').every((line) => /^\s*\d+\.\s+/.test(line))) {
     return (
       <ol key={index} className="my-2 list-decimal space-y-1 pl-5">
-        {block.split('\n').map((line, itemIndex) => <li key={itemIndex}>{renderInline(line.replace(/^\s*\d+\.\s+/, ''))}</li>)}
+        {block.split('\n').map((line, itemIndex) => <li key={itemIndex}>{renderInline(line.replace(/^\s*\d+\.\s+/, ''), sessionId)}</li>)}
       </ol>
     );
   }
@@ -297,15 +324,15 @@ function renderTextBlock(block: string, index: number) {
   if (block.split('\n').every((line) => /^\s*>\s?/.test(line))) {
     return (
       <blockquote key={index} className="my-2 border-l-2 border-cyan-400/50 pl-3 text-muted-foreground">
-        {block.split('\n').map((line, itemIndex) => <p key={itemIndex}>{renderInline(line.replace(/^\s*>\s?/, ''))}</p>)}
+        {block.split('\n').map((line, itemIndex) => <p key={itemIndex}>{renderInline(line.replace(/^\s*>\s?/, ''), sessionId)}</p>)}
       </blockquote>
     );
   }
 
-  return <p key={index} className="whitespace-pre-wrap leading-relaxed">{renderInline(block)}</p>;
+  return <p key={index} className="whitespace-pre-wrap leading-relaxed">{renderInline(block, sessionId)}</p>;
 }
 
-function renderMarkdownText(text: string) {
+function renderMarkdownText(text: string, sessionId?: string) {
   const blocks: string[] = [];
   const lines = text.split('\n');
   let buffer: string[] = [];
@@ -356,7 +383,7 @@ function renderMarkdownText(text: string) {
   }
 
   flushBuffer();
-  return blocks.map(renderTextBlock);
+  return blocks.map((block, index) => renderTextBlock(block, index, sessionId));
 }
 
 function FormattedCodeBlock({ data, sessionId }: { data: Extract<MarkdownPart, { type: 'code' }>; sessionId: string }) {
@@ -464,7 +491,7 @@ export function MarkdownText({ text, sessionId }: { text: string; sessionId: str
     <div className="space-y-2 break-words">
       {parseMarkdownParts(text).map((part, index) => part.type === 'code'
         ? <FormattedCodeBlock key={`${part.type}-${index}`} data={part} sessionId={sessionId} />
-        : <div key={`${part.type}-${index}`} className="space-y-2">{renderMarkdownText(part.content)}</div>)}
+        : <div key={`${part.type}-${index}`} className="space-y-2">{renderMarkdownText(part.content, sessionId)}</div>)}
     </div>
   );
 }

@@ -42,6 +42,16 @@ import { MarkdownText } from './MarkdownText';
 import { useOwleryRuntime, type AgentOutput } from './useOwleryRuntime';
 import { ChatComposer } from './ChatComposer';
 import {
+  formatToolDuration,
+  formatToolInput,
+  formatToolOutput,
+  formatToolSummary,
+  formatToolTime,
+  getToolKey,
+  getToolStatus,
+  mergeToolEvents,
+} from './tool-call-utils';
+import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
@@ -61,7 +71,6 @@ export interface SingleAgentChatProps {
 }
 
 const BOTTOM_DISTANCE_THRESHOLD = 96;
-const TOOL_SUMMARY_MAX_LENGTH = 120;
 const MESSAGE_WIDTH_CLASS = 'w-[min(92ch,84%)]';
 
 interface WorkflowContextValue {
@@ -149,21 +158,6 @@ function getAgentGradient(role: string, title: string): string {
   return AGENT_AVATAR_GRADIENT[title] ?? AGENT_AVATAR_GRADIENT[role] ?? DEFAULT_GRADIENT;
 }
 
-function eventToToolPart(event: any) {
-  return {
-    type: 'tool-call',
-    toolCallId: event.toolCallId ?? event.id ?? event.toolName ?? event.name ?? 'tool',
-    toolName: event.toolName ?? event.name ?? '未知工具',
-    args: event.args ?? {},
-    argsText: JSON.stringify(event.args ?? {}, null, 2),
-    result: event.type === 'tool_execution_end' ? event.result : undefined,
-    isError: event.isError,
-    startedAt: event.startedAt ?? Date.now(),
-    endedAt: event.endedAt,
-    durationMs: event.durationMs,
-  };
-}
-
 function getMessageParts(message: any) {
   return Array.isArray(message.content) ? message.content : [{ type: 'text', text: message.content ?? '' }];
 }
@@ -225,54 +219,11 @@ function ReasoningPanel({ text }: { text: string }) {
   );
 }
 
-function formatToolInput(value: unknown) {
-  try {
-    return JSON.stringify(value ?? {}, null, 2);
-  } catch {
-    return String(value ?? {});
-  }
-}
-
-function formatToolOutput(value: unknown): string {
-  if (value === undefined) return '暂无输出';
-  if (typeof value === 'string') return value;
-  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
-  if (Array.isArray(value)) return value.map(formatToolOutput).filter(Boolean).join('\n');
-  if (typeof value === 'object' && value !== null) {
-    const record = value as Record<string, unknown>;
-    for (const key of ['text', 'content', 'output', 'stdout', 'stderr', 'message', 'error', 'result']) {
-      if (key in record) return formatToolOutput(record[key]);
-    }
-    // 结构化的工具结果统一序列化，避免显示 [object Object]
-    return JSON.stringify(value, null, 2);
-  }
-  return String(value);
-}
-
-function formatToolSummary(value: unknown, formatter: (value: unknown) => string) {
-  const text = formatter(value).replace(/\s+/g, ' ').trim();
-  if (text.length <= TOOL_SUMMARY_MAX_LENGTH) return text;
-  return `${text.slice(0, TOOL_SUMMARY_MAX_LENGTH)}…`;
-}
-
-function formatToolDuration(tool: any) {
-  if (typeof tool.durationMs === 'number') return `${tool.durationMs}ms`;
-  if (typeof tool.startedAt === 'number' && typeof tool.endedAt === 'number') {
-    return `${Math.max(0, tool.endedAt - tool.startedAt)}ms`;
-  }
-  if (typeof tool.startedAt === 'number') return '进行中';
-  return '—';
-}
-
-function getToolStatus(tool: any) {
-  if (tool.isError) return { label: '执行报错', dot: 'bg-destructive' };
-  if (tool.result === undefined) return { label: '执行中', dot: 'bg-amber-400' };
-  return { label: '完成', dot: 'bg-emerald-400' };
-}
-
 function ToolCallCard({ tool }: { tool: any }) {
   const [open, setOpen] = useState(false);
   const status = getToolStatus(tool);
+  const duration = formatToolDuration(tool);
+  const time = formatToolTime(tool);
   const inputValue = tool.args ?? {};
   const inputText = tool.argsText ?? formatToolInput(inputValue);
   const outputText = formatToolOutput(tool.result);
@@ -287,7 +238,8 @@ function ToolCallCard({ tool }: { tool: any }) {
             <span className={`h-2 w-2 shrink-0 rounded-full ${status.dot}`} />
             <span className="truncate font-medium text-foreground">{tool.toolName ?? '未知工具'}</span>
             <span className="shrink-0 text-muted-foreground">{status.label}</span>
-            <span className="shrink-0 text-muted-foreground">{formatToolDuration(tool)}</span>
+            {duration && <span className="shrink-0 text-muted-foreground">{duration}</span>}
+            {time && <span className="shrink-0 text-muted-foreground">{time}</span>}
           </div>
           <div className="truncate text-muted-foreground">输入：{inputSummary}</div>
           <div className="truncate text-muted-foreground">输出：{outputSummary}</div>
@@ -316,10 +268,6 @@ function ToolCallCard({ tool }: { tool: any }) {
       )}
     </div>
   );
-}
-
-function getToolKey(tool: any, index: number) {
-  return `${tool.toolCallId ?? tool.toolName ?? 'tool'}:${index}`;
 }
 
 function ToolLogPanel({ tools }: { tools: any[] }) {
@@ -415,7 +363,7 @@ function MessageContent({
           className={`rounded-2xl px-4 py-2.5 text-base break-words [overflow-wrap:anywhere] ${
             message.role === 'user'
               ? 'bg-primary text-primary-foreground'
-              : 'bg-muted text-foreground'
+              : `bg-muted text-foreground ${isAssistantRunning ? 'border-marquee-yellow' : ''}`
           }`}
         >
           {isEmptyComplete ? (
@@ -518,6 +466,8 @@ function getAgentWorkStatus(
   }
   if (agent.chunks.some((c) => c.type === 'error')) return { status: 'failed', label: '失败' };
   if (agent.chunks.some((c) => c.type === 'done')) return { status: 'completed', label: '已完成' };
+  // 状态文本已明确为“已完成”时直接视为完成（异常关闭后 teamStatus 丢失、done chunk 尚未持久化的兜底）
+  if (agent.statusText === '已完成') return { status: 'completed', label: '已完成' };
   if (agent.chunks.length > 0 || agent.statusText) return { status: 'in_progress', label: agent.statusText || '进行中' };
   return { status: 'not_started', label: '未开始' };
 }
@@ -536,7 +486,7 @@ function AgentCard({
   const [open, setOpen] = useState(false);
   const text = agent.chunks.filter((c) => c.type === 'text_delta').map((c) => (c as { text: string }).text).join('');
   const reasoning = agent.chunks.filter((c) => c.type === 'reasoning_delta').map((c) => (c as { text: string }).text).join('');
-  const tools = agent.chunks.filter((c) => c.type === 'tool_event').map((c) => eventToToolPart((c as { event: unknown }).event));
+  const tools = mergeToolEvents(agent.chunks.filter((c) => c.type === 'tool_event').map((c) => (c as { event: unknown }).event));
   const hasContent = text.trim() || reasoning.trim() || tools.length > 0;
   const { status, label } = getAgentWorkStatus(agent, memberStatus);
   const isFailed = status === 'failed';
@@ -554,30 +504,36 @@ function AgentCard({
         <Icon className="h-3.5 w-3.5" />
       </div>
       <div className="relative">
-        {isProcessing && (
-          <div className="absolute -inset-[2px] rounded-xl bg-gradient-to-r from-green-400 to-cyan-400 opacity-30 blur-sm animate-agent-glow" />
-        )}
         <div
           className={`
             relative rounded-xl px-4 py-3 transition-all duration-300
-            ${isProcessing ? 'border border-green-400/30 bg-green-500/5' : isFailed ? 'glass-l3 border-destructive/40' : isDone ? 'border border-border/60 bg-background/50' : 'border border-border/40 glass-l3 opacity-75'}
+            ${isProcessing ? 'bg-yellow-400/5' : isFailed ? 'glass-l3 border-destructive/40' : isDone ? 'border border-border/60 bg-background/50' : 'border border-border/40 glass-l3 opacity-75'}
             ${hasContent ? 'cursor-pointer hover:shadow-md' : ''}
           `}
         >
+          {isProcessing && (
+            <svg className="absolute inset-0 h-full w-full overflow-visible rounded-xl pointer-events-none" preserveAspectRatio="none">
+              <rect x="0" y="0" width="100%" height="100%" rx="12" fill="none" stroke="rgba(250,204,21,0.25)" strokeWidth="2" vectorEffect="non-scaling-stroke" />
+              <rect x="0" y="0" width="100%" height="100%" rx="12" fill="none" stroke="#facc15" strokeWidth="2" vectorEffect="non-scaling-stroke">
+                <animate attributeName="stroke-dashoffset" from="1000" to="0" dur="3s" repeatCount="indefinite" />
+                <animate attributeName="stroke-dasharray" values="40 960;40 960" dur="3s" repeatCount="indefinite" />
+              </rect>
+            </svg>
+          )}
           <button
             type="button"
             onClick={() => hasContent && setOpen((prev) => !prev)}
-            className="flex w-full items-center justify-between gap-2 text-left"
+            className="relative flex w-full items-center justify-between gap-2 text-left"
           >
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="relative flex flex-wrap items-center gap-2">
               <span className="font-medium text-foreground">{titleLabel}：{agent.name}</span>
               <span className="flex items-center gap-1.5 text-sm">
                 <span
                   className={`h-2 w-2 shrink-0 rounded-full ${
-                    isProcessing ? 'bg-green-500 animate-agent-dot-pulse' : isFailed ? 'bg-destructive' : isDone ? 'bg-green-500' : 'bg-muted-foreground'
+                    isProcessing ? 'bg-yellow-400 animate-agent-dot-pulse' : isFailed ? 'bg-destructive' : isDone ? 'bg-green-500' : 'bg-muted-foreground'
                   }`}
                 />
-                <span className={isProcessing ? 'font-medium text-green-500' : 'text-muted-foreground'}>{label}</span>
+                <span className={isProcessing ? 'font-medium text-yellow-400' : 'text-muted-foreground'}>{label}</span>
               </span>
             </div>
             {hasContent && (open ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />)}
