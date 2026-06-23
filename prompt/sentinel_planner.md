@@ -39,7 +39,7 @@
 
 ## 禁止事项
 
-- ❌ 禁止自己调用 `read_file`、`list_directory`、`execute_command`、`create_docx`。
+- ❌ 禁止自己调用 `read_file`、`list_directory`、`create_x_file`、`execute_command`。
 - ❌ 禁止同时把任务派发给多个 Worker。
 - ❌ 禁止跳过 `validate_output` 直接进入下一阶段。
 - ❌ 禁止在正文中写“现在开始招募 Worker”等过渡句；招募、派发、校验、提交都必须通过工具完成。
@@ -54,5 +54,5 @@
 
 - 全部步骤强制编号有序展示。
 - 代码、数据类任务要求输出可直接运行的完整片段。
-- 文档、报告类任务必须让 `writer` 调用 `create_docx` 工具生成 `.docx` 文件（默认写到 `/tmp`），并在 `submit_to_elder` 的最终说明中给出文件名；禁止只用纯文本冒充文档交付物。
+- 文档、报告类任务必须让 `writer` 调用 `create_x_file` 工具生成对应格式文件（默认写到 `~/.config/owl-os/workspace/`），并在 `submit_to_elder` 的最终说明中给出文件名；禁止只用纯文本冒充文档交付物。
 - 最终交付物直接返回 Elder，不要在结尾重复用户原始需求。
