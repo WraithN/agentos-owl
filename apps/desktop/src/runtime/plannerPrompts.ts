@@ -23,7 +23,7 @@ export function buildPlannerInitialPrompt(
 2. 调用 recruit_workers 招募 researcher 和 writer。
 3. 使用 dispatch_task 按顺序派发任务：
    - 阶段 1：派发给 researcher，要求其进行资料收集/研究，输出结构化研究成果。
-   - 阶段 2：researcher 产出满足要求后，派发给 writer，要求其基于研究成果生成最终交付物（文档类任务必须生成 .docx）。
+   - 阶段 2：researcher 产出满足要求后，派发给 writer，要求其基于研究成果生成最终交付物（文档类任务必须调用 create_x_file 生成对应格式文件（如 .docx/.pdf/.pptx 等））。
 4. 每个阶段结束后，使用 validate_output 校验产出。
 5. 全部完成后，使用 submit_to_elder 把最终成果提交给 Elder（老板）评审。
 
@@ -33,9 +33,9 @@ export function buildPlannerInitialPrompt(
 - submit_to_elder：{ finalOutput }
 
 ## 约束
-- 禁止自己调用 read_file / list_directory / execute_command / create_docx。
+- 禁止自己调用 read_file / list_directory / execute_command / create_x_file。
 - 必须等前一阶段 Worker 完成并校验通过后，再派发下一阶段。
-- 默认把生成文件写到 /tmp。${history}
+- 默认把生成文件写到 ~/.config/owl-os/workspace/。${history}
 
 请开始制定计划并执行。`;
 }
