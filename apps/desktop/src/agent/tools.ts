@@ -88,7 +88,7 @@ export function buildTools(_sessionId: string): AgentTool[] {
     {
       name: "read_file",
       label: "读取文件",
-      description: "Read the contents of a file under the agent workspace. Relative paths are resolved under ~/.config/owl-os/workspace.",
+      description: "读取 Agent 工作区内的文件内容。相对路径会解析到 ~/.config/owl-os/workspace 下。",
       parameters: Type.Object({
         path: Type.String(),
       }),
@@ -102,7 +102,7 @@ export function buildTools(_sessionId: string): AgentTool[] {
     {
       name: "list_directory",
       label: "列出目录",
-      description: "List files and directories under the agent workspace. Relative paths are resolved under ~/.config/owl-os/workspace.",
+      description: "列出 Agent 工作区内的文件和目录。相对路径会解析到 ~/.config/owl-os/workspace 下。",
       parameters: Type.Object({
         path: Type.String(),
       }),
@@ -119,7 +119,7 @@ export function buildTools(_sessionId: string): AgentTool[] {
     {
       name: "execute_command",
       label: "执行命令",
-      description: "Execute a shell command under the agent workspace. Generated files should be written to the workspace.",
+      description: "在 Agent 工作区内执行 shell 命令。生成的文件应写入工作区。",
       parameters: Type.Object({
         command: Type.String(),
         cwd: Type.Optional(Type.String()),
@@ -181,14 +181,8 @@ export function buildTools(_sessionId: string): AgentTool[] {
         ),
       }),
       execute: async (_id, params) => {
-        try {
-          const resolved = await writeXFile(params as WriteXFileParams);
-          return textResult(`已生成文件：${resolved}`);
-        } catch (err) {
-          return textResult(
-            `生成失败：${err instanceof Error ? err.message : String(err)}`
-          );
-        }
+        const resolved = await writeXFile(params as WriteXFileParams);
+        return textResult(`已生成文件：${resolved}`);
       },
     },
   ];
