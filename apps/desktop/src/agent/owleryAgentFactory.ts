@@ -66,6 +66,12 @@ function buildRecruitWorkersTool(): AgentTool {
   };
 }
 
+function pickTool(tools: AgentTool[], name: string): AgentTool {
+  const tool = tools.find((t) => t.name === name);
+  if (!tool) throw new Error(`Tool not found: ${name}`);
+  return tool;
+}
+
 const owleryNameGenerator: AgentNameGenerator = localeAwareNameGenerator;
 
 function sanitizeTitle(title: string): string {
@@ -96,12 +102,23 @@ export function createOwleryAgentFactory(): AgentFactory {
           ? loadSentinelPrompt(input.title)
           : loadSystemPrompt("worker");
 
+    const allTools = buildTools(input.sessionId);
+    const readFileTool = pickTool(allTools, "read_file");
+    const listDirectoryTool = pickTool(allTools, "list_directory");
+    const createXFileTool = pickTool(allTools, "create_x_file");
+    const executeCommandTool = pickTool(allTools, "execute_command");
+
     const tools: AgentTool[] =
       input.role === "elder"
         ? [buildRecruitSentinelTool()]
         : input.role === "sentinel"
-          ? [...buildTools(input.sessionId), buildRecruitWorkersTool(), ...buildPlannerTools(input.sessionId)]
-          : buildTools(input.sessionId);
+          ? [
+              readFileTool,
+              listDirectoryTool,
+              buildRecruitWorkersTool(),
+              ...buildPlannerTools(input.sessionId),
+            ]
+          : [readFileTool, listDirectoryTool, createXFileTool, executeCommandTool];
 
     return new PiAgentDriver(
       createPlainAgent(input.sessionId, 0, {
@@ -134,12 +151,23 @@ export function createOwleryAgentFactoryWithConfig(config: LlmConfig): AgentFact
           ? loadSentinelPrompt(input.title)
           : loadSystemPrompt("worker");
 
+    const allTools = buildTools(input.sessionId);
+    const readFileTool = pickTool(allTools, "read_file");
+    const listDirectoryTool = pickTool(allTools, "list_directory");
+    const createXFileTool = pickTool(allTools, "create_x_file");
+    const executeCommandTool = pickTool(allTools, "execute_command");
+
     const tools: AgentTool[] =
       input.role === "elder"
         ? [buildRecruitSentinelTool()]
         : input.role === "sentinel"
-          ? [...buildTools(input.sessionId), buildRecruitWorkersTool(), ...buildPlannerTools(input.sessionId)]
-          : buildTools(input.sessionId);
+          ? [
+              readFileTool,
+              listDirectoryTool,
+              buildRecruitWorkersTool(),
+              ...buildPlannerTools(input.sessionId),
+            ]
+          : [readFileTool, listDirectoryTool, createXFileTool, executeCommandTool];
 
     return new PiAgentDriver(
       createPlainAgentWithConfig(input.sessionId, config, {
