@@ -3,7 +3,7 @@ import type { Prompt } from "../types.js";
 import { fromJson, toJson } from "./_json.js";
 
 const selectColumns = `
-  SELECT id, name, category, description, content, official, is_favorite, tags_json,
+  SELECT id, name, description, content, official, is_favorite, tags_json,
          created_at, updated_at
   FROM prompts
 `;
@@ -12,7 +12,6 @@ function mapPrompt(row: Record<string, unknown>): Prompt {
   return {
     id: String(row.id),
     name: String(row.name),
-    category: String(row.category ?? ""),
     description: String(row.description ?? ""),
     content: String(row.content ?? ""),
     official: Number(row.official) !== 0,
@@ -42,17 +41,16 @@ export function getPrompt(
 
 export function upsertPrompt(db: Database.Database, prompt: Prompt): void {
   db.prepare(
-    `INSERT INTO prompts (id, name, category, description, content, official, is_favorite,
+    `INSERT INTO prompts (id, name, description, content, official, is_favorite,
                           tags_json, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
      ON CONFLICT(id) DO UPDATE SET
-        name = excluded.name, category = excluded.category, description = excluded.description,
+        name = excluded.name, description = excluded.description,
         content = excluded.content, official = excluded.official, is_favorite = excluded.is_favorite,
         tags_json = excluded.tags_json, updated_at = excluded.updated_at`
   ).run(
     prompt.id,
     prompt.name,
-    prompt.category,
     prompt.description,
     prompt.content,
     prompt.official ? 1 : 0,

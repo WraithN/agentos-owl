@@ -32,7 +32,6 @@ export function registerExtensionHandlers(): void {
     const skill: Skill = {
       id: raw.id ?? uuid(),
       name: raw.name ?? "未命名技能",
-      category: raw.category ?? "通用",
       description: raw.description ?? "",
       icon: raw.icon ?? "Zap",
       iconBg: raw.iconBg ?? "from-cyan-500 to-blue-600",
@@ -64,7 +63,6 @@ export function registerExtensionHandlers(): void {
     const prompt: Prompt = {
       id: raw.id ?? uuid(),
       name: raw.name ?? "未命名提示词",
-      category: raw.category ?? "通用",
       description: raw.description ?? "",
       content: raw.content ?? "",
       official: raw.official ?? false,

@@ -6,7 +6,7 @@ import {
   Eye,
   Mic,
   Command,
-  Sparkles,
+  Zap,
   X,
   Square,
 } from 'lucide-react';
@@ -169,7 +169,7 @@ export function ChatComposer({
                     <Mic className="h-3.5 w-3.5" />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent>语音输入</TooltipContent>
+                <TooltipContent>语言输入</TooltipContent>
               </Tooltip>
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -182,7 +182,7 @@ export function ChatComposer({
                     <Paperclip className="h-3.5 w-3.5" />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent>附件</TooltipContent>
+                <TooltipContent>上传附件</TooltipContent>
               </Tooltip>
               <DropdownMenu>
                 <Tooltip>
@@ -214,11 +214,11 @@ export function ChatComposer({
                   <TooltipTrigger asChild>
                     <DropdownMenuTrigger asChild>
                       <Button variant="ghost" size="icon" className="h-7 w-7">
-                        <Sparkles className="h-3.5 w-3.5" />
+                        <Zap className="h-3.5 w-3.5" />
                       </Button>
                     </DropdownMenuTrigger>
                   </TooltipTrigger>
-                  <TooltipContent>技能</TooltipContent>
+                  <TooltipContent>使用技能</TooltipContent>
                 </Tooltip>
                 <DropdownMenuContent align="start">
                   {skills.map((skill) => (

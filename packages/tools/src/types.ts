@@ -9,7 +9,6 @@ export type ToolTypeFilter = 'all' | 'mcp' | 'cli';
 export interface SkillItem {
   id: string;
   name: string;
-  category: string;
   description: string;
   stars: number;
   installs: number;
@@ -22,7 +21,6 @@ export interface SkillItem {
 export interface PromptItem {
   id: string;
   name: string;
-  category: string;
   description: string;
   content: string;
   official: boolean;
@@ -69,6 +67,8 @@ export interface FieldDef {
   hint?: string;
   required?: boolean;
   allowCreate?: boolean;
+  multi?: boolean;
+  defaults?: string[];
 }
 
 export interface TabItem {

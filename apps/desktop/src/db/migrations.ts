@@ -17,6 +17,8 @@ export function runMigrations(db: Database.Database): void {
   ensureSessionLogDetailPath(db);
   purgeExpiredSessionLogs(db);
   ensureExtensionTables(db);
+  ensureDefaultToolCategories(db);
+  removeSkillPromptCategoryColumns(db);
   ensurePromptFavoriteColumn(db);
   normalizeMarketToolTypes(db);
   importDeepSeekConfig(db);
@@ -192,7 +194,6 @@ function ensureExtensionTables(db: Database.Database): void {
     CREATE TABLE IF NOT EXISTS skills (
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL,
-      category TEXT NOT NULL DEFAULT '',
       description TEXT NOT NULL DEFAULT '',
       icon TEXT NOT NULL DEFAULT 'Zap',
       icon_bg TEXT NOT NULL DEFAULT '',
@@ -203,20 +204,18 @@ function ensureExtensionTables(db: Database.Database): void {
       created_at INTEGER NOT NULL,
       updated_at INTEGER NOT NULL
     );
-    CREATE INDEX IF NOT EXISTS idx_skills_category ON skills(category);
 
     CREATE TABLE IF NOT EXISTS prompts (
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL,
-      category TEXT NOT NULL DEFAULT '',
       description TEXT NOT NULL DEFAULT '',
       content TEXT NOT NULL DEFAULT '',
       official INTEGER NOT NULL DEFAULT 0,
+      is_favorite INTEGER NOT NULL DEFAULT 0,
       tags_json TEXT NOT NULL DEFAULT '[]',
       created_at INTEGER NOT NULL,
       updated_at INTEGER NOT NULL
     );
-    CREATE INDEX IF NOT EXISTS idx_prompts_category ON prompts(category);
 
     CREATE TABLE IF NOT EXISTS extension_tags (
       id TEXT PRIMARY KEY,
@@ -237,6 +236,39 @@ function ensureExtensionTables(db: Database.Database): void {
       INSERT OR IGNORE INTO extension_tags (id, scope, name, sort_order, created_at)
       SELECT id, scope, name, sort_order, created_at FROM tool_categories;
     `);
+  }
+}
+
+/**
+ * 工具市场默认标签：设计、开发、测试、调研、通用。
+ * 老库可能缺少这些默认分类，这里幂等补齐；用户删除后下次启动也会自动恢复。
+ */
+function ensureDefaultToolCategories(db: Database.Database): void {
+  const defaults = ["设计", "开发", "测试", "调研", "通用"];
+  const t = Date.now();
+  const stmt = db.prepare(
+    "INSERT OR IGNORE INTO extension_tags (id, scope, name, sort_order, created_at) VALUES (?, ?, ?, ?, ?)"
+  );
+  defaults.forEach((name, idx) => {
+    stmt.run(`cat-tool-${name}`, "tool", name, idx, t);
+  });
+}
+
+/**
+ * 技能 / 提示词不再维护 category 字段，老库做幂等删除。
+ */
+function removeSkillPromptCategoryColumns(db: Database.Database): void {
+  // 必须先删除依赖 category 列的索引，再删除列，否则 SQLite 会报索引列不存在。
+  db.exec("DROP INDEX IF EXISTS idx_skills_category");
+  const skillCols = tableColumns(db, "skills");
+  if (skillCols.has("category")) {
+    db.exec("ALTER TABLE skills DROP COLUMN category");
+  }
+
+  db.exec("DROP INDEX IF EXISTS idx_prompts_category");
+  const promptCols = tableColumns(db, "prompts");
+  if (promptCols.has("category")) {
+    db.exec("ALTER TABLE prompts DROP COLUMN category");
   }
 }
 

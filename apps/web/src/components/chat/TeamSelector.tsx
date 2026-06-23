@@ -34,13 +34,13 @@ export function TeamSelector({ selected, onSelect }: TeamSelectorProps) {
           <button
             type="button"
             onClick={() => setOpen((v) => !v)}
-            className="flex items-center gap-1 px-2 py-1 text-xs rounded-lg border border-white/10 text-slate-400 hover:text-slate-200 hover:bg-white/5"
+            aria-label="智能团队"
+            className="flex items-center justify-center w-7 h-7 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-white/5"
           >
             <Users className="w-3.5 h-3.5" />
-            {selected ? teams.find((t) => t.id === selected)?.name ?? '团队' : '智能选择'}
           </button>
         </TooltipTrigger>
-        <TooltipContent>选择团队</TooltipContent>
+        <TooltipContent>智能团队</TooltipContent>
       </Tooltip>
       {open && (
         <div className="absolute bottom-8 left-0 z-20 min-w-[160px] rounded-xl border border-white/10 bg-background/95 p-1 shadow-xl">

@@ -2,8 +2,8 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { X, Pencil, Save } from 'lucide-react';
 import { cn, inputCls } from '@owl-os/core';
-import CategorySelect from './CategorySelect.js';
-import { DIALOG_BG, DIALOG_BD } from '../constants.js';
+import TagMultiSelect from './TagMultiSelect.js';
+import { DIALOG_BG, DIALOG_BD, PROMPT_TAGS_DEFAULT } from '../constants.js';
 import type { PromptItem } from '../types.js';
 
 export default function EditPromptDialog({
@@ -17,8 +17,7 @@ export default function EditPromptDialog({
 }) {
   const [name, setName] = useState(item.name);
   const [content, setContent] = useState(item.content);
-  const [category, setCategory] = useState(item.category);
-  const [tags, setTags] = useState(item.tags.join(', '));
+  const [tags, setTags] = useState(item.tags);
 
   function submit() {
     if (!name.trim() || !content.trim()) return;
@@ -26,8 +25,7 @@ export default function EditPromptDialog({
       ...item,
       name: name.trim(),
       content: content.trim(),
-      category,
-      tags: tags.split(/[,，\s]+/).map(t => t.trim()).filter(Boolean),
+      tags,
     });
   }
 
@@ -64,14 +62,6 @@ export default function EditPromptDialog({
             <input value={name} onChange={e => setName(e.target.value)} className={inputCls} />
           </div>
           <div>
-            <label className="text-xs text-slate-500 font-medium mb-1 block">标签</label>
-            <CategorySelect
-              categories={['写作', '代码', '产品', 'HR', '分析', '通用']}
-              value={category}
-              onChange={setCategory}
-            />
-          </div>
-          <div>
             <label className="text-xs text-slate-500 font-medium mb-1 block">提示词内容</label>
             <textarea
               value={content}
@@ -81,8 +71,14 @@ export default function EditPromptDialog({
             />
           </div>
           <div>
-            <label className="text-xs text-slate-500 font-medium mb-1 block">标签（逗号分隔）</label>
-            <input value={tags} onChange={e => setTags(e.target.value)} className={inputCls} />
+            <label className="text-xs text-slate-500 font-medium mb-1 block">标签</label>
+            <TagMultiSelect
+              options={PROMPT_TAGS_DEFAULT}
+              value={tags}
+              onChange={setTags}
+              defaults={PROMPT_TAGS_DEFAULT}
+              placeholder="选择标签…"
+            />
           </div>
         </div>
         <div

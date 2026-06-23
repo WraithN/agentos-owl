@@ -1,13 +1,12 @@
 /* 扩展模块 — 技能市场 / 提示词市场 / 工具市场 */
 import { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { CirclePlus, LayoutGrid, Plus, Search, Upload } from 'lucide-react';
+import { CirclePlus, Layers, Plus, Search, Upload } from 'lucide-react';
 import { cn } from '@owl-os/core';
 import {
   INIT_SKILLS,
   INIT_PROMPTS,
-  SKILL_CATEGORIES_DEFAULT,
-  PROMPT_CATEGORIES_DEFAULT,
+  DEFAULT_TAGS,
   TOOL_CATEGORIES_DEFAULT,
   TOOL_TYPES,
   ICON_COLORS,
@@ -81,9 +80,11 @@ export default function ToolsModule({ dataSource }: ToolsModuleProps = {}) {
   );
   const [toolModalOpen, setToolModalOpen] = useState(false);
 
-  const [localSkillCats, setLocalSkillCats] = useState(SKILL_CATEGORIES_DEFAULT);
-  const [localPromptCats, setLocalPromptCats] = useState(PROMPT_CATEGORIES_DEFAULT);
-  const [localToolCats, setLocalToolCats] = useState(TOOL_CATEGORIES_DEFAULT);
+  const ALL_CATEGORIES = ['全部'];
+  const DEFAULT_CATEGORIES = ['全部', ...DEFAULT_TAGS];
+  const [localSkillCats, setLocalSkillCats] = useState(DEFAULT_CATEGORIES);
+  const [localPromptCats, setLocalPromptCats] = useState(DEFAULT_CATEGORIES);
+  const [localToolCats, setLocalToolCats] = useState(['全部', ...TOOL_CATEGORIES_DEFAULT]);
   const [addCatOpen, setAddCatOpen] = useState(false);
 
   // ===== 实际数据：dataSource 优先 =====
@@ -91,7 +92,7 @@ export default function ToolsModule({ dataSource }: ToolsModuleProps = {}) {
   const promptsList  = dataSource?.prompts         ?? localPrompts;
   const toolsList    = dataSource?.tools           ?? localTools;
   const skillCats    = dataSource?.skillCategories ?? localSkillCats;
-  const promptCats   = dataSource?.promptCategories?? localPromptCats;
+  const promptCats   = dataSource?.promptCategories ?? localPromptCats;
   const toolCats     = dataSource?.toolCategories  ?? localToolCats;
 
   function handleTabChange(tab: TabId) {
@@ -111,7 +112,6 @@ export default function ToolsModule({ dataSource }: ToolsModuleProps = {}) {
         const item: SkillItem = {
           id: `skill-import-${Date.now()}`,
           name: data.name ?? file.name.replace(/\.json$/i, ''),
-          category: data.category ?? '通用',
           description: data.description ?? '导入的技能',
           stars: 5,
           installs: 0,
@@ -134,13 +134,15 @@ export default function ToolsModule({ dataSource }: ToolsModuleProps = {}) {
   }
 
   function handleAddCategory(name: string) {
+    const scope: 'skill' | 'prompt' | 'tool' =
+      activeTab === 'skills' ? 'skill' : activeTab === 'prompts' ? 'prompt' : 'tool';
     if (dataSource) {
-      const scope = activeTab === 'skills' ? 'skill' : activeTab === 'prompts' ? 'prompt' : 'tool';
       dataSource.onCreateCategory(scope, name);
     } else {
-      if (activeTab === 'skills') setLocalSkillCats(prev => (prev.includes(name) ? prev : [...prev, name]));
-      else if (activeTab === 'prompts') setLocalPromptCats(prev => (prev.includes(name) ? prev : [...prev, name]));
-      else setLocalToolCats(prev => (prev.includes(name) ? prev : [...prev, name]));
+      const updater = (prev: string[]) => (prev.includes(name) ? prev : [...prev, name]);
+      if (activeTab === 'skills') setLocalSkillCats(updater);
+      else if (activeTab === 'prompts') setLocalPromptCats(updater);
+      else setLocalToolCats(updater);
     }
     setAddCatOpen(false);
   }
@@ -194,10 +196,14 @@ export default function ToolsModule({ dataSource }: ToolsModuleProps = {}) {
   const categories = activeTab === 'skills' ? skillCats : activeTab === 'prompts' ? promptCats : toolCats;
 
   const filteredSkills = skillsList.filter(
-    s => (category === '全部' || s.category === category) && (s.name.includes(searchQuery) || s.description.includes(searchQuery))
+    s =>
+      (s.name.includes(searchQuery) || s.description.includes(searchQuery)) &&
+      (category === '全部' || s.tags.includes(category))
   );
   const filteredPrompts = promptsList.filter(
-    p => (category === '全部' || p.category === category) && (p.name.includes(searchQuery) || p.description.includes(searchQuery))
+    p =>
+      (p.name.includes(searchQuery) || p.description.includes(searchQuery)) &&
+      (category === '全部' || p.tags.includes(category))
   );
   const filteredTools = toolsList.filter(
     t =>
@@ -318,40 +324,41 @@ export default function ToolsModule({ dataSource }: ToolsModuleProps = {}) {
           </div>
         )}
 
-        {/* 标签筛选 + 新增标签 */}
-        <div className="flex gap-2 overflow-x-auto whitespace-nowrap pb-0.5">
-          {categories.map(c => {
-            const isAll = c === '全部';
-            return (
-              <button
-                key={c}
-                type="button"
-                onClick={() => {
-                  setCategory(c);
-                  setPage(0);
-                }}
-                className={cn(
-                  'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all shrink-0',
-                  category === c
-                    ? 'bg-cyan-500/20 text-cyan-600 dark:text-cyan-400 border border-cyan-500/30'
-                    : 'text-slate-500 dark:text-slate-400 border border-[var(--border-subtle)] hover:border-slate-400/30 dark:hover:border-white/15 hover:text-slate-700 dark:hover:text-slate-200'
-                )}
-              >
-                {isAll && <LayoutGrid className="w-3.5 h-3.5" />}
-                {c}
-              </button>
-            );
-          })}
-          <button
-            type="button"
-            onClick={() => setAddCatOpen(true)}
-            title="新增标签"
-            aria-label="新增标签"
-            className="flex items-center justify-center w-8 h-8 rounded-lg shrink-0 text-slate-400 border border-dashed border-[var(--border-subtle)] hover:text-cyan-500 hover:border-cyan-500/40 hover:bg-cyan-500/10 transition-all"
-          >
-            <CirclePlus className="w-4 h-4" />
-          </button>
-        </div>
+        {categories.length > 1 && (
+          <div className="flex gap-2 overflow-x-auto whitespace-nowrap pb-0.5">
+            {categories.map(c => {
+              const isAll = c === '全部';
+              return (
+                <button
+                  key={c}
+                  type="button"
+                  onClick={() => {
+                    setCategory(c);
+                    setPage(0);
+                  }}
+                  className={cn(
+                    'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all shrink-0',
+                    category === c
+                      ? 'bg-cyan-500/20 text-cyan-600 dark:text-cyan-400 border border-cyan-500/30'
+                      : 'text-slate-500 dark:text-slate-400 border border-[var(--border-subtle)] hover:border-slate-400/30 dark:hover:border-white/15 hover:text-slate-700 dark:hover:text-slate-200'
+                  )}
+                >
+                  {isAll && <Layers className="w-3.5 h-3.5" />}
+                  {c}
+                </button>
+              );
+            })}
+            <button
+              type="button"
+              onClick={() => setAddCatOpen(true)}
+              title="新增标签"
+              aria-label="新增标签"
+              className="flex items-center justify-center w-8 h-8 rounded-lg shrink-0 text-slate-400 border border-dashed border-[var(--border-subtle)] hover:text-cyan-500 hover:border-cyan-500/40 hover:bg-cyan-500/10 transition-all"
+            >
+              <CirclePlus className="w-4 h-4" />
+            </button>
+          </div>
+        )}
       </div>
 
       {/* 卡片网格 */}
@@ -455,11 +462,14 @@ export default function ToolsModule({ dataSource }: ToolsModuleProps = {}) {
         onClose={() => setToolModalOpen(false)}
         onCreated={(type: NewToolType, name: string, config: Record<string, string>) => {
           const now = new Date();
+          const tagList = config['tags']
+            ? config['tags'].split(',').map(t => t.trim()).filter(Boolean)
+            : [];
           createTool({
             id: `tool-${Date.now()}`,
             name,
             description: config['description'] || config['desc'] || '暂无描述',
-            category: config['category'] || '通用',
+            category: tagList[0] || '通用',
             toolType: type,
             icon: type === 'mcp' ? 'Shield' : 'Code2',
             iconBg: type === 'mcp' ? 'from-violet-500/30 to-indigo-500/30' : 'from-emerald-500/30 to-cyan-500/30',
@@ -467,7 +477,7 @@ export default function ToolsModule({ dataSource }: ToolsModuleProps = {}) {
             developer: '当前用户',
             rating: 0,
             installs: 0,
-            tags: [type.toUpperCase()],
+            tags: tagList.length > 0 ? tagList : [type.toUpperCase()],
             installed: false,
             needsApiKey: Boolean(config['token']),
             official: false,

@@ -2,8 +2,8 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { X, Plus, Zap } from 'lucide-react';
 import { cn, inputCls } from '@owl-os/core';
-import CategorySelect from './CategorySelect.js';
-import { ICON_COLORS, DIALOG_BG, DIALOG_BD } from '../constants.js';
+import TagMultiSelect from './TagMultiSelect.js';
+import { ICON_COLORS, DIALOG_BG, DIALOG_BD, SKILL_TAGS_DEFAULT } from '../constants.js';
 import type { SkillItem } from '../types.js';
 
 export default function CreateSkillDialog({
@@ -15,8 +15,7 @@ export default function CreateSkillDialog({
 }) {
   const [name, setName] = useState('');
   const [desc, setDesc] = useState('');
-  const [category, setCategory] = useState('通用');
-  const [tags, setTags] = useState('');
+  const [tags, setTags] = useState<string[]>([]);
   const [nameErr, setNameErr] = useState('');
 
   function submit() {
@@ -27,14 +26,13 @@ export default function CreateSkillDialog({
     onConfirm({
       id: `skill-${Date.now()}`,
       name: name.trim(),
-      category,
       description: desc || '暂无描述',
       stars: 5,
       installs: 0,
       official: false,
       iconBg: ICON_COLORS[Math.floor(Math.random() * ICON_COLORS.length)],
       icon: 'Zap',
-      tags: tags.split(/[,，\s]+/).map(t => t.trim()).filter(Boolean),
+      tags,
     });
   }
 
@@ -82,14 +80,6 @@ export default function CreateSkillDialog({
             {nameErr && <p className="text-[10px] text-rose-400 mt-1">{nameErr}</p>}
           </div>
           <div>
-            <label className="text-xs text-slate-500 font-medium mb-1 block">标签</label>
-            <CategorySelect
-              categories={['文档', '代码', '分析', '通信', '数据', '通用']}
-              value={category}
-              onChange={setCategory}
-            />
-          </div>
-          <div>
             <label className="text-xs text-slate-500 font-medium mb-1 block">描述</label>
             <textarea
               value={desc}
@@ -100,14 +90,13 @@ export default function CreateSkillDialog({
             />
           </div>
           <div>
-            <label className="text-xs text-slate-500 font-medium mb-1 block">
-              标签 <span className="text-slate-400 font-normal">（逗号分隔）</span>
-            </label>
-            <input
+            <label className="text-xs text-slate-500 font-medium mb-1 block">标签</label>
+            <TagMultiSelect
+              options={SKILL_TAGS_DEFAULT}
               value={tags}
-              onChange={e => setTags(e.target.value)}
-              placeholder="NLP, 文本, 分析"
-              className={inputCls}
+              onChange={setTags}
+              defaults={SKILL_TAGS_DEFAULT}
+              placeholder="选择标签…"
             />
           </div>
         </div>

@@ -138,6 +138,14 @@ export default {
                     '0%, 100%': { transform: 'scale(1.01)', opacity: '0.15' },
                     '50%': { transform: 'scale(1.05)', opacity: '0.4' },
                 },
+                'agent-border-glow': {
+                    '0%, 100%': { boxShadow: '0 0 4px rgba(34, 197, 94, 0.25)' },
+                    '50%': { boxShadow: '0 0 12px rgba(34, 197, 94, 0.55)' },
+                },
+                'message-glow': {
+                    '0%, 100%': { boxShadow: '0 0 0 0 rgba(34, 197, 94, 0.15)' },
+                    '50%': { boxShadow: '0 0 20px 2px rgba(34, 197, 94, 0.3)' },
+                },
                 'agent-dot-pulse': {
                     '0%, 100%': { boxShadow: '0 0 4px rgba(34, 197, 94, 0.6)' },
                     '50%': { boxShadow: '0 0 10px rgba(34, 197, 94, 0.9)' },
@@ -162,6 +170,8 @@ export default {
                 'thinking-2': 'thinking-bounce 1.2s infinite ease-in-out 0.15s',
                 'thinking-3': 'thinking-bounce 1.2s infinite ease-in-out 0.3s',
                 'agent-glow': 'agent-glow 2s ease-in-out infinite',
+                'agent-border-glow': 'agent-border-glow 2s ease-in-out infinite',
+                'message-glow': 'message-glow 2.5s ease-in-out infinite',
                 'agent-dot-pulse': 'agent-dot-pulse 2s ease-in-out infinite',
                 'float': 'float 6s ease-in-out infinite',
             }

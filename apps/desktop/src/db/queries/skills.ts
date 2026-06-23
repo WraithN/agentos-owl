@@ -3,7 +3,7 @@ import type { Skill } from "../types.js";
 import { fromJson, toJson } from "./_json.js";
 
 const selectColumns = `
-  SELECT id, name, category, description, icon, icon_bg, stars, installs,
+  SELECT id, name, description, icon, icon_bg, stars, installs,
          official, tags_json, created_at, updated_at
   FROM skills
 `;
@@ -24,18 +24,17 @@ export function getSkill(db: Database.Database, id: string): Skill | undefined {
 
 export function upsertSkill(db: Database.Database, skill: Skill): void {
   db.prepare(
-    `INSERT INTO skills (id, name, category, description, icon, icon_bg, stars,
+    `INSERT INTO skills (id, name, description, icon, icon_bg, stars,
                           installs, official, tags_json, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
      ON CONFLICT(id) DO UPDATE SET
-        name = excluded.name, category = excluded.category, description = excluded.description,
+        name = excluded.name, description = excluded.description,
         icon = excluded.icon, icon_bg = excluded.icon_bg, stars = excluded.stars,
         installs = excluded.installs, official = excluded.official,
         tags_json = excluded.tags_json, updated_at = excluded.updated_at`
   ).run(
     skill.id,
     skill.name,
-    skill.category,
     skill.description,
     skill.icon,
     skill.iconBg,
@@ -56,7 +55,6 @@ function mapSkill(row: Record<string, unknown>): Skill {
   return {
     id: String(row.id),
     name: String(row.name),
-    category: String(row.category ?? ""),
     description: String(row.description ?? ""),
     icon: String(row.icon ?? "Zap"),
     iconBg: String(row.icon_bg ?? ""),

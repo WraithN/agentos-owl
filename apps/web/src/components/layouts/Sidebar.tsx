@@ -21,7 +21,7 @@ export default function Sidebar() {
     { id: 'more',      icon: MoreHorizontal,label: '更多',              highlight: false },
   ];
 
-  const w = sidebarExpanded ? 240 : 64;
+  const w = sidebarExpanded ? 240 : 80;
 
   return (
     <motion.aside
@@ -40,10 +40,16 @@ export default function Sidebar() {
       }}
     >
       {/* Logo 区 */}
-      <div className="flex items-center gap-3 h-14 px-3 shrink-0"
+      <div className={cn(
+          'flex items-center h-14 shrink-0',
+          sidebarExpanded ? 'gap-3 px-3' : 'gap-1 px-2'
+        )}
         style={{ borderBottom: '1px solid var(--border-l1)' }}>
         {/* 极光 A 图标 */}
-        <div className="flex items-center justify-center w-8 h-8 rounded-xl shrink-0 btn-aurora">
+        <div className={cn(
+          'flex items-center justify-center rounded-xl shrink-0 btn-aurora',
+          sidebarExpanded ? 'w-8 h-8' : 'w-8 h-8'
+        )}>
           <Zap className="w-4 h-4 text-white" />
         </div>
         <AnimatePresence>
@@ -59,17 +65,10 @@ export default function Sidebar() {
             </motion.span>
           )}
         </AnimatePresence>
-        {/* 折叠/展开 按钮 — 收起时更醒目 */}
+        {/* 折叠/展开 按钮 */}
         <motion.button
           onClick={toggleSidebar}
-          className={cn(
-            'ml-auto p-1.5 rounded-lg transition-all btn-lift shrink-0',
-            !sidebarExpanded && 'ring-1 ring-cyan-400/40 shadow-[0_0_8px_rgba(0,242,195,0.25)]'
-          )}
-          style={sidebarExpanded
-            ? { background: 'var(--surface-hover)', color: 'var(--text-tertiary)' }
-            : { background: 'rgba(0,212,170,0.12)', color: '#00f2c3' }
-          }
+          className="ml-auto flex items-center justify-center w-6 h-6 rounded-lg transition-all btn-lift shrink-0 text-slate-400 hover:text-slate-200 hover:bg-white/5"
           whileHover={{ scale: 1.1 }}
           whileTap={{ scale: 0.9 }}
           title={sidebarExpanded ? '收起侧边栏' : '展开侧边栏'}
@@ -88,7 +87,8 @@ export default function Sidebar() {
               key={item.id}
               onClick={() => setActiveModule(item.id)}
               className={cn(
-                'group relative w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200',
+                'group relative w-full flex items-center rounded-xl transition-all duration-200',
+                sidebarExpanded ? 'gap-3 px-3 py-2.5' : 'justify-center px-0 py-2.5',
                 active
                   ? 'text-white'
                   : 'hover:bg-white/5'

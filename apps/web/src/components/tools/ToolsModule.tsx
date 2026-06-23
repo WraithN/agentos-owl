@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ToolsModule } from '@owl-os/tools';
 import type { SkillItem, PromptItem, MarketTool as PkgMarketTool, ToolsModuleDataSource } from '@owl-os/tools';
 import { toast } from 'sonner';
+import { DEFAULT_TAGS } from '@owl-os/tools';
 import {
   listSkills,
   saveSkill,
@@ -23,6 +24,7 @@ import {
 import type { MarketTool as DbMarketTool } from '@/types';
 
 const ALL_CATEGORY = '全部';
+const DEFAULT_CATEGORIES = [ALL_CATEGORY, ...DEFAULT_TAGS];
 const MAX_FAVORITE_PROMPTS = 20;
 
 function toDate(value: unknown): Date {
@@ -65,7 +67,6 @@ export default function ToolsModuleContainer() {
     () => skills.map(s => ({
       id: s.id,
       name: s.name,
-      category: s.category,
       description: s.description,
       stars: s.stars,
       installs: s.installs,
@@ -81,7 +82,6 @@ export default function ToolsModuleContainer() {
     () => prompts.map(p => ({
       id: p.id,
       name: p.name,
-      category: p.category,
       description: p.description,
       content: p.content,
       official: p.official,
@@ -105,16 +105,20 @@ export default function ToolsModuleContainer() {
   );
 
   const categoriesByScope = useMemo(() => {
-    const group = (scope: ToolCategoryScope): string[] => {
-      const names = categories.filter(c => c.scope === scope).map(c => c.name);
-      return [ALL_CATEGORY, ...names];
-    };
+    const dbNames = (scope: ToolCategoryScope): string[] =>
+      categories.filter(c => c.scope === scope).map(c => c.name);
+
+    const extractTags = (items: { tags: string[] }[]): string[] =>
+      Array.from(new Set(items.flatMap(i => i.tags)));
+    const extractCategories = (items: { category: string }[]): string[] =>
+      Array.from(new Set(items.map(i => i.category)));
+
     return {
-      skill: group('skill'),
-      prompt: group('prompt'),
-      tool: group('tool'),
+      skill: Array.from(new Set([ALL_CATEGORY, ...DEFAULT_TAGS, ...dbNames('skill'), ...extractTags(skills)])),
+      prompt: Array.from(new Set([ALL_CATEGORY, ...DEFAULT_TAGS, ...dbNames('prompt'), ...extractTags(prompts)])),
+      tool: Array.from(new Set([ALL_CATEGORY, ...DEFAULT_TAGS, ...dbNames('tool'), ...extractCategories(tools)])),
     };
-  }, [categories]);
+  }, [categories, skills, prompts, tools]);
 
   // ===== 写入回调 =====
   const onCreateSkill = useCallback(async (s: SkillItem) => {
@@ -122,7 +126,6 @@ export default function ToolsModuleContainer() {
       const saved = await saveSkill({
         id: s.id,
         name: s.name,
-        category: s.category,
         description: s.description,
         icon: s.icon,
         iconBg: s.iconBg,
@@ -143,7 +146,6 @@ export default function ToolsModuleContainer() {
       const saved = await saveSkill({
         id: s.id,
         name: s.name,
-        category: s.category,
         description: s.description,
         icon: s.icon,
         iconBg: s.iconBg,
@@ -173,7 +175,6 @@ export default function ToolsModuleContainer() {
       const saved = await savePrompt({
         id: p.id,
         name: p.name,
-        category: p.category,
         description: p.description,
         content: p.content,
         official: p.official,
@@ -191,7 +192,6 @@ export default function ToolsModuleContainer() {
       const saved = await savePrompt({
         id: p.id,
         name: p.name,
-        category: p.category,
         description: p.description,
         content: p.content,
         official: p.official,
@@ -226,7 +226,6 @@ export default function ToolsModuleContainer() {
       const saved = await savePrompt({
         id,
         name: existing.name,
-        category: existing.category,
         description: existing.description,
         content: existing.content,
         official: existing.official,

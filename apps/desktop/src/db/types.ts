@@ -136,7 +136,6 @@ export interface MarketTool {
 export interface Skill {
   id: string;
   name: string;
-  category: string;
   description: string;
   icon: string;
   iconBg: string;
@@ -152,7 +151,6 @@ export interface Skill {
 export interface Prompt {
   id: string;
   name: string;
-  category: string;
   description: string;
   content: string;
   official: boolean;

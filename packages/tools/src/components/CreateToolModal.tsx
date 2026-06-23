@@ -3,6 +3,8 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Server, Terminal, ChevronRight, Plus, Info } from 'lucide-react';
 import { cn, inputCls as globalInputCls } from '@owl-os/core';
+import TagMultiSelect from './TagMultiSelect.js';
+import { TOOL_CATEGORIES_DEFAULT } from '../constants.js';
 import type { NewToolType, FieldDef } from '../types.js';
 
 interface ToolTypeOption {
@@ -26,12 +28,14 @@ const TOOL_TYPES: ToolTypeOption[] = [
     fields: [
       { key: 'name', label: '服务名称', type: 'text', placeholder: 'filesystem-server', required: true },
       {
-        key: 'category',
+        key: 'tags',
         label: '标签',
         type: 'select',
-        options: ['搜索', '代码', '数据分析', '文档', '通信', '通用'],
+        options: TOOL_CATEGORIES_DEFAULT,
         required: true,
         allowCreate: true,
+        multi: true,
+        defaults: TOOL_CATEGORIES_DEFAULT,
       },
       {
         key: 'endpoint',
@@ -57,12 +61,14 @@ const TOOL_TYPES: ToolTypeOption[] = [
     fields: [
       { key: 'name', label: '工具名称', type: 'text', placeholder: 'run_python_script', required: true },
       {
-        key: 'category',
+        key: 'tags',
         label: '标签',
         type: 'select',
-        options: ['搜索', '代码', '数据分析', '文档', '通信', '通用'],
+        options: TOOL_CATEGORIES_DEFAULT,
         required: true,
         allowCreate: true,
+        multi: true,
+        defaults: TOOL_CATEGORIES_DEFAULT,
       },
       {
         key: 'command',
@@ -328,7 +334,16 @@ function FormField({
           className={cn(baseInput, 'resize-none font-mono text-xs leading-relaxed')}
         />
       )}
-      {field.type === 'select' && field.allowCreate ? (
+      {field.type === 'select' && field.multi ? (
+        <TagMultiSelect
+          options={field.options ?? []}
+          value={value ? value.split(',').filter(Boolean) : []}
+          onChange={v => onChange(v.join(','))}
+          placeholder="选择标签…"
+          allowCreate={field.allowCreate}
+          defaults={field.defaults}
+        />
+      ) : field.type === 'select' && field.allowCreate ? (
         adding ? (
           <div className="space-y-1">
             <div className="flex items-center gap-2">

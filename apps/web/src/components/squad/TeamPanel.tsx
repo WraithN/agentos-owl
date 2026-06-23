@@ -13,7 +13,7 @@ const statusConfig = {
 
 export default function TeamPanel() {
   const doneTasks = KANBAN_TASKS.filter(t => t.status === 'done').length;
-  const progress = Math.round((doneTasks / KANBAN_TASKS.length) * 100);
+  const progress = KANBAN_TASKS.length === 0 ? 0 : Math.round((doneTasks / KANBAN_TASKS.length) * 100);
 
   return (
     <div
@@ -42,7 +42,7 @@ export default function TeamPanel() {
       {/* Agent 列表 */}
       <div className="flex-1 overflow-y-auto min-h-0 p-3 space-y-2">
         {AGENTS.map((agent, i) => {
-          const sc = statusConfig[agent.status];
+          const sc = statusConfig[agent.status as keyof typeof statusConfig] ?? statusConfig.idle;
           return (
             <motion.div
               key={agent.id}

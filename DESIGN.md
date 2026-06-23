@@ -225,6 +225,8 @@ Aurora 设计系统使用 4 层玻璃（从底层到顶层）：
 | `msg-enter` | 聊天消息进入 | 0.3s |
 | `spin-slow` | 慢速旋转 | 3s |
 | `bell-shake` | 通知铃铛摇晃 | 0.6s |
+| `border-marquee-rotate` | 黄色跑马灯边框旋转 | 3s 循环 |
+| `aurora-yellow-flow` | 黄色极光渐变呼吸流动 | 3s 循环 |
 
 ### 8.2 呼吸灯
 
@@ -244,6 +246,12 @@ Aurora 设计系统使用 4 层玻璃（从底层到顶层）：
 
 <!-- 极光渐变边框 -->
 <div className="aurora-border rounded-xl p-4">...</div>
+
+<!-- 黄色极光渐变呼吸边框（运行中高亮） -->
+<div className="aurora-border-yellow rounded-xl p-4">...</div>
+
+<!-- 黄色跑马灯边框（主会话进行中消息） -->
+<div className="border-marquee-yellow rounded-2xl p-4">...</div>
 ```
 
 ## 9. 深色 / 浅色模式

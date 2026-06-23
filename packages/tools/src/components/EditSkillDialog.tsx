@@ -2,8 +2,8 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { X, Pencil, Save, Zap } from 'lucide-react';
 import { cn, inputCls } from '@owl-os/core';
-import CategorySelect from './CategorySelect.js';
-import { DIALOG_BG, DIALOG_BD } from '../constants.js';
+import TagMultiSelect from './TagMultiSelect.js';
+import { DIALOG_BG, DIALOG_BD, SKILL_TAGS_DEFAULT } from '../constants.js';
 import type { SkillItem } from '../types.js';
 
 export default function EditSkillDialog({
@@ -17,8 +17,7 @@ export default function EditSkillDialog({
 }) {
   const [name, setName] = useState(item.name);
   const [desc, setDesc] = useState(item.description);
-  const [category, setCategory] = useState(item.category);
-  const [tags, setTags] = useState(item.tags.join(', '));
+  const [tags, setTags] = useState(item.tags);
 
   function submit() {
     if (!name.trim()) return;
@@ -26,8 +25,7 @@ export default function EditSkillDialog({
       ...item,
       name: name.trim(),
       description: desc.trim(),
-      category,
-      tags: tags.split(/[,，\s]+/).map(t => t.trim()).filter(Boolean),
+      tags,
     });
   }
 
@@ -64,14 +62,6 @@ export default function EditSkillDialog({
             <input value={name} onChange={e => setName(e.target.value)} className={inputCls} />
           </div>
           <div>
-            <label className="text-xs text-slate-500 font-medium mb-1 block">标签</label>
-            <CategorySelect
-              categories={['文档', '代码', '分析', '通信', '数据', '通用']}
-              value={category}
-              onChange={setCategory}
-            />
-          </div>
-          <div>
             <label className="text-xs text-slate-500 font-medium mb-1 block">描述</label>
             <textarea
               value={desc}
@@ -81,8 +71,14 @@ export default function EditSkillDialog({
             />
           </div>
           <div>
-            <label className="text-xs text-slate-500 font-medium mb-1 block">标签（逗号分隔）</label>
-            <input value={tags} onChange={e => setTags(e.target.value)} className={inputCls} />
+            <label className="text-xs text-slate-500 font-medium mb-1 block">标签</label>
+            <TagMultiSelect
+              options={SKILL_TAGS_DEFAULT}
+              value={tags}
+              onChange={setTags}
+              defaults={SKILL_TAGS_DEFAULT}
+              placeholder="选择标签…"
+            />
           </div>
         </div>
         <div

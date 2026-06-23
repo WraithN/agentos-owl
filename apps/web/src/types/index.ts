@@ -130,6 +130,8 @@ export interface Message {
     summary?: string;          // 一句话结论，置顶高亮
     durationMs?: number;
     contentParts?: unknown;
+    agentOutputs?: unknown;
+    [key: string]: unknown;
   };
 }
 

@@ -114,6 +114,10 @@ export class Owlery extends EventEmitter {
     this.slots.get(sessionId)?.stop();
   }
 
+  getBufferedOutput(sessionId: string): AgentDriverChunk[] {
+    return this.slots.get(sessionId)?.outputBuffer.slice() ?? [];
+  }
+
   async close(): Promise<void> {
     this.webSocketServer.close();
     await Promise.all([...this.slots.values()].map((slot) => slot.terminate()));

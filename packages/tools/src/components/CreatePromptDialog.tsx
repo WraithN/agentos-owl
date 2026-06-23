@@ -2,8 +2,8 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { X, Plus, Wand2 } from 'lucide-react';
 import { cn, inputCls } from '@owl-os/core';
-import CategorySelect from './CategorySelect.js';
-import { DIALOG_BG, DIALOG_BD } from '../constants.js';
+import TagMultiSelect from './TagMultiSelect.js';
+import { DIALOG_BG, DIALOG_BD, PROMPT_TAGS_DEFAULT } from '../constants.js';
 import type { PromptItem } from '../types.js';
 
 export default function CreatePromptDialog({
@@ -15,8 +15,7 @@ export default function CreatePromptDialog({
 }) {
   const [name, setName] = useState('');
   const [content, setContent] = useState('');
-  const [category, setCategory] = useState('写作');
-  const [tags, setTags] = useState('');
+  const [tags, setTags] = useState<string[]>([]);
   const [nameErr, setNameErr] = useState('');
   const [contentErr, setContentErr] = useState('');
 
@@ -34,12 +33,11 @@ export default function CreatePromptDialog({
     onConfirm({
       id: `prompt-${Date.now()}`,
       name: name.trim(),
-      category,
       description: content.slice(0, 40) + (content.length > 40 ? '...' : ''),
       content: content.trim(),
       official: false,
       isFavorite: false,
-      tags: tags.split(/[,，\s]+/).map(t => t.trim()).filter(Boolean),
+      tags,
     });
   }
 
@@ -87,14 +85,6 @@ export default function CreatePromptDialog({
             {nameErr && <p className="text-[10px] text-rose-400 mt-1">{nameErr}</p>}
           </div>
           <div>
-            <label className="text-xs text-slate-500 font-medium mb-1 block">标签</label>
-            <CategorySelect
-              categories={['写作', '代码', '产品', 'HR', '分析', '通用']}
-              value={category}
-              onChange={setCategory}
-            />
-          </div>
-          <div>
             <label className="text-xs text-slate-500 font-medium mb-1 flex items-center gap-1">
               提示词内容 <span className="text-rose-400">*</span>
             </label>
@@ -111,14 +101,13 @@ export default function CreatePromptDialog({
             {contentErr && <p className="text-[10px] text-rose-400 mt-1">{contentErr}</p>}
           </div>
           <div>
-            <label className="text-xs text-slate-500 font-medium mb-1 block">
-              标签 <span className="text-slate-400 font-normal">（逗号分隔）</span>
-            </label>
-            <input
+            <label className="text-xs text-slate-500 font-medium mb-1 block">标签</label>
+            <TagMultiSelect
+              options={PROMPT_TAGS_DEFAULT}
               value={tags}
-              onChange={e => setTags(e.target.value)}
-              placeholder="写作, 商务"
-              className={inputCls}
+              onChange={setTags}
+              defaults={PROMPT_TAGS_DEFAULT}
+              placeholder="选择标签…"
             />
           </div>
         </div>

@@ -163,7 +163,6 @@ CREATE TABLE IF NOT EXISTS market_tools (
 CREATE TABLE IF NOT EXISTS skills (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
-    category TEXT NOT NULL DEFAULT '',
     description TEXT NOT NULL DEFAULT '',
     icon TEXT NOT NULL DEFAULT 'Zap',
     icon_bg TEXT NOT NULL DEFAULT '',
@@ -174,12 +173,9 @@ CREATE TABLE IF NOT EXISTS skills (
     created_at INTEGER NOT NULL,
     updated_at INTEGER NOT NULL
 );
-CREATE INDEX IF NOT EXISTS idx_skills_category ON skills(category);
-
 CREATE TABLE IF NOT EXISTS prompts (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
-    category TEXT NOT NULL DEFAULT '',
     description TEXT NOT NULL DEFAULT '',
     content TEXT NOT NULL DEFAULT '',
     official INTEGER NOT NULL DEFAULT 0,
@@ -188,7 +184,6 @@ CREATE TABLE IF NOT EXISTS prompts (
     created_at INTEGER NOT NULL,
     updated_at INTEGER NOT NULL
 );
-CREATE INDEX IF NOT EXISTS idx_prompts_category ON prompts(category);
 
 CREATE TABLE IF NOT EXISTS extension_tags (
     id TEXT PRIMARY KEY,
