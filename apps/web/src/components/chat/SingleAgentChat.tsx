@@ -36,7 +36,7 @@ import {
   Bug,
 } from 'lucide-react';
 import type { AppMode, TeammateMode } from '@/types';
-import type { TeammateStatus } from '@owl-os/core';
+import type { AgentTaskView, TeammateStatus } from '@owl-os/core';
 import { Button } from '@/components/ui/button';
 import { MarkdownText } from './MarkdownText';
 import { useOwleryRuntime, type AgentOutput } from './useOwleryRuntime';
@@ -77,11 +77,13 @@ const MESSAGE_WIDTH_CLASS = 'w-[min(92ch,84%)]';
 
 interface WorkflowContextValue {
   agentOutputs: Record<string, AgentOutput>;
+  tasks: AgentTaskView[];
+  rounds: number[];
   isRunning: boolean;
   teamStatus: TeammateStatus | null;
 }
 
-const WorkflowContext = createContext<WorkflowContextValue>({ agentOutputs: {}, isRunning: false, teamStatus: null });
+const WorkflowContext = createContext<WorkflowContextValue>({ agentOutputs: {}, tasks: [], rounds: [], isRunning: false, teamStatus: null });
 
 const OWLERY_STATUS_EVENT = 'owlery:teammate-status';
 
@@ -328,7 +330,7 @@ function MessageContent({
   showWorkflow?: boolean;
 }) {
   const [copied, setCopied] = useState(false);
-  const { agentOutputs, isRunning, teamStatus } = useWorkflowContext();
+  const { agentOutputs, tasks, rounds, isRunning, teamStatus } = useWorkflowContext();
   const mainText = getMainText(message);
   const reasoningText = getReasoningText(message);
   const toolParts = getToolParts(message);
@@ -351,7 +353,7 @@ function MessageContent({
   return (
     <div className={`group relative min-w-0 ${MESSAGE_WIDTH_CLASS}`}>
       {showThinking && <ThinkingIndicator />}
-      {showWorkflowPanel && <WorkflowPanel agentOutputs={agentOutputs} teamStatus={teamStatus} sessionId={sessionId} />}
+      {showWorkflowPanel && <WorkflowPanel agentOutputs={agentOutputs} tasks={tasks} rounds={rounds} teamStatus={teamStatus} sessionId={sessionId} />}
 
       {message.role !== 'user' && (reasoningText.trim() || toolParts.length > 0) && (
         <div className="my-1 space-y-1 py-1">
@@ -565,12 +567,54 @@ function AgentCard({
   );
 }
 
+function TaskCard({ task, agent }: { task: AgentTaskView; agent?: AgentOutput }) {
+  return (
+    <div className="rounded-lg border border-border/40 bg-background/50 p-3">
+      <div className="mb-1 flex items-center gap-2 text-xs text-muted-foreground">
+        <span className="rounded bg-cyan-500/10 px-1.5 py-0.5 text-cyan-500">阶段 {task.stage}</span>
+        <span>任务需求方：{task.requestedBy}</span>
+        <span>·</span>
+        <span>执行者：{agent ? `${getAgentTitleLabel(agent.role, agent.title)} ${agent.name}` : task.assigneeAgentId}</span>
+      </div>
+      <div className="text-sm text-foreground">
+        <span className="font-medium">当前任务内容：</span>
+        {task.instruction}
+      </div>
+    </div>
+  );
+}
+
+function RoundPanel({
+  round,
+  tasks,
+  agentOutputs,
+}: {
+  round: number;
+  tasks: AgentTaskView[];
+  agentOutputs: Record<string, AgentOutput>;
+}) {
+  const roundTasks = tasks.filter((t) => t.round === round).sort((a, b) => a.stage - b.stage);
+  if (roundTasks.length === 0) return null;
+  return (
+    <div className="space-y-2">
+      <div className="text-xs font-semibold text-muted-foreground">轮次 {round}</div>
+      {roundTasks.map((task) => (
+        <TaskCard key={task.taskId} task={task} agent={agentOutputs[task.assigneeAgentId]} />
+      ))}
+    </div>
+  );
+}
+
 function WorkflowPanel({
   agentOutputs,
+  tasks,
+  rounds,
   teamStatus,
   sessionId,
 }: {
   agentOutputs: Record<string, AgentOutput>;
+  tasks: AgentTaskView[];
+  rounds: number[];
   teamStatus: TeammateStatus | null;
   sessionId: string;
 }) {
@@ -591,7 +635,6 @@ function WorkflowPanel({
     }
   }
 
-  if (Object.keys(mergedOutputs).length === 0) return null;
   const entries = Object.values(mergedOutputs);
   const isBoss = (agent: AgentOutput) => agent.role === 'elder' || agent.title === 'boss';
   const boss = entries.find(isBoss);
@@ -608,6 +651,18 @@ function WorkflowPanel({
           sessionId={sessionId}
           variant="boss"
         />
+      )}
+      {rounds.length > 0 && (
+        <div className="rounded-xl border border-border/50 bg-background/40 p-4">
+          <div className="mb-3 border-l-[3px] border-amber-400 pl-2 text-sm font-medium text-foreground">
+            任务流水线与轮次
+          </div>
+          <div className="space-y-4">
+            {rounds.map((round) => (
+              <RoundPanel key={round} round={round} tasks={tasks} agentOutputs={mergedOutputs} />
+            ))}
+          </div>
+        </div>
       )}
       {members.length > 0 && (
         <div className="rounded-xl border border-border/50 bg-background/40 p-4">
@@ -711,7 +766,7 @@ export default function SingleAgentChat({
   onTitleChange,
 }: SingleAgentChatProps) {
   const [selectedTeam, setSelectedTeam] = useState<string | undefined>(teamTemplateId);
-  const { runtime, conversationTitle, messages, isRunning, regenerateFromMessage, agentOutputs } = useOwleryRuntime(
+  const { runtime, conversationTitle, messages, isRunning, regenerateFromMessage, agentOutputs, tasks, rounds } = useOwleryRuntime(
     conversationId,
     mode,
     teammateMode,
@@ -783,7 +838,7 @@ export default function SingleAgentChat({
           onScroll={handleViewportScroll}
           className="flex-1 overflow-y-auto px-16 py-8 space-y-6"
         >
-          <WorkflowContext.Provider value={{ agentOutputs, isRunning, teamStatus }}>
+          <WorkflowContext.Provider value={{ agentOutputs, tasks, rounds, isRunning, teamStatus }}>
             <ChatMessages
               sessionId={conversationId}
               onEditMessage={handleEditMessage}

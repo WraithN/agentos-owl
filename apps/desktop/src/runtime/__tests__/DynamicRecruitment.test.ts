@@ -54,7 +54,30 @@ function createFactory() {
               result: { workers: ["developer", "tester"] },
             },
           };
-          yield { type: "text_delta", text: "开始执行" };
+          yield {
+            type: "tool_event",
+            event: {
+              type: "tool_execution_end",
+              toolName: "dispatch_task",
+              result: { workerTitle: "developer", stage: 1, instruction: "实现登录页面 UI" },
+            },
+          };
+          yield {
+            type: "tool_event",
+            event: {
+              type: "tool_execution_end",
+              toolName: "dispatch_task",
+              result: { workerTitle: "tester", stage: 2, instruction: "为登录页面编写测试用例" },
+            },
+          };
+          yield {
+            type: "tool_event",
+            event: {
+              type: "tool_execution_end",
+              toolName: "submit_to_elder",
+              result: { finalOutput: "登录页面已完成" },
+            },
+          };
           yield { type: "done" };
         } else {
           yield { type: "text_delta", text: `${role}:done` };

@@ -134,5 +134,29 @@ export type AgentDriverChunk =
   | { type: "tool_event"; event: unknown }
   | { type: "status_card"; text: string; agentId?: AgentId; agentName?: string; agentTitle?: AgentTitle; role?: AgentRole }
   | { type: "agent_chunk"; agentId: AgentId; agentName: string; agentTitle: AgentTitle; role: AgentRole; chunk: AgentDriverChunk }
+  | { type: "task_card"; taskId: string; round: number; stage: number; instruction: string; requestedBy: string; assigneeAgentId: AgentId }
+  | { type: "round_card"; round: number; summary: string }
   | { type: "done" }
   | { type: "error"; error: string };
+
+export interface AgentTaskView {
+  taskId: string;
+  round: number;
+  stage: number;
+  instruction: string;
+  requestedBy: string;
+  assigneeAgentId: AgentId;
+  status: AgentWorkStatus;
+  output?: string;
+}
+
+export interface PipelineRound {
+  round: number;
+  userRequest: string;
+  researcherOutput?: string;
+  writerOutput?: string;
+  plannerOutput?: string;
+  elderFeedback?: string;
+  finalOutput?: string;
+  satisfied?: boolean;
+}

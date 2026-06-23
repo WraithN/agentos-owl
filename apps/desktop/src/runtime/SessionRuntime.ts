@@ -1,9 +1,11 @@
 import type {
   AgentDriverChunk,
   AgentFactory,
+  AgentId,
   AgentMessage,
   AgentRuntime,
   AgentWorkSnapshot,
+  PipelineRound,
   SessionRunStatus,
   SessionVisibility,
   TeammateMode,
@@ -14,6 +16,7 @@ import type { ControlCommand } from "../eventbus/types.js";
 import { createOwleryAgentFactoryWithConfig } from "../agent/owleryAgentFactory.js";
 import type { LlmConfig } from "../agent/llmConfig.js";
 import { AgentExecutor } from "./AgentExecutor.js";
+import { PlannerPipeline, MAX_REVIEW_ROUNDS } from "./PlannerPipeline.js";
 import type { RuntimePort } from "./types.js";
 
 const SENTINEL_TITLE_LABEL: Record<string, string> = {
@@ -75,6 +78,7 @@ export class SessionRuntime {
   } = {};
 
   private recruitedAgents = new Map<string, AgentRuntime>();
+  private sessionRounds: PipelineRound[] = [];
 
   constructor(options: SessionRuntimeOptions) {
     this.sessionId = options.sessionId;
@@ -171,43 +175,49 @@ export class SessionRuntime {
       const workerTitles = this.pendingRecruitment.workers;
 
       if (workerTitles && workerTitles.length > 0) {
-        // Sentinel 已招募 Worker，进入等待 Worker 产出的阶段
-        this.crystalBall.updateStatus(sentinel.id, "waiting", "等待Worker返回");
-        this.emitAgentStatusCard(sentinel, "等待Worker返回");
-        this.emitStatus();
         const workers = this.recruitWorkersIfNeeded(sentinel, workerTitles);
-        const workerOutputs: string[] = [];
-        for (const worker of workers) {
-          this.emitAgentStatusCard(worker, "工作中");
-          const output = await this.streamAgent(worker, userMessage, { forwardText: false });
-          this.emitAgentStatusCard(worker, "已完成");
-          if (output) workerOutputs.push(output);
-        }
 
-        // Sentinel 第二阶段：基于 Worker 真实产出做收敛，生成供 Elder 评审的草案
-        let draft = sentinelPlan;
-        if (workerOutputs.length > 0) {
-          this.emitAgentStatusCard(sentinel, "正在收敛Worker产出");
-          const aggregatePrompt = [
-            "你招募的 Worker 已经完成执行，以下是他们的原始产出。",
-            "请对这些产出进行去重、校验、补全遗漏，并整合为一份可直接交付给用户的最终成果。",
-            "不要暴露内部协调过程，直接给出最终答案。",
+        if (sentinel.title === "planner") {
+          await this.runPlannerPipeline(elder, sentinel, workers, userMessage);
+        } else {
+          // 其他 Sentinel 保持原有并行执行 + 收敛逻辑
+          // Sentinel 已招募 Worker，进入等待 Worker 产出的阶段
+          this.crystalBall.updateStatus(sentinel.id, "waiting", "等待Worker返回");
+          this.emitAgentStatusCard(sentinel, "等待Worker返回");
+          this.emitStatus();
+          const workerOutputs: string[] = [];
+          for (const worker of workers) {
+            this.emitAgentStatusCard(worker, "工作中");
+            const output = await this.streamAgent(worker, userMessage, { forwardText: false });
+            this.emitAgentStatusCard(worker, "已完成");
+            if (output) workerOutputs.push(output);
+          }
+
+          // Sentinel 第二阶段：基于 Worker 真实产出做收敛，生成供 Elder 评审的草案
+          let draft = sentinelPlan;
+          if (workerOutputs.length > 0) {
+            this.emitAgentStatusCard(sentinel, "正在收敛Worker产出");
+            const aggregatePrompt = [
+              "你招募的 Worker 已经完成执行，以下是他们的原始产出。",
+              "请对这些产出进行去重、校验、补全遗漏，并整合为一份可直接交付给用户的最终成果。",
+              "不要暴露内部协调过程，直接给出最终答案。",
+              "",
+              workerOutputs.map((output, index) => `--- Worker ${index + 1} ---\n${output}`).join("\n\n"),
+            ].join("\n");
+            draft = await this.streamAgent(sentinel, aggregatePrompt, { forwardText: false });
+            this.emitAgentStatusCard(sentinel, "已完成");
+          }
+
+          // Elder 最终评审并输出给用户的唯一答案
+          this.emitAgentStatusCard(elder, "正在对工作进行评审");
+          const finalPrompt = [
+            "你是唯一面向用户的 Agent。请基于以下工作成果进行最终评审，直接输出给用户的最终答案，不要暴露内部协调过程。",
             "",
-            workerOutputs.map((output, index) => `--- Worker ${index + 1} ---\n${output}`).join("\n\n"),
+            draft || "（无额外工作成果）",
           ].join("\n");
-          draft = await this.streamAgent(sentinel, aggregatePrompt, { forwardText: false });
-          this.emitAgentStatusCard(sentinel, "已完成");
+          await this.streamAgent(elder, finalPrompt, { forwardText: true });
+          this.emitAgentStatusCard(elder, "已完成");
         }
-
-        // Elder 最终评审并输出给用户的唯一答案
-        this.emitAgentStatusCard(elder, "正在对工作进行评审");
-        const finalPrompt = [
-          "你是唯一面向用户的 Agent。请基于以下工作成果进行最终评审，直接输出给用户的最终答案，不要暴露内部协调过程。",
-          "",
-          draft || "（无额外工作成果）",
-        ].join("\n");
-        await this.streamAgent(elder, finalPrompt, { forwardText: true });
-        this.emitAgentStatusCard(elder, "已完成");
       } else if (sentinelPlan) {
         // 简单任务未招募 Worker，由 Elder 直接输出结论
         this.emitAgentStatusCard(elder, "正在对工作进行评审");
@@ -232,6 +242,60 @@ export class SessionRuntime {
       this.pendingRecruitment = {};
       this.port.postEvent({ type: "done" });
       this.emitStatus();
+    }
+  }
+
+  private async runPlannerPipeline(
+    elder: AgentRuntime,
+    sentinel: AgentRuntime,
+    workers: AgentRuntime[],
+    userMessage: string,
+  ): Promise<void> {
+    const pipeline = new PlannerPipeline({
+      sessionId: this.sessionId,
+      streamAgent: (agent, text, options) => this.streamAgent(agent, text, options),
+      runAgentTurn: (agent, text, options) => this.runAgentTurn(agent, text, options),
+      emitAgentStatusCard: (agent, text) => this.emitAgentStatusCard(agent, text),
+      emitTaskCard: (taskId, round, stage, instruction, requestedBy, assigneeAgentId) =>
+        this.emitTaskCard(taskId, round, stage, instruction, requestedBy, assigneeAgentId),
+      emitRoundCard: (round, summary) => this.emitRoundCard(round, summary),
+    });
+
+    this.sessionRounds = [];
+    let draft = (await pipeline.run(sentinel, workers, userMessage, 1)).finalOutput;
+
+    const roundHistories: string[] = [];
+    for (let round = 1; round <= MAX_REVIEW_ROUNDS; round++) {
+      this.emitAgentStatusCard(elder, `正在对工作进行评审（轮次 ${round}）`);
+      const review = await pipeline.reviewWithElder(elder, userMessage, draft, round, roundHistories);
+
+      if (review.satisfied || round === MAX_REVIEW_ROUNDS) {
+        const finalText = review.satisfied
+          ? review.finalText
+          : `已尝试 ${MAX_REVIEW_ROUNDS} 轮仍无法完全满足需求。当前最佳结果：\n\n${review.finalText}`;
+        this.emitAgentStatusCard(elder, "已完成");
+        this.port.postEvent({ type: "chunk", chunk: { type: "text_delta", text: finalText } });
+        this.sessionRounds.push({
+          round,
+          userRequest: round === 1 ? userMessage : roundHistories[round - 2] ?? userMessage,
+          plannerOutput: draft,
+          finalOutput: finalText,
+          satisfied: review.satisfied,
+        });
+        break;
+      }
+
+      this.sessionRounds.push({
+        round,
+        userRequest: round === 1 ? userMessage : roundHistories[round - 2] ?? userMessage,
+        plannerOutput: draft,
+        elderFeedback: review.feedback,
+        satisfied: false,
+      });
+      roundHistories.push(`轮次 ${round} 反馈：${review.feedback}`);
+      this.emitAgentStatusCard(elder, `轮次 ${round} 未通过，准备修订`);
+      const nextMessage = pipeline.buildRevisionPrompt(userMessage, review.feedback ?? "", round + 1, roundHistories);
+      draft = (await pipeline.run(sentinel, workers, nextMessage, round + 1)).finalOutput;
     }
   }
 
@@ -317,6 +381,86 @@ export class SessionRuntime {
     }
   }
 
+  private async runAgentTurn(
+    agent: AgentRuntime,
+    promptText: string,
+    options: { collectTools?: string[]; forwardText?: boolean } = {},
+  ): Promise<{ text: string; reasoning: string; toolEvents: unknown[] }> {
+    const textParts: string[] = [];
+    const reasoningParts: string[] = [];
+    const toolEvents: unknown[] = [];
+
+    this.currentAgent = agent;
+    const message: AgentMessage<{ text: string }> = {
+      id: `${this.sessionId}:${Date.now()}:${agent.role}`,
+      from: "user",
+      to: agent.id,
+      sessionId: this.sessionId,
+      kind: "request",
+      payload: { text: promptText },
+      createdAt: Date.now(),
+    };
+
+    this.crystalBall.updateStatus(agent.id, "in_progress", promptText);
+    this.emitStatus();
+
+    try {
+      for await (const chunk of agent.streamChat({
+        sessionId: this.sessionId,
+        messages: [message],
+        context: undefined,
+      })) {
+        if (chunk.type === "tool_event") {
+          const event = chunk.event as Record<string, unknown>;
+          const toolName = String(event?.toolName ?? event?.name ?? "");
+          if (options.collectTools?.includes(toolName)) {
+            toolEvents.push(event);
+          } else if (toolName === "recruit_sentinel" && agent.role === "elder") {
+            const { title, reason } = this.extractRecruitArgs(event);
+            if (title) {
+              this.pendingRecruitment.sentinelTitle = title;
+              this.pendingRecruitment.sentinelReason = reason;
+            }
+          } else if (toolName === "recruit_workers" && agent.role === "sentinel") {
+            const workers = this.extractWorkerTitles(event);
+            if (workers) {
+              this.pendingRecruitment.workers = workers;
+              this.recruitWorkersIfNeeded(agent, workers);
+            }
+          } else if (agent.role !== "elder") {
+            this.emitAgentChunk(agent, chunk);
+          }
+          continue;
+        }
+        if (chunk.type === "text_delta") {
+          textParts.push(chunk.text);
+          if (options.forwardText && agent.role === "elder") {
+            this.forwardChunk(agent, chunk);
+          } else if (agent.role !== "elder") {
+            this.emitAgentChunk(agent, chunk);
+          }
+          continue;
+        }
+        if (chunk.type === "reasoning_delta") {
+          reasoningParts.push(chunk.text);
+          if (agent.role !== "elder") this.emitAgentChunk(agent, chunk);
+          continue;
+        }
+        if (chunk.type === "error") {
+          this.port.postEvent({ type: "error", error: chunk.error });
+        }
+      }
+      this.crystalBall.updateStatus(agent.id, "completed");
+    } catch (error) {
+      const errorText = error instanceof Error ? error.message : String(error);
+      this.crystalBall.updateStatus(agent.id, "failed", errorText);
+      this.port.postEvent({ type: "error", error: errorText });
+    }
+
+    this.emitStatus();
+    return { text: textParts.join(""), reasoning: reasoningParts.join(""), toolEvents };
+  }
+
   private emitAgentChunk(agent: AgentRuntime, chunk: AgentDriverChunk): void {
     this.port.postEvent({
       type: "chunk",
@@ -347,6 +491,32 @@ export class SessionRuntime {
         role: agent.role,
       },
     });
+  }
+
+  private emitTaskCard(
+    taskId: string,
+    round: number,
+    stage: number,
+    instruction: string,
+    requestedBy: string,
+    assigneeAgentId: AgentId,
+  ): void {
+    this.port.postEvent({
+      type: "chunk",
+      chunk: {
+        type: "task_card",
+        taskId,
+        round,
+        stage,
+        instruction,
+        requestedBy,
+        assigneeAgentId,
+      },
+    });
+  }
+
+  private emitRoundCard(round: number, summary: string): void {
+    this.port.postEvent({ type: "chunk", chunk: { type: "round_card", round, summary } });
   }
 
   private stop(): void {

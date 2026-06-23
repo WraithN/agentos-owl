@@ -11,7 +11,7 @@ import {
   NoDefaultLlmError,
 } from "./agent.js";
 import type { LlmConfig } from "./llmConfig.js";
-import { buildTools } from "./tools.js";
+import { buildPlannerTools, buildTools } from "./tools.js";
 import { PiAgentDriver } from "./drivers/PiAgentDriver.js";
 import { generateBossName, localeAwareNameGenerator } from "./agentNames.js";
 
@@ -100,7 +100,7 @@ export function createOwleryAgentFactory(): AgentFactory {
       input.role === "elder"
         ? [buildRecruitSentinelTool()]
         : input.role === "sentinel"
-          ? [...buildTools(input.sessionId), buildRecruitWorkersTool()]
+          ? [...buildTools(input.sessionId), buildRecruitWorkersTool(), ...buildPlannerTools(input.sessionId)]
           : buildTools(input.sessionId);
 
     return new PiAgentDriver(
@@ -138,7 +138,7 @@ export function createOwleryAgentFactoryWithConfig(config: LlmConfig): AgentFact
       input.role === "elder"
         ? [buildRecruitSentinelTool()]
         : input.role === "sentinel"
-          ? [...buildTools(input.sessionId), buildRecruitWorkersTool()]
+          ? [...buildTools(input.sessionId), buildRecruitWorkersTool(), ...buildPlannerTools(input.sessionId)]
           : buildTools(input.sessionId);
 
     return new PiAgentDriver(
