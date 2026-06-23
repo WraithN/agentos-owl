@@ -12,6 +12,7 @@ const DEFAULT_CODE_LANGUAGE = 'text';
 const COPY_RESET_DELAY_MS = 2000;
 const HTML_PREVIEW_TOO_LARGE_CODE = 'HTML_PREVIEW_TOO_LARGE';
 const DOCX_PATH_PATTERN = /([^\s]+\.docx)/i;
+const DOCX_FILENAME_PATTERN = /^[^\s/\\]+\.docx$/i;
 const KEYWORDS_BY_LANGUAGE: Record<string, string[]> = {
   python: ['def', 'return', 'if', 'else', 'elif', 'for', 'while', 'import', 'from', 'class', 'try', 'except', 'with', 'as', 'in', 'not', 'and', 'or', 'True', 'False', 'None', 'lambda', 'yield', 'async', 'await', 'pass', 'raise'],
   default: ['function', 'const', 'let', 'var', 'return', 'if', 'else', 'for', 'while', 'class', 'import', 'export', 'default', 'from', 'async', 'await', 'new', 'this', 'typeof', 'instanceof', 'try', 'catch', 'throw', 'true', 'false', 'null', 'undefined', 'interface', 'type', 'extends', 'implements'],
@@ -120,11 +121,9 @@ function localPathFromHref(href: string) {
 
 function handleLinkClick(href: string, sessionId?: string) {
   if (isDocxHref(href) && sessionId) {
-    if (!/^(file:\/\/|\/|[A-Za-z]:[\\/]|~\/)/.test(href)) {
-      toast.error(`无法预览“${href}”：路径不完整，请在工具调用输出中查看完整路径`);
-      return;
-    }
-    void openLocalFilePreview(sessionId, localPathFromHref(href))
+    // 裸文件名默认到 /tmp 查找，与 execute_command 默认工作目录保持一致
+    const resolvedHref = /^(file:\/\/|\/|[A-Za-z]:[\\/]|~\/)/.test(href) ? href : `/tmp/${href}`;
+    void openLocalFilePreview(sessionId, localPathFromHref(resolvedHref))
       .catch((error: unknown) => {
         const detail = error as { code?: string; message?: string };
         if (detail.code === 'FILE_PREVIEW_FILE_NOT_FOUND' || detail.message?.includes('FILE_PREVIEW_FILE_NOT_FOUND')) {
@@ -150,7 +149,7 @@ function handleLinkClick(href: string, sessionId?: string) {
 
 function parseInline(text: string): InlineToken[] {
   const tokens: InlineToken[] = [];
-  const pattern = /(`[^`]+`|\*\*[^*]+\*\*|\*[^*]+\*|\[[^\]]+\]\([^\s)]+\)|((?:file:\/\/|\/|[A-Za-z]:[\\/]|~\/)[^\s]+\.docx))/gi;
+  const pattern = /(`[^`]+`|\*\*[^*]+\*\*|\*[^*]+\*|\[[^\]]+\]\([^\s)]+\)|((?:file:\/\/|\/|[A-Za-z]:[\\/]|~\/)[^\s]+\.docx|[^\s/\\]+\.docx))/gi;
   let lastIndex = 0;
 
   for (const match of text.matchAll(pattern)) {
@@ -171,7 +170,10 @@ function parseInline(text: string): InlineToken[] {
       if (linkMatch) {
         tokens.push({ type: 'link', content: linkMatch[1], href: linkMatch[2] });
       } else if (DOCX_PATH_PATTERN.test(value)) {
-        tokens.push({ type: 'link', content: value, href: value });
+        // 从匹配值中提取最可能的 docx 文件名，避免把前面的中文动词/标点包含进来
+        const fileMatch = value.match(/(?:^|[\s:：])([A-Za-z0-9_\\-\\.\\u4e00-\\u9fa5]+\.docx)$/i);
+        const fileName = fileMatch ? fileMatch[1] : value;
+        tokens.push({ type: 'link', content: fileName, href: fileName });
       }
     }
 

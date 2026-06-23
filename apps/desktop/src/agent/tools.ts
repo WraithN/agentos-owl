@@ -62,18 +62,18 @@ export function buildTools(_sessionId: string): AgentTool[] {
     {
       name: "execute_command",
       label: "执行命令",
-      description: "Execute a shell command and return stdout/stderr. Use with caution.",
+      description: "Execute a shell command and return stdout/stderr. Generated files should be written to /tmp unless the user specifies another location.",
       parameters: Type.Object({
         command: Type.String(),
         cwd: Type.Optional(Type.String()),
       }),
       execute: async (_id, params) => {
         const { command, cwd } = params as { command: string; cwd?: string };
-        const [cmd, ...cmdArgs] = command.split(" ");
-        const { stdout, stderr } = await execFileAsync(cmd, cmdArgs, {
-          cwd: cwd ?? process.cwd(),
+        // 使用 sh -c 执行完整命令，避免 split 破坏 heredoc、管道、引号等复杂 shell 语法
+        // 默认工作目录设为 /tmp，使 LLM 生成的文件落到用户可预览的固定位置
+        const { stdout, stderr } = await execFileAsync("sh", ["-c", command], {
+          cwd: cwd ?? "/tmp",
           timeout: 30_000,
-          shell: true,
         });
         return textResult(stdout + (stderr ? `\n[stderr]\n${stderr}` : ""));
       },

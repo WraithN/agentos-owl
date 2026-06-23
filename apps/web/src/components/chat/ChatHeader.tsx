@@ -1,5 +1,5 @@
 /* Chat 标题栏 */
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { LayoutGrid, Plus, Bot, Activity, History } from 'lucide-react';
 import type { AgentWorkStatus, TeammateAgentStatus, TeammateStatus } from '@owl-os/core';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -29,6 +29,7 @@ const TITLE_LABEL: Record<string, string> = {
 const STATUS_META: Record<AgentWorkStatus, { label: string; className: string }> = {
   not_started: { label: '未开始', className: 'bg-slate-500' },
   in_progress: { label: '工作中', className: 'bg-amber-400' },
+  waiting: { label: '等待中', className: 'bg-blue-400' },
   completed: { label: '已完成', className: 'bg-emerald-400' },
   failed: { label: '失败', className: 'bg-destructive' },
   cancelled: { label: '已取消', className: 'bg-slate-400' },
@@ -36,8 +37,16 @@ const STATUS_META: Record<AgentWorkStatus, { label: string; className: string }>
 
 function AgentStatusRow({ agent }: { agent: TeammateAgentStatus }) {
   const meta = STATUS_META[agent.status];
+  const isInProgress = agent.status === 'in_progress';
   return (
-    <div className="flex items-center justify-between gap-2 rounded-lg border border-border/50 bg-muted/20 p-2 text-xs">
+    <div
+      className={cn(
+        'relative flex items-center justify-between gap-2 rounded-lg border bg-muted/20 p-2 text-xs',
+        isInProgress
+          ? 'border-green-400/40 shadow-[0_0_12px_rgba(34,197,94,0.15)] animate-agent-border-glow'
+          : 'border-border/50'
+      )}
+    >
       <div className="min-w-0">
         <div className="truncate text-foreground">
           角色：{TITLE_LABEL[agent.title] ?? agent.title}，名称：{agent.name}
@@ -45,8 +54,17 @@ function AgentStatusRow({ agent }: { agent: TeammateAgentStatus }) {
       </div>
       <div className="flex shrink-0 items-center gap-1.5 text-muted-foreground">
         <span className={cn('h-2 w-2 rounded-full', meta.className)} />
-        {meta.label}
+        <span className={isInProgress ? 'font-medium text-green-500' : undefined}>{meta.label}</span>
       </div>
+    </div>
+  );
+}
+
+function StatusGroup({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <div className="space-y-1.5">
+      <div className="border-l-2 border-cyan-400 pl-2 text-[11px] font-medium text-muted-foreground">{title}</div>
+      {children}
     </div>
   );
 }
@@ -130,14 +148,19 @@ export default function ChatHeader({
             {!teammateStatus ? (
               <div className="rounded-lg border border-dashed border-border/50 p-3 text-xs text-muted-foreground">暂无智能体团队状态</div>
             ) : (
-              <div className="grid gap-1.5">
-                {teammateStatus.teammateName && (
-                  <div className="text-xs text-muted-foreground">{teammateStatus.teammateName}</div>
+              <div className="grid gap-3">
+                {teammateStatus.leader && (
+                  <StatusGroup title="老板">
+                    <AgentStatusRow agent={teammateStatus.leader} />
+                  </StatusGroup>
                 )}
-                {teammateStatus.leader && <AgentStatusRow agent={teammateStatus.leader} />}
-                {teammateStatus.members.map((agent) => (
-                  <AgentStatusRow key={agent.agentId} agent={agent} />
-                ))}
+                <StatusGroup title={teammateStatus.teammateName || '执行团队'}>
+                  {teammateStatus.members.length === 0 ? (
+                    <div className="rounded-lg border border-dashed border-border/50 p-2 text-xs text-muted-foreground">暂无团队成员</div>
+                  ) : (
+                    teammateStatus.members.map((agent) => <AgentStatusRow key={agent.agentId} agent={agent} />)
+                  )}
+                </StatusGroup>
               </div>
             )}
           </PopoverContent>

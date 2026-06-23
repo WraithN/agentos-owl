@@ -160,12 +160,21 @@ export class SessionRuntime {
         sentinel = this.recruitSentinel(elder, title);
       }
 
+      // Elder 已完成招募，进入等待 Sentinel/团队返回的阶段
+      this.crystalBall.updateStatus(elder.id, "waiting", "等待团队返回");
+      this.emitAgentStatusCard(elder, "等待团队返回");
+      this.emitStatus();
+
       // Sentinel 第一阶段：制定计划并招募 Worker（不直接输出正文）
       this.emitAgentStatusCard(sentinel, "正在工作规划");
       const sentinelPlan = await this.streamAgent(sentinel, userMessage, { forwardText: false });
       const workerTitles = this.pendingRecruitment.workers;
 
       if (workerTitles && workerTitles.length > 0) {
+        // Sentinel 已招募 Worker，进入等待 Worker 产出的阶段
+        this.crystalBall.updateStatus(sentinel.id, "waiting", "等待Worker返回");
+        this.emitAgentStatusCard(sentinel, "等待Worker返回");
+        this.emitStatus();
         const workers = this.recruitWorkersIfNeeded(sentinel, workerTitles);
         const workerOutputs: string[] = [];
         for (const worker of workers) {

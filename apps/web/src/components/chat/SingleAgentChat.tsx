@@ -444,11 +444,12 @@ function MessageContent({
   );
 }
 
-type AgentWorkStatusType = 'not_started' | 'in_progress' | 'completed' | 'failed' | 'cancelled';
+type AgentWorkStatusType = 'not_started' | 'in_progress' | 'waiting' | 'completed' | 'failed' | 'cancelled';
 
 const WORK_STATUS_LABEL: Record<AgentWorkStatusType, string> = {
   not_started: '未开始',
   in_progress: '进行中',
+  waiting: '等待中',
   completed: '已完成',
   failed: '失败',
   cancelled: '已取消',
