@@ -1,6 +1,6 @@
 import type Database from "better-sqlite3";
 import type { Webhook } from "../types.js";
-import { fromJson, toJson } from "./_json.js";
+import { fromJson, toJson } from "../../utils/json.js";
 
 export function listWebhooks(db: Database.Database): Webhook[] {
   const rows = db

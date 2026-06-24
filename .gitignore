@@ -40,3 +40,4 @@ history/*.json
 /tasks
 .opencode
 .worktrees
+.codegraph/

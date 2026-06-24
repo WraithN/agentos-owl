@@ -1,7 +1,8 @@
 import type Database from "better-sqlite3";
 import * as queries from "../queries/index.js";
 import type { User } from "../types.js";
-import { argonHash, now } from "./utils.js";
+import { now } from "../../utils/time.js";
+import { hash as argonHash } from "../../utils/crypto/password.js";
 
 export async function seedDefaultUser(db: Database.Database): Promise<void> {
   const count = db.prepare("SELECT COUNT(*) FROM users").pluck().get() as number;

@@ -1,43 +1,28 @@
 /* Chat 标题栏 */
 import { useEffect, useState, type ReactNode } from 'react';
 import { LayoutGrid, Plus, Bot, Activity, History } from 'lucide-react';
-import type { AgentWorkStatus, TeammateAgentStatus, TeammateStatus } from '@owl-os/core';
+import { AgentWorkStatus } from '@owl-os/core';
+import type { TeammateAgentStatus, TeammateStatus } from '@owl-os/core';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { getTeammateStatus, onAgentStatus } from '@/services/electron';
 import { cn } from '@/lib/utils';
+import { useT } from '@/lib/i18n';
 
 const OWLERY_STATUS_EVENT = 'owlery:teammate-status';
 
-const TITLE_LABEL: Record<string, string> = {
-  boss: '老板',
-  planner: '规划师',
-  supervisor: '监督者',
-  coordinator: '协调者',
-  cto: 'CTO',
-  developer: '开发者',
-  tester: '测试员',
-  designer: '设计师',
-  writer: '撰写者',
-  researcher: '研究员',
-  analyst: '分析师',
-  marketer: '营销员',
-  operator: '操作员',
-  reviewer: '审核员',
-  debugger: '调试员',
-};
-
-const STATUS_META: Record<AgentWorkStatus, { label: string; className: string }> = {
-  not_started: { label: '未开始', className: 'bg-slate-500' },
-  in_progress: { label: '工作中', className: 'bg-amber-400' },
-  waiting: { label: '等待中', className: 'bg-blue-400' },
-  completed: { label: '已完成', className: 'bg-emerald-400' },
-  failed: { label: '失败', className: 'bg-destructive' },
-  cancelled: { label: '已取消', className: 'bg-slate-400' },
+const STATUS_META: Record<AgentWorkStatus, { className: string }> = {
+  [AgentWorkStatus.NOT_STARTED]: { className: 'bg-slate-500' },
+  [AgentWorkStatus.IN_PROGRESS]: { className: 'bg-amber-400' },
+  [AgentWorkStatus.WAITING]:     { className: 'bg-blue-400' },
+  [AgentWorkStatus.COMPLETED]:   { className: 'bg-emerald-400' },
+  [AgentWorkStatus.FAILED]:      { className: 'bg-destructive' },
+  [AgentWorkStatus.CANCELLED]:   { className: 'bg-slate-400' },
 };
 
 function AgentStatusRow({ agent }: { agent: TeammateAgentStatus }) {
+  const t = useT();
   const meta = STATUS_META[agent.status];
-  const isInProgress = agent.status === 'in_progress';
+  const isInProgress = agent.status === AgentWorkStatus.IN_PROGRESS;
   return (
     <div
       className={cn(
@@ -49,12 +34,12 @@ function AgentStatusRow({ agent }: { agent: TeammateAgentStatus }) {
     >
       <div className="min-w-0">
         <div className="truncate text-foreground">
-          角色：{TITLE_LABEL[agent.title] ?? agent.title}，名称：{agent.name}
+          {t('common.role')}：{t(`role.${agent.title}` as Parameters<ReturnType<typeof useT>>[0], agent.title)}，{t('common.name')}：{agent.name}
         </div>
       </div>
       <div className="flex shrink-0 items-center gap-1.5 text-muted-foreground">
         <span className={cn('h-2 w-2 rounded-full', meta.className)} />
-        <span className={isInProgress ? 'font-medium text-green-500' : undefined}>{meta.label}</span>
+        <span className={isInProgress ? 'font-medium text-green-500' : undefined}>{t(`status.${agent.status}` as Parameters<ReturnType<typeof useT>>[0])}</span>
       </div>
     </div>
   );
@@ -84,6 +69,7 @@ export default function ChatHeader({
   title, currentId, onSelect, onNew,
   taskBoardOpen, onToggleTaskBoard, monitorOpen, onToggleMonitor,
 }: ChatHeaderProps) {
+  const t = useT();
   const [teammateStatus, setTeammateStatus] = useState<TeammateStatus | null>(null);
 
   useEffect(() => {
@@ -138,25 +124,25 @@ export default function ChatHeader({
                 'p-2 rounded-lg transition-colors',
                 'text-slate-500 hover:text-slate-300 hover:bg-white/5'
               )}
-              title="智能体团队"
+              title={t('agent.title')}
             >
               <Bot className="w-4 h-4" />
             </button>
           </PopoverTrigger>
           <PopoverContent align="end" className="w-80 border-border/60 bg-background/95 p-3">
-            <div className="mb-2 text-sm font-medium text-foreground">智能体团队</div>
+            <div className="mb-2 text-sm font-medium text-foreground">{t('agent.title')}</div>
             {!teammateStatus ? (
-              <div className="rounded-lg border border-dashed border-border/50 p-3 text-xs text-muted-foreground">暂无智能体团队状态</div>
+              <div className="rounded-lg border border-dashed border-border/50 p-3 text-xs text-muted-foreground">{t('common.empty')}</div>
             ) : (
               <div className="grid gap-3">
                 {teammateStatus.leader && (
-                  <StatusGroup title="老板">
+                  <StatusGroup title={t('role.boss')}>
                     <AgentStatusRow agent={teammateStatus.leader} />
                   </StatusGroup>
                 )}
-                <StatusGroup title={teammateStatus.teammateName || '执行团队'}>
+                <StatusGroup title={teammateStatus.teammateName || t('common.empty')}>
                   {teammateStatus.members.length === 0 ? (
-                    <div className="rounded-lg border border-dashed border-border/50 p-2 text-xs text-muted-foreground">暂无团队成员</div>
+                    <div className="rounded-lg border border-dashed border-border/50 p-2 text-xs text-muted-foreground">{t('common.empty')}</div>
                   ) : (
                     teammateStatus.members.map((agent) => <AgentStatusRow key={agent.agentId} agent={agent} />)
                   )}

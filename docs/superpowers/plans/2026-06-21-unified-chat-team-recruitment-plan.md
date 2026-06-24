@@ -13,10 +13,10 @@
 ## Task 1: 创建 Sentinel prompt 占位文件
 
 **Files:**
-- Create: `prompt/sentinel_planner.md`
-- Create: `prompt/sentinel_supervisor.md`
-- Create: `prompt/sentinel_coordinator.md`
-- Create: `prompt/sentinel_cto.md`
+- Create: `apps/desktop/prompt/sentinel_planner.md`
+- Create: `apps/desktop/prompt/sentinel_supervisor.md`
+- Create: `apps/desktop/prompt/sentinel_coordinator.md`
+- Create: `apps/desktop/prompt/sentinel_cto.md`
 
 - [ ] **Step 1: 创建 4 个占位 prompt 文件**
 
@@ -58,7 +58,7 @@ TODO: 补充 cto Sentinel 的系统提示词。
 
 Run:
 ```bash
-ls -la prompt/sentinel_*.md
+ls -la apps/desktop/prompt/sentinel_*.md
 ```
 
 Expected: 4 个文件均存在。
@@ -211,7 +211,7 @@ Expected: 通过。
 ## Task 4: 更新 elder_boss.md 增加 recruit_sentinel 工具说明
 
 **Files:**
-- Modify: `prompt/elder_boss.md`
+- Modify: `apps/desktop/prompt/elder_boss.md`
 
 - [ ] **Step 1: 在 elder_boss.md 增加工具说明段落**
 

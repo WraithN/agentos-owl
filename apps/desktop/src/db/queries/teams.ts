@@ -1,6 +1,6 @@
 import type Database from "better-sqlite3";
 import type { TeamTemplate } from "../types.js";
-import { fromJson, toJson } from "./_json.js";
+import { fromJson, toJson } from "../../utils/json.js";
 
 const selectColumns = `
   SELECT id, name, description, member_ids_json, coordinator_id, trigger_rule, mode, enabled, created_at, updated_at

@@ -7,17 +7,26 @@ export {
   btnPrimaryPlain,
 } from "./ui-styles.js";
 export type * from "./agent/types.js";
-export type { AgentDriver } from "./agent/AgentDriver.js";
-export { MockAgentDriver } from "./agent/MockAgentDriver.js";
-export { AgentFactory, fixedNameGenerator } from "./agent/AgentFactory.js";
-export type { AgentDriverFactory, AgentNameGenerator, AgentToolFactory, RecruitHandler } from "./agent/AgentFactory.js";
-export { BaseAgentRuntime } from "./agent/AgentRuntime.js";
-export type { AgentRuntime, ElderAgentRuntime, SentinelAgentRuntime, WorkerAgentRuntime } from "./agent/AgentRuntime.js";
-export { MessageBox, MessageChannel } from "./owlery/MessageBox.js";
-export { AgentPool } from "./owlery/AgentPool.js";
-export { CrystalBall } from "./owlery/CrystalBall.js";
-export type { AgentWorkSnapshot } from "./owlery/CrystalBall.js";
-export { TeammateManager, createBasicTeammates } from "./owlery/TeammateManager.js";
-export type { BrainstormResult, BrainstormWorkerResult, TeammateManagerOptions } from "./owlery/TeammateManager.js";
-export { Owlery } from "./owlery/Owlery.js";
-export type { ChatLoopInput, SessionSlot, SessionSummary, SessionVisibility, SessionRunStatus, SessionChunkListener, ModeEvaluator, TeammateAgentStatus, TeammateStatus } from "./owlery/Owlery.js";
+export { AgentWorkStatus } from "./agent/types.js";
+export type { LlmModelCategory, LlmModelConfig, LlmProvider } from "./llm-providers.js";
+export {
+  LLM_PROVIDERS,
+  getLlmProvider,
+  hasDefaultLlm,
+  inferLlmProvider,
+  parseLlmModels,
+} from "./llm-providers.js";
+export type { AgentDriver } from "./agent/agent-driver.js";
+export { MockAgentDriver } from "./agent/mock-agent-driver.js";
+export { AgentFactory, fixedNameGenerator } from "./agent/agent-factory.js";
+export type { AgentDriverFactory, AgentNameGenerator, AgentToolFactory, RecruitHandler } from "./agent/agent-factory.js";
+export { BaseAgentRuntime } from "./agent/agent-runtime.js";
+export type { AgentRuntime, ElderAgentRuntime, SentinelAgentRuntime, WorkerAgentRuntime } from "./agent/agent-runtime.js";
+export { MessageBox, MessageChannel } from "./message-box.js";
+export { SessionRunStatus, SessionVisibility } from "./session-types.js";
+export type {
+  AgentWorkSnapshot,
+  SessionSummary,
+  TeammateAgentStatus,
+  TeammateStatus,
+} from "./session-types.js";

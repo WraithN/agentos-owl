@@ -1,7 +1,7 @@
 import type Database from "better-sqlite3";
 import * as queries from "../queries/index.js";
 import type { Agent } from "../types.js";
-import { now } from "./utils.js";
+import { now } from "../../utils/time.js";
 
 export function seedAgents(db: Database.Database): void {
   const count = db.prepare("SELECT COUNT(*) FROM agents").pluck().get() as number;

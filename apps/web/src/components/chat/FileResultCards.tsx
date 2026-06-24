@@ -1,6 +1,6 @@
 /* AI 生成文件结果卡片 */
 import { useEffect, useState } from 'react';
-import { FileText, Eye, Download } from 'lucide-react';
+import { FileText, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { downloadLocalFile, getLocalFileInfo, openLocalFilePreview, type LocalFileInfo } from '@/services/electron';
 import { toast } from 'sonner';
@@ -33,7 +33,8 @@ function FileResultCard({ sessionId, info }: { sessionId: string; info: LocalFil
     });
   };
 
-  const handleDownload = () => {
+  const handleDownload = (e: React.MouseEvent) => {
+    e.stopPropagation();
     if (!info.exists) {
       toast.error('文件不存在，请确认路径正确');
       return;
@@ -48,7 +49,13 @@ function FileResultCard({ sessionId, info }: { sessionId: string; info: LocalFil
   };
 
   return (
-    <div className={`flex items-center gap-3 rounded-xl border p-3 transition-colors ${info.exists ? 'border-border/50 bg-background/50 hover:bg-background/70' : 'border-destructive/30 bg-destructive/5'}`}>
+    <div
+      role="button"
+      tabIndex={info.exists ? 0 : -1}
+      onClick={info.exists ? handlePreview : undefined}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') handlePreview(); }}
+      className={`flex items-center gap-3 rounded-xl border p-3 transition-colors ${info.exists ? 'cursor-pointer border-border/50 bg-background/50 hover:bg-background/70' : 'border-destructive/30 bg-destructive/5'}`}
+    >
       <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${info.exists ? 'bg-cyan-500/10 text-cyan-400' : 'bg-muted text-muted-foreground'}`}>
         <FileText className="h-5 w-5" />
       </div>
@@ -59,9 +66,6 @@ function FileResultCard({ sessionId, info }: { sessionId: string; info: LocalFil
         </p>
       </div>
       <div className="flex shrink-0 items-center gap-1">
-        <Button type="button" variant="ghost" size="icon" className="h-8 w-8" disabled={!info.exists} onClick={handlePreview}>
-          <Eye className="h-4 w-4" />
-        </Button>
         <Button type="button" variant="ghost" size="icon" className="h-8 w-8" disabled={!info.exists} onClick={handleDownload}>
           <Download className="h-4 w-4" />
         </Button>

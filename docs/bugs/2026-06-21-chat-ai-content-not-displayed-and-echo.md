@@ -48,7 +48,7 @@
 2. 在 `done` 分支中，先把 `assistantTextRef.current` / `assistantPartsRef.current` 捕获到局部常量，再发起异步保存，最后重置引用。
 3. 在 `error` 分支中也同步清空文本/片段引用，避免错误后继续影响下一条消息。
 
-### 系统提示：`prompt/boss_agent.md`
+### 系统提示：`apps/desktop/prompt/boss_agent.md`
 
 在“强约束红线”中新增：
 

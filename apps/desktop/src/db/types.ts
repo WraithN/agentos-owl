@@ -40,6 +40,7 @@ export interface Conversation {
   lastTime: number;
   unread: number;
   agentIds: string[];
+  agentNames: Record<string, string>;
   pinned: boolean;
   createdAt: number;
   updatedAt: number;

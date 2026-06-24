@@ -1,6 +1,6 @@
 import type Database from "better-sqlite3";
 import type { Message } from "../types.js";
-import { fromJson, toJson } from "./_json.js";
+import { fromJson, toJson } from "../../utils/json.js";
 
 const selectColumns = `
   SELECT id, conversation_id, msg_type, content_type, status, content, agent_id, timestamp,

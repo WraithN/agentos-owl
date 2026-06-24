@@ -1,6 +1,6 @@
 import type Database from "better-sqlite3";
 import type { WorkflowTemplate } from "../types.js";
-import { fromJson, toJson } from "./_json.js";
+import { fromJson, toJson } from "../../utils/json.js";
 
 const DEFAULT_VIEWPORT = { x: 0, y: 0, scale: 1 };
 

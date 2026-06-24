@@ -1,6 +1,6 @@
 import type Database from "better-sqlite3";
 import type { Prompt } from "../types.js";
-import { fromJson, toJson } from "./_json.js";
+import { fromJson, toJson } from "../../utils/json.js";
 
 const selectColumns = `
   SELECT id, name, description, content, official, is_favorite, tags_json,

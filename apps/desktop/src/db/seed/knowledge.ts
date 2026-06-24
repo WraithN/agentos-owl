@@ -1,7 +1,7 @@
 import type Database from "better-sqlite3";
 import * as queries from "../queries/index.js";
 import type { DocChunk, KnowledgeDoc } from "../types.js";
-import { daysAgo } from "./utils.js";
+import { daysAgo } from "../../utils/time.js";
 
 export function seedKnowledge(db: Database.Database): void {
   const count = db.prepare("SELECT COUNT(*) FROM knowledge_docs").pluck().get() as number;

@@ -4,16 +4,11 @@ import { ChevronDown, ChevronLeft, ChevronRight, ChevronRight as ChevronRightIco
 import { cn } from '@/lib/utils';
 import { listAuditLogs, listConversationDetails, listSessionLogs, type AuditLog, type ConversationDetailEntry, type SessionLog } from '@/services/electron';
 import { toast } from 'sonner';
+import { useT } from '@/lib/i18n';
 
 type TabKey = 'session' | 'audit';
 
 const PAGE_SIZE = 8;
-
-const SESSION_MODE_LABEL: Record<string, string> = {
-  single: '单聊',
-  squad:  '群聊',
-  auto:   '自动化',
-};
 
 const SESSION_STATUS_STYLE: Record<string, string> = {
   success: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/25',
@@ -25,6 +20,11 @@ const AUDIT_RESULT_STYLE: Record<string, string> = {
   success: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/25',
   failed:  'bg-rose-500/15 text-rose-400 border-rose-500/25',
 };
+
+function ModeLabel({ mode }: { mode: string }) {
+  const t = useT();
+  return <>{t(`mode.${mode}` as Parameters<ReturnType<typeof useT>>[0], mode)}</>;
+}
 
 function formatTimestamp(d: Date): string {
   const pad = (n: number) => n.toString().padStart(2, '0');
@@ -290,7 +290,7 @@ function SessionLogTable({
                   <td className="px-4 py-3 text-xs text-slate-300 whitespace-nowrap max-w-[160px] truncate" title={log.conversationTitle}>
                     {log.conversationTitle || '-'}
                   </td>
-                  <td className="px-4 py-3 text-xs text-slate-400 whitespace-nowrap">{SESSION_MODE_LABEL[log.mode] ?? log.mode}</td>
+                  <td className="px-4 py-3 text-xs text-slate-400 whitespace-nowrap"><ModeLabel mode={log.mode} /></td>
                   <td className="px-4 py-3 text-xs text-slate-300 whitespace-nowrap">{log.agentName || '-'}</td>
                   <td className="px-4 py-3 text-xs text-slate-400 font-mono whitespace-nowrap">{log.model || '-'}</td>
                   <td className="px-4 py-3 text-xs text-slate-300 font-mono whitespace-nowrap">{log.event}</td>

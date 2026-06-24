@@ -67,24 +67,24 @@ export function FilePreviewPage() {
         className="glass-l2 flex h-12 shrink-0 select-none items-center justify-between border-b border-border/60 px-3"
         style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}
       >
-        <div className="flex items-center gap-1" style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}>
-          <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={handleClose} title="关闭">
-            <X className="h-4 w-4" />
+        <div style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}>
+          <Button type="button" variant="ghost" size="sm" className="gap-1.5" onClick={handleDownload} disabled={!fileName}>
+            <Download className="h-4 w-4" />
+            下载
           </Button>
+        </div>
+        <div className="min-w-0 px-4 text-center text-sm font-medium text-muted-foreground">
+          <span className="truncate">{fileName || '文件安全预览'}</span>
+        </div>
+        <div className="flex items-center gap-1" style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}>
           <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={handleMinimize} title="最小化">
             <Minus className="h-4 w-4" />
           </Button>
           <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={handleMaximize} title={isMaximized ? '还原' : '最大化'}>
             {isMaximized ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
           </Button>
-        </div>
-        <div className="min-w-0 px-4 text-center text-sm font-medium text-muted-foreground">
-          <span className="truncate">{fileName || '文件安全预览'}</span>
-        </div>
-        <div style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}>
-          <Button type="button" variant="ghost" size="sm" className="gap-1.5" onClick={handleDownload} disabled={!fileName}>
-            <Download className="h-4 w-4" />
-            下载
+          <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={handleClose} title="关闭">
+            <X className="h-4 w-4" />
           </Button>
         </div>
       </header>

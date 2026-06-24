@@ -1,7 +1,7 @@
 # create_x_file 插件化文件写入与 Agent 工具重分配设计
 
 > 设计日期：2026-06-23
-> 关联模块：`apps/desktop/src/agent/`、`apps/desktop/package.json`、`prompt/`
+> 关联模块：`apps/desktop/src/agent/`、`apps/desktop/package.json`、`apps/desktop/prompt/`
 > 状态：待实现
 
 ## 1. 背景与目标
@@ -273,12 +273,12 @@ export async function writeXFile(params: WriteXFileParams): Promise<string> {
 
 ## 8. 提示词更新
 
-### 8.1 `prompt/sentinel_planner.md`
+### 8.1 `apps/desktop/prompt/sentinel_planner.md`
 
 - 禁止列表：`read_file`、`list_directory`、`execute_command`、`create_docx` → `read_file`、`list_directory`、`create_x_file`、`execute_command`。
 - 输出约束：`create_docx` → `create_x_file`；路径说明改为 `~/.config/owl-os/workspace/文件名`。
 
-### 8.2 `prompt/worker.md`
+### 8.2 `apps/desktop/prompt/worker.md`
 
 - 第 6 条：`create_docx` → `create_x_file`。
 - 路径说明：`默认路径 /tmp/文件名.docx` → `~/.config/owl-os/workspace/文件名`。
@@ -307,8 +307,8 @@ export async function writeXFile(params: WriteXFileParams): Promise<string> {
 - `apps/desktop/package.json`（新增依赖）
 - `apps/desktop/src/agent/tools.ts`（删除 `write_file`/`create_docx`，新增 `create_x_file`，改造 `read_file`/`list_directory`/`execute_command`）
 - `apps/desktop/src/agent/owleryAgentFactory.ts`（按新分配挂载工具）
-- `prompt/sentinel_planner.md`
-- `prompt/worker.md`
+- `apps/desktop/prompt/sentinel_planner.md`
+- `apps/desktop/prompt/worker.md`
 
 ## 10. 风险与后续扩展
 

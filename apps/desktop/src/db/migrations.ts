@@ -2,7 +2,8 @@ import type Database from "better-sqlite3";
 import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
-import { setSecret } from "../secure.js";
+import { inferLlmProvider } from "@owl-os/core";
+import { setSecret } from "../utils/crypto/secrets.js";
 
 /**
  * 增量迁移：仅对老库（缺字段或坏数据）做幂等修复。
@@ -12,6 +13,7 @@ export function runMigrations(db: Database.Database): void {
   ensureWorkflowColumns(db);
   ensureConversationTeammateMode(db);
   ensureConversationTeamTemplateId(db);
+  ensureConversationAgentNamesColumn(db);
   purgeLegacyWorkflowData(db);
   ensureLogTables(db);
   ensureSessionLogDetailPath(db);
@@ -21,10 +23,11 @@ export function runMigrations(db: Database.Database): void {
   removeSkillPromptCategoryColumns(db);
   ensurePromptFavoriteColumn(db);
   normalizeMarketToolTypes(db);
+  ensureLlmModelProvider(db);
   importDeepSeekConfig(db);
   purgeSeedConversations(db);
   purgeMockLogs(db);
-  bumpSchemaVersion(db, 8);
+  bumpSchemaVersion(db, 9);
 }
 
 /**
@@ -108,6 +111,13 @@ function ensureConversationTeamTemplateId(db: Database.Database): void {
   const cols = tableColumns(db, "conversations");
   if (!cols.has("team_template_id")) {
     db.exec("ALTER TABLE conversations ADD COLUMN team_template_id TEXT");
+  }
+}
+
+function ensureConversationAgentNamesColumn(db: Database.Database): void {
+  const cols = tableColumns(db, "conversations");
+  if (!cols.has("agent_names_json")) {
+    db.exec("ALTER TABLE conversations ADD COLUMN agent_names_json TEXT NOT NULL DEFAULT '{}'");
   }
 }
 
@@ -281,6 +291,38 @@ function ensurePromptFavoriteColumn(db: Database.Database): void {
 
 function normalizeMarketToolTypes(db: Database.Database): void {
   db.prepare("UPDATE market_tools SET tool_type = 'cli' WHERE tool_type = 'skill'").run();
+}
+
+/**
+ * 为已有 llmModels 补全 provider 字段。
+ * 老数据可能只填了 baseUrl，现按 baseUrl 推断供应商，避免 Vercel AI SDK 无法识别 provider。
+ */
+function ensureLlmModelProvider(db: Database.Database): void {
+  const existing = db
+    .prepare("SELECT value FROM settings WHERE key = 'llmModels'")
+    .get() as { value: string } | undefined;
+  if (!existing?.value) return;
+
+  try {
+    const list = JSON.parse(existing.value) as Array<Record<string, unknown>>;
+    let changed = false;
+    for (const m of list) {
+      if (!m.provider || typeof m.provider !== "string") {
+        const baseUrl = typeof m.baseUrl === "string" ? m.baseUrl : "";
+        m.provider = inferLlmProvider(baseUrl, String(m.provider ?? ""));
+        changed = true;
+      }
+    }
+    if (!changed) return;
+
+    const now = Date.now();
+    db.prepare(
+      `INSERT INTO settings (key, value, updated_at) VALUES ('llmModels', ?, ?)
+       ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`,
+    ).run(JSON.stringify(list), now);
+  } catch {
+    // 格式异常时跳过，避免阻塞启动
+  }
 }
 
 /**

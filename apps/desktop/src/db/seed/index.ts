@@ -1,12 +1,12 @@
 import type Database from "better-sqlite3";
 import { seedAgents } from "./agents.js";
-import { seedAuditLogs } from "./auditLogs.js";
+import { seedAuditLogs } from "./audit-logs.js";
 import { seedBilling } from "./billing.js";
 import { seedConversations } from "./conversations.js";
 import { seedDefaultUser } from "./users.js";
 import { seedExtensions } from "./extensions.js";
 import { seedKnowledge } from "./knowledge.js";
-import { seedMarketTools } from "./marketTools.js";
+import { seedMarketTools } from "./market-tools.js";
 import { seedNotifications } from "./notifications.js";
 import { seedTasks } from "./tasks.js";
 import { seedTeams } from "./teams.js";

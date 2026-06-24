@@ -14,9 +14,18 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@ai-sdk/anthropic": "^3.0.85",
+    "@ai-sdk/deepseek": "^2.0.39",
+    "@ai-sdk/google": "^3.0.83",
+    "@ai-sdk/groq": "^3.0.42",
+    "@ai-sdk/mistral": "^3.0.40",
+    "@ai-sdk/openai": "^3.0.74",
+    "@ai-sdk/openai-compatible": "^2.0.51",
+    "@ai-sdk/xai": "^3.0.96",
     "@earendil-works/pi-agent-core": "^0.79.4",
     "@earendil-works/pi-ai": "^0.79.4",
     "@owl-os/core": "workspace:*",
+    "ai": "^6.0.208",
     "argon2": "^0.44.0",
     "better-sqlite3": "^12.10.1",
     "docx": "^9.7.1",

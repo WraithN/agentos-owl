@@ -1,7 +1,7 @@
 import type Database from "better-sqlite3";
 import * as queries from "../queries/index.js";
 import type { TeamTemplate } from "../types.js";
-import { daysAgo } from "./utils.js";
+import { daysAgo } from "../../utils/time.js";
 
 export function seedTeams(db: Database.Database): void {
   const count = db.prepare("SELECT COUNT(*) FROM team_templates").pluck().get() as number;

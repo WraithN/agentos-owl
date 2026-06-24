@@ -5,7 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import { seedIfEmpty } from "./seed/index.js";
 import { runMigrations } from "./migrations.js";
-import { purgeExpiredConversationDetails } from "../services/ConversationDetailStore.js";
+import { purgeExpiredConversationDetails } from "../services/conversation-detail-store.js";
 
 let db: Database.Database | null = null;
 

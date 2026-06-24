@@ -1,40 +1,17 @@
 /* 跨组件订阅 LLM 模型配置 */
 import { useEffect, useState } from 'react';
+import type { LlmModelConfig } from '@owl-os/core';
+import { hasDefaultLlm, parseLlmModels } from '@owl-os/core';
 import { getSettings } from '@/services/electron';
 
 const EVENT_NAME = 'owl:llm-models-changed';
 
-export interface LlmModelMeta {
-  id: string;
-  name: string;
-  baseUrl: string;
-  provider?: string;
-  category: 'llm' | 'embedding' | 'voice';
-  isDefault?: boolean;
-}
-
-function parseModels(value: unknown): LlmModelMeta[] {
-  if (!Array.isArray(value)) return [];
-  return value.filter((m): m is LlmModelMeta => {
-    if (!m || typeof m !== 'object') return false;
-    const v = m as Record<string, unknown>;
-    return (
-      typeof v.id === 'string' &&
-      typeof v.name === 'string' &&
-      typeof v.baseUrl === 'string' &&
-      (v.category === 'llm' || v.category === 'embedding' || v.category === 'voice')
-    );
-  });
-}
-
-function hasDefaultLlm(models: LlmModelMeta[]): boolean {
-  return models.some((m) => m.category === 'llm' && m.isDefault === true);
-}
+export type { LlmModelConfig };
 
 /** 订阅 LLM 模型元数据，跨组件自动同步 */
-export function useLlmModels(): { ready: boolean; models: LlmModelMeta[] } {
+export function useLlmModels(): { ready: boolean; models: LlmModelConfig[] } {
   const [ready, setReady] = useState(false);
-  const [models, setModels] = useState<LlmModelMeta[]>([]);
+  const [models, setModels] = useState<LlmModelConfig[]>([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -43,7 +20,7 @@ export function useLlmModels(): { ready: boolean; models: LlmModelMeta[] } {
       try {
         const settings = await getSettings();
         if (cancelled) return;
-        setModels(parseModels(settings['llmModels']));
+        setModels(parseLlmModels(typeof settings['llmModels'] === 'string' ? settings['llmModels'] : undefined));
       } catch {
         if (!cancelled) setModels([]);
       } finally {
@@ -54,9 +31,9 @@ export function useLlmModels(): { ready: boolean; models: LlmModelMeta[] } {
     refresh();
 
     const onChange = (e: Event) => {
-      const detail = (e as CustomEvent<{ metadata?: LlmModelMeta[] }>).detail;
+      const detail = (e as CustomEvent<{ metadata?: LlmModelConfig[] }>).detail;
       if (detail?.metadata) {
-        setModels(parseModels(detail.metadata));
+        setModels(parseLlmModels(JSON.stringify(detail.metadata)));
       } else {
         refresh();
       }
@@ -80,8 +57,8 @@ export function useHasDefaultLlmModel(): { ready: boolean; hasDefault: boolean }
 /** 仅返回对话类（category==='llm'）模型，便于「智能体配置」下拉选择 */
 export function useChatLlmModels(): {
   ready: boolean;
-  models: LlmModelMeta[];
-  defaultModel?: LlmModelMeta;
+  models: LlmModelConfig[];
+  defaultModel?: LlmModelConfig;
 } {
   const { ready, models } = useLlmModels();
   const chatModels = models.filter((m) => m.category === 'llm');

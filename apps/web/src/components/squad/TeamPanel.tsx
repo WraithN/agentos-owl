@@ -1,4 +1,4 @@
-/* 团队面板 - 群聊模式左侧 */
+/* 团队面板 - 智能体协作左侧 */
 import { motion } from 'framer-motion';
 import { Plus } from 'lucide-react';
 import { cn } from '@/lib/utils';

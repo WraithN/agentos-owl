@@ -1,6 +1,8 @@
 /* LLM 配置 — 模型管理（含默认模型选择） */
 import { useEffect, useMemo, useState } from 'react';
 import { Eye, EyeOff, Plus, Trash2, Brain, Mic, Database, Pencil, AlertTriangle, Save, X, Loader2 } from 'lucide-react';
+import type { LlmModelConfig } from '@owl-os/core';
+import { LLM_PROVIDERS, getLlmProvider, inferLlmProvider } from '@owl-os/core';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
 import { inputCls as globalInputCls, btnPrimary } from '@/lib/ui-styles';
@@ -14,20 +16,10 @@ import {
 import { toast } from 'sonner';
 
 /* ── 模型类型定义 ─────────────────────────────────────────────────────── */
-export type ModelCategory = 'llm' | 'embedding' | 'voice';
+export type { LlmModelConfig } from '@owl-os/core';
+export type ModelCategory = LlmModelConfig['category'];
 
-export interface LLMModelMeta {
-  id: string;
-  name: string;
-  baseUrl: string;
-  provider?: string;
-  category: ModelCategory;
-  isDefault?: boolean;
-}
-
-interface LLMModel extends LLMModelMeta {
-  apiKey: string;
-}
+type LLMModel = LlmModelConfig & { apiKey: string };
 
 const CATEGORY_CFG: Record<ModelCategory, { label: string; icon: typeof Brain; color: string; bg: string }> = {
   llm:       { label: '对话模型',   icon: Brain,    color: 'text-violet-400',  bg: 'bg-violet-500/15 border-violet-500/25' },
@@ -40,20 +32,19 @@ const DIALOG_BD = 'var(--border-subtle)';
 
 const SECRET_PREFIX = 'llm_model_key/';
 
-function isModelMeta(value: unknown): value is LLMModelMeta {
-  if (!value || typeof value !== 'object') return false;
-  const v = value as Record<string, unknown>;
-  return (
-    typeof v.id === 'string' &&
-    typeof v.name === 'string' &&
-    typeof v.baseUrl === 'string' &&
-    (v.category === 'llm' || v.category === 'embedding' || v.category === 'voice')
-  );
-}
-
-function parseModels(value: unknown): LLMModelMeta[] {
+function parseModels(value: unknown): LlmModelConfig[] {
   if (!Array.isArray(value)) return [];
-  return value.filter(isModelMeta);
+  return value.filter((m): m is LlmModelConfig => {
+    if (!m || typeof m !== 'object') return false;
+    const v = m as Record<string, unknown>;
+    return (
+      typeof v.id === 'string' &&
+      typeof v.name === 'string' &&
+      typeof v.baseUrl === 'string' &&
+      typeof v.provider === 'string' &&
+      (v.category === 'llm' || v.category === 'embedding' || v.category === 'voice')
+    );
+  });
 }
 
 /* ── 删除确认弹窗 ─────────────────────────────────────────────────────── */
@@ -96,27 +87,42 @@ function ModelCard({ model, onDelete, onSave, onToggleDefault }: {
   const [showKey, setShowKey] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [name, setName] = useState(model.name);
+  const [provider, setProvider] = useState(model.provider);
   const [baseUrl, setBaseUrl] = useState(model.baseUrl);
   const [apiKey, setApiKey] = useState(model.apiKey);
   const cfg = CATEGORY_CFG[model.category];
   const Icon = cfg.icon;
+  const providerMeta = getLlmProvider(provider);
 
   useEffect(() => {
     setName(model.name);
+    setProvider(model.provider);
     setBaseUrl(model.baseUrl);
     setApiKey(model.apiKey);
-  }, [model.id, model.name, model.baseUrl, model.apiKey]);
+  }, [model.id, model.name, model.provider, model.baseUrl, model.apiKey]);
 
   const inputCls = 'w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-slate-200 placeholder-slate-600 outline-none focus:border-cyan-500/50 transition-colors font-mono';
+  const selectCls = 'w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-slate-200 outline-none focus:border-cyan-500/50 transition-colors appearance-none';
+
+  function updateProvider(nextProvider: string) {
+    setProvider(nextProvider);
+    const meta = getLlmProvider(nextProvider);
+    if (!meta) return;
+    const currentDefault = getLlmProvider(provider)?.defaultBaseUrl;
+    // 仅在当前 baseUrl 为空或仍等于旧供应商默认地址时自动替换，避免覆盖用户自定义地址
+    if (!baseUrl.trim() || baseUrl.trim() === currentDefault) {
+      setBaseUrl(meta.defaultBaseUrl);
+    }
+  }
 
   function save() {
-    if (!name.trim() || !baseUrl.trim()) return;
-    onSave(model.id, { name: name.trim(), baseUrl: baseUrl.trim(), apiKey: apiKey.trim() });
+    if (!name.trim() || !baseUrl.trim() || !provider.trim()) return;
+    onSave(model.id, { name: name.trim(), provider: provider.trim(), baseUrl: baseUrl.trim(), apiKey: apiKey.trim() });
     setEditing(false);
   }
 
   function cancel() {
-    setName(model.name); setBaseUrl(model.baseUrl); setApiKey(model.apiKey);
+    setName(model.name); setProvider(model.provider); setBaseUrl(model.baseUrl); setApiKey(model.apiKey);
     setEditing(false);
   }
 
@@ -137,7 +143,12 @@ function ModelCard({ model, onDelete, onSave, onToggleDefault }: {
                 <span className={cn('text-[10px] px-1.5 py-0.5 rounded border font-medium shrink-0', cfg.bg, cfg.color)}>默认</span>
               )}
             </div>
-            <p className="text-[11px] text-slate-500 truncate mt-0.5">{model.baseUrl}</p>
+            <div className="flex items-center gap-2 mt-0.5">
+              <span className="text-[10px] px-1.5 py-0.5 rounded border bg-white/5 border-white/10 text-slate-400 shrink-0">
+                {providerMeta?.name ?? model.provider}
+              </span>
+              <p className="text-[11px] text-slate-500 truncate">{model.baseUrl}</p>
+            </div>
           </div>
           <span className="flex items-center gap-1 shrink-0" onClick={e => e.stopPropagation()}>
             <button type="button" onClick={() => onToggleDefault(model.id)}
@@ -165,6 +176,14 @@ function ModelCard({ model, onDelete, onSave, onToggleDefault }: {
                   <input value={name} onChange={e => setName(e.target.value)} placeholder="如 gpt-4o" className={inputCls} />
                 </div>
                 <div>
+                  <label className="text-[11px] text-slate-500 font-medium block mb-1">供应商</label>
+                  <select value={provider} onChange={e => updateProvider(e.target.value)} className={selectCls}>
+                    {LLM_PROVIDERS.map((p) => (
+                      <option key={p.id} value={p.id}>{p.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
                   <label className="text-[11px] text-slate-500 font-medium block mb-1">Base URL</label>
                   <input value={baseUrl} onChange={e => setBaseUrl(e.target.value)} placeholder="https://api.openai.com/v1" className={inputCls} />
                 </div>
@@ -185,7 +204,7 @@ function ModelCard({ model, onDelete, onSave, onToggleDefault }: {
                   <button type="button" onClick={cancel} className="flex items-center gap-1 px-3 py-1.5 text-xs text-slate-400 hover:text-slate-200 hover:bg-white/8 rounded-lg transition-colors">
                     <X className="w-3 h-3" />取消
                   </button>
-                  <button type="button" onClick={save} disabled={!name.trim() || !baseUrl.trim()}
+                  <button type="button" onClick={save} disabled={!name.trim() || !baseUrl.trim() || !provider.trim()}
                     className={cn(btnPrimary, 'rounded-xl py-2')}>
                     <Save className="w-3 h-3" />保存
                   </button>
@@ -207,16 +226,24 @@ function ModelCard({ model, onDelete, onSave, onToggleDefault }: {
 /* ── 新增表单 ─────────────────────────────────────────────────────────── */
 function AddModelForm({ onAdd, onCancel }: { onAdd: (m: Omit<LLMModel, 'id'>) => void; onCancel: () => void }) {
   const [name, setName] = useState('');
+  const [provider, setProvider] = useState('openai');
   const [baseUrl, setBaseUrl] = useState('');
   const [apiKey, setApiKey] = useState('');
   const [category, setCategory] = useState<ModelCategory>('llm');
 
+  function updateProvider(nextProvider: string) {
+    setProvider(nextProvider);
+    const meta = getLlmProvider(nextProvider);
+    if (meta) setBaseUrl(meta.defaultBaseUrl);
+  }
+
   function submit() {
-    if (!name.trim() || !baseUrl.trim()) return;
-    onAdd({ name: name.trim(), baseUrl: baseUrl.trim(), apiKey: apiKey.trim(), category });
+    if (!name.trim() || !baseUrl.trim() || !provider.trim()) return;
+    onAdd({ name: name.trim(), provider: provider.trim(), baseUrl: baseUrl.trim(), apiKey: apiKey.trim(), category });
   }
 
   const inputCls = globalInputCls;
+  const selectCls = 'w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-slate-200 outline-none focus:border-cyan-500/50 transition-colors appearance-none';
   return (
     <div className="glass rounded-xl p-4 space-y-3 border border-cyan-500/20">
       <p className="text-xs font-semibold text-slate-300">新增模型</p>
@@ -229,11 +256,16 @@ function AddModelForm({ onAdd, onCancel }: { onAdd: (m: Omit<LLMModel, 'id'>) =>
         ))}
       </div>
       <input value={name} onChange={e => setName(e.target.value)} placeholder="模型名称（如 gpt-4o）" className={inputCls} />
+      <select value={provider} onChange={e => updateProvider(e.target.value)} className={selectCls}>
+        {LLM_PROVIDERS.map((p) => (
+          <option key={p.id} value={p.id}>{p.name}</option>
+        ))}
+      </select>
       <input value={baseUrl} onChange={e => setBaseUrl(e.target.value)} placeholder="Base URL（如 https://api.openai.com/v1）" className={inputCls} />
       <input value={apiKey} onChange={e => setApiKey(e.target.value)} placeholder="API Key" type="password" className={inputCls} />
       <div className="flex gap-2 justify-end">
         <button type="button" onClick={onCancel} className="px-3 py-1.5 text-xs text-slate-500 hover:text-slate-300 hover:bg-white/8 rounded-lg transition-colors">取消</button>
-        <button type="button" onClick={submit} disabled={!name.trim() || !baseUrl.trim()}
+        <button type="button" onClick={submit} disabled={!name.trim() || !baseUrl.trim() || !provider.trim()}
           className={btnPrimary}>
           <Plus className="w-3 h-3" />添加
         </button>
@@ -276,7 +308,7 @@ export default function ApiSettings() {
 
   /* ── 持久化辅助 ── */
   async function persist(next: LLMModel[]) {
-    const metadata: LLMModelMeta[] = next.map(({ apiKey: _omit, ...meta }) => meta);
+    const metadata: LlmModelConfig[] = next.map(({ apiKey: _omit, ...meta }) => meta);
     await saveSettings({ llmModels: metadata });
     window.dispatchEvent(new CustomEvent('owl:llm-models-changed', { detail: { metadata } }));
   }

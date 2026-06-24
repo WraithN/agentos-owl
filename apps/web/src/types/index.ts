@@ -4,7 +4,7 @@
 // 基础类型
 // ============================================================
 
-/** 应用模式：统一对话 / 自动化 */
+/** 应用模式：对话 / 自动化 */
 export type AppMode = 'chat' | 'auto';
 
 /** Teammate 协作模式：由前端指定并传入 Owlery */
@@ -143,14 +143,16 @@ export interface Conversation {
   id: string;
   title: string;
   mode: AppMode;
-  /** @deprecated 由 teamTemplateId 替代，保留仅用于兼容旧数据 */
+  /** 用户指定的协作策略（如 pipeline / brainstorm）；未指定时由 Elder Agent 自行判断 */
   teammateMode?: TeammateMode;
-  /** 用户手动选择的团队模板 ID */
+  /** 用户手动选择的团队模板 ID，优先级高于 teammateMode */
   teamTemplateId?: string;
   lastMessage: string;
   lastTime: Date;
   unread: number;
   agentIds: string[];   // 参与的 Agent
+  /** 会话级 Agent 名字缓存，用于保持老板等名字一致 */
+  agentNames?: Record<string, string>;
   pinned?: boolean;
   createdAt: Date;
   updatedAt: Date;

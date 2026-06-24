@@ -48,9 +48,9 @@
 
 ### Prompt 工程
 
-1. `prompt/sentinel_planner.md`：明确 Planner 是纯调度者，禁止调用执行工具，必须使用 `dispatch_task` / `validate_output` / `submit_to_elder`。
-2. `prompt/worker.md`：明确 researcher 只输出研究成果，writer 必须生成 `.docx`。
-3. `prompt/elder_boss.md`：增加最终评审章节，要求输出评审标记，最多 5 轮。
+1. `apps/desktop/prompt/sentinel_planner.md`：明确 Planner 是纯调度者，禁止调用执行工具，必须使用 `dispatch_task` / `validate_output` / `submit_to_elder`。
+2. `apps/desktop/prompt/worker.md`：明确 researcher 只输出研究成果，writer 必须生成 `.docx`。
+3. `apps/desktop/prompt/elder_boss.md`：增加最终评审章节，要求输出评审标记，最多 5 轮。
 
 ### 文件卡片兜底
 

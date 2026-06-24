@@ -6,7 +6,7 @@ import type {
   ToolCategory,
   ToolCategoryScope,
 } from "../types.js";
-import { daysAgo, now } from "./utils.js";
+import { daysAgo, now } from "../../utils/time.js";
 
 /**
  * 扩展模块（技能 / 提示词 / 标签）的种子数据。

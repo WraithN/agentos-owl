@@ -1,7 +1,7 @@
 import type Database from "better-sqlite3";
 import * as queries from "../queries/index.js";
 import type { BillingRecord } from "../types.js";
-import { daysAgo } from "./utils.js";
+import { daysAgo } from "../../utils/time.js";
 
 export function seedBilling(db: Database.Database): void {
   const count = db.prepare("SELECT COUNT(*) FROM billing_records").pluck().get() as number;

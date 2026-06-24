@@ -30,7 +30,7 @@
     - 前端代码位于 `apps/web/`
     - Electron 主进程/预加载脚本/构建配置位于 `apps/desktop/`
     - 原 Tauri Rust 代码已删除
-  - 认证与数据持久化通过 Electron IPC（`apps/web/src/services/electron.ts` ↔ `apps/desktop/src/ipc/`）接入本地 SQLite（`better-sqlite3`）。
+  - 认证与数据持久化通过 Electron IPC（`apps/web/src/services/electron.ts` ↔ `apps/desktop/src/api/ipc/`）接入本地 SQLite（`better-sqlite3`）。
   - 业务数据仍在逐步从 `apps/web/src/data/mockData.ts` 迁移到真实后端；部分模块仍使用 mock 作为 fallback。
   - LLM 调用、文档解析、Shell 执行等能力已通过 IPC 暴露接口，但真实模型/服务接入仍在进行中。
 
@@ -78,7 +78,7 @@
   - 针对 WSL2 / 容器环境禁用 GPU 加速，避免 X11/WSLg 图像传输错误。
 - **预加载脚本**：`apps/desktop/src/preload.ts`
   - 通过 `contextBridge.exposeInMainWorld("electron", { invoke, on })` 暴露安全的 IPC API。
-- **IPC 注册入口**：`apps/desktop/src/ipc/index.ts`
+- **IPC 注册入口**：`apps/desktop/src/api/ipc/index.ts`
   - 按领域分文件注册：`auth`、`settings`、`agents`、`conversations`、`messages`、`tasks`、`workflows`、`knowledge`、`marketTools`、`extensions`、`teams`、`billing`、`notifications`、`apiKeys`、`webhooks`、`auditLogs`、`files`、`shell`、`llm`、`parseDocument`、`owlery`、`window` 等。
 
 ### 2.3 数据库与持久化
@@ -127,10 +127,13 @@
 │   │   │   ├── main.ts              # 主进程入口
 │   │   │   ├── preload.ts           # 预加载脚本（暴露 electron API）
 │   │   │   ├── renderer/            # 生产环境 renderer 入口 HTML
+│   │   │   ├── agent-runtime/       # Agent 构造与运行依赖
+│   │   │   ├── agent-orchestrator/  # Agent 会话编排（Worker 内 + 主进程）
+│   │   │   ├── api/                 # IPC + WebSocket 统一入口
+│   │   │   ├── config/              # 预览等运行时配置
 │   │   │   ├── db/                  # SQLite schema、迁移、查询、种子
-│   │   │   ├── ipc/                 # IPC handlers
-│   │   │   ├── agent/               # Agent 运行时与驱动
 │   │   │   ├── services/            # 主进程服务（审计日志、会话详情存储）
+│   │   │   ├── utils/               # 程序内部工具
 │   │   │   └── __tests__/           # Vitest 测试
 │   │   ├── scripts/                 # 开发/构建辅助脚本
 │   │   ├── vite.*.config.ts         # 主进程/预加载/renderer 构建配置
@@ -253,6 +256,7 @@ npx tailwindcss -i ./apps/web/src/index.css -o /dev/null 2>&1 | grep -E '^(CssSy
 - 嵌套深度 ≤ 3 层，超出时使用提前返回（Guard Clauses）或抽取小函数。
 - 重复逻辑出现 ≥ 2 次必须抽取为有意义的命名函数。
 - 字面量需抽取为命名常量（UPPER_SNAKE_CASE）， obvious 的 `0`/`1`/`-1` 索引、`true`/`false` 简单判断、纯 UI 临时字符串除外。
+- **`apps/desktop/src` 下文件与目录统一使用小写 + 短横线（kebab-case）命名**：例如 `agent-executor.ts`、`api-keys.ts`、`session-stream.ts`、`web-socket-server.ts`。类名/类型名仍使用 PascalCase，但文件名必须统一为 kebab-case，避免 `AgentExecutor.ts`、`apiKeys.ts` 等混合格式。
 
 ### 5.3 Biome 规则（`biome.json`）
 
@@ -304,13 +308,13 @@ npx tailwindcss -i ./apps/web/src/index.css -o /dev/null 2>&1 | grep -E '^(CssSy
   - 封装所有 IPC 调用；
   - 将后端返回的时间戳（number）统一转换为 `Date`；
   - 将前端待发送的 `Date` 统一转换为时间戳（number）。
-- 新增持久化数据流时，应优先在 `apps/web/src/services/electron.ts` 增加封装函数，在 `apps/desktop/src/ipc/` 增加 handler，在 `apps/desktop/src/db/queries/` 增加查询，必要时更新 `apps/desktop/src/db/schema.sql` 与 `migrations.ts`。
+- 新增持久化数据流时，应优先在 `apps/web/src/services/electron.ts` 增加封装函数，在 `apps/desktop/src/api/ipc/` 增加 handler，在 `apps/desktop/src/db/queries/` 增加查询，必要时更新 `apps/desktop/src/db/schema.sql` 与 `migrations.ts`。
 
 ## 6. 测试策略
 
 - **前端当前没有安装任何测试框架**，也没有单元测试、集成测试或 E2E 测试文件。
 - **桌面端与共享包使用 Vitest**：
-  - `apps/desktop/src/__tests__/PiAgentDriver.test.ts`
+  - `apps/desktop/src/__tests__/pi-agent-driver.test.ts`
   - `packages/core/` 的 `test` 脚本为 `vitest run`
 - 根 `package.json` 的 `test` 脚本：`pnpm --filter @owl-os/core --filter @owl-os/desktop test`
 - `TODO.md` 的 P3 阶段提到计划引入 Playwright/Cypress 关键路径测试，但目前未实施。
@@ -328,7 +332,7 @@ npx tailwindcss -i ./apps/web/src/index.css -o /dev/null 2>&1 | grep -E '^(CssSy
 - `.env` 已加入敏感文件保护，AI 代理无法直接读取。
 - **不要**在代码中硬编码 API 密钥、数据库 URL、Sentry DSN 等敏感信息；应通过 `import.meta.env['VITE_*']` 读取。
 - `AuthContext.tsx` 已改用 Electron IPC 本地认证服务（`apps/web/src/services/electron.ts`），未采用邮箱拼接约定。
-- 用户密码在桌面端使用 `argon2` 哈希存储；API 密钥等敏感信息建议走 `apps/desktop/src/ipc/secrets.ts` 的 `get_secret` / `set_secret`。
+- 用户密码在桌面端使用 `argon2` 哈希存储；API 密钥等敏感信息建议走 `apps/desktop/src/api/ipc/secrets.ts` 的 `get_secret` / `set_secret`。
 - 桌面端文件系统操作（打开文件、Shell 执行）均已通过 IPC 暴露，前端不直接访问 Node.js API。
 
 ## 8. 当前已知问题（来自 `TODO.md`）
@@ -349,7 +353,7 @@ npx tailwindcss -i ./apps/web/src/index.css -o /dev/null 2>&1 | grep -E '^(CssSy
 - 保持中文注释风格；新增 UI 文案优先走 `apps/web/src/lib/i18n.ts` 的 `useT`，但当前大量组件仍为硬编码中文，短期可保持现状。
 - 新增依赖必须在 `package.json` 中声明，否则 Biome `noUndeclaredDependencies` 会报错。
 - 新增 Button 必须满足可交互约束；新增 SelectItem 避免空字符串 value。
-- 需要网络请求或持久化时，优先在 `apps/web/src/services/electron.ts` 下新建封装，在 `apps/desktop/src/ipc/` 下新建 handler，再逐步替换 `apps/web/src/data/mockData.ts` 的调用点。
+- 需要网络请求或持久化时，优先在 `apps/web/src/services/electron.ts` 下新建封装，在 `apps/desktop/src/api/ipc/` 下新建 handler，再逐步替换 `apps/web/src/data/mockData.ts` 的调用点。
 - 所有缺陷修复必须按 `AGENTS.user.md` Rule 4 记录到 `docs/bugs/YYYY-MM-DD-<brief-description>.md`。
 - 所有待办/遗留项必须按 `AGENTS.user.md` Rule 5 记录到 `TODO.md`。
 - 提交前必须运行 `pnpm lint`（或等价的分步命令）并确保通过；同时应通过 `pnpm test` 与 `pnpm build`。

@@ -9,7 +9,14 @@ export type SentinelKind = "primary" | "sub";
 export type AgentTitle = string;
 export type TeammateMode = "pipeline" | "brainstorm" | "supervisor" | "hierarchy";
 export type AgentMessageKind = "request" | "response" | "event" | "control";
-export type AgentWorkStatus = "not_started" | "in_progress" | "waiting" | "completed" | "failed" | "cancelled";
+export enum AgentWorkStatus {
+  NOT_STARTED = "not_started",
+  IN_PROGRESS = "in_progress",
+  WAITING = "waiting",
+  COMPLETED = "completed",
+  FAILED = "failed",
+  CANCELLED = "cancelled",
+}
 
 export interface AgentProfile {
   id: AgentId;
@@ -132,9 +139,22 @@ export type AgentDriverChunk =
   | { type: "text_delta"; text: string }
   | { type: "reasoning_delta"; text: string }
   | { type: "tool_event"; event: unknown }
-  | { type: "status_card"; text: string; agentId?: AgentId; agentName?: string; agentTitle?: AgentTitle; role?: AgentRole }
+  | { type: "status_card"; text: string; status?: AgentWorkStatus; agentId?: AgentId; agentName?: string; agentTitle?: AgentTitle; role?: AgentRole }
   | { type: "agent_chunk"; agentId: AgentId; agentName: string; agentTitle: AgentTitle; role: AgentRole; chunk: AgentDriverChunk }
-  | { type: "task_card"; taskId: string; round: number; stage: number; instruction: string; requestedBy: string; assigneeAgentId: AgentId }
+  | {
+      type: "task_card";
+      taskId: string;
+      round: number;
+      stage: number;
+      title?: string;
+      description?: string;
+      instruction: string;
+      status: AgentWorkStatus;
+      progress: number;
+      requestedBy: string;
+      assigneeAgentId: AgentId;
+      assignee?: string;
+    }
   | { type: "round_card"; round: number; summary: string }
   | { type: "done" }
   | { type: "error"; error: string };
@@ -143,10 +163,14 @@ export interface AgentTaskView {
   taskId: string;
   round: number;
   stage: number;
+  title?: string;
+  description?: string;
   instruction: string;
   requestedBy: string;
   assigneeAgentId: AgentId;
+  assignee?: string;
   status: AgentWorkStatus;
+  progress?: number;
   output?: string;
 }
 

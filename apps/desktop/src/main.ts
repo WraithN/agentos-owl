@@ -2,9 +2,9 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { app, BrowserWindow, screen } from "electron";
 import { initDatabase } from "./db/connection.js";
-import { registerIpcHandlers } from "./ipc/index.js";
-import { setWebSocketOwleryRef } from "./agent/owleryRuntime.js";
-import { Owlery as WebSocketOwlery } from "./owlery/Owlery.js";
+import { registerIpcHandlers } from "./api/ipc/index.js";
+import { setWebSocketOwleryRef } from "./agent-orchestrator/owlery.js";
+import { Owlery as WebSocketOwlery } from "./agent-orchestrator/owlery.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const isDev = !app.isPackaged;

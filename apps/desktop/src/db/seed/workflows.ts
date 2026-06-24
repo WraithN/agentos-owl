@@ -1,7 +1,7 @@
 import type Database from "better-sqlite3";
 import * as queries from "../queries/index.js";
 import type { WorkflowTemplate } from "../types.js";
-import { daysAgo, now } from "./utils.js";
+import { daysAgo, now } from "../../utils/time.js";
 
 /**
  * 默认工作流：覆盖输入/Agent/工具/条件/输出五种节点 + 连线，

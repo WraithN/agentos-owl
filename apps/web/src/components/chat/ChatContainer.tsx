@@ -8,9 +8,10 @@ import { saveConversation, saveMessage, startOwleryChat } from '@/services/elect
 import UpgradeBar from './UpgradeBar';
 import EmptyState from './EmptyState';
 import ChatHeader from './ChatHeader';
-import SingleAgentChat from './SingleAgentChat';
+import AgentChat from './AgentChat';
 import ConversationList from './ConversationList';
 import TaskBoard from '@/components/squad/TaskBoard';
+import { useChatRuntime } from './chat-runtime-context';
 import ExecutionLog from '@/components/automation/ExecutionLog';
 import MonitorModule from '@/components/monitor/MonitorModule';
 
@@ -26,6 +27,7 @@ interface ChatContainerProps {
 export default function ChatContainer({
   chatMode, currentConversation, setCurrentConversation, setChatMode, refreshConversations,
 }: ChatContainerProps) {
+  const { setTasks } = useChatRuntime();
   const [showUpgradeBar, setShowUpgradeBar] = useState(false);
   const [conversationListOpen, setConversationListOpen] = useState(false);
   const [taskBoardOpen, setTaskBoardOpen] = useState(false);
@@ -116,6 +118,11 @@ export default function ChatContainer({
 
   const isAuto = chatMode === 'auto';
 
+  // 没有当前会话时清空任务面板，避免展示旧任务
+  useEffect(() => {
+    if (!currentConversation) setTasks([]);
+  }, [currentConversation, setTasks]);
+
   return (
     <div className="flex flex-col h-full overflow-hidden">
       {/* ── 标题栏 ── */}
@@ -172,7 +179,7 @@ export default function ChatContainer({
         {/* 消息流：有当前会话时走 SingleAgentChat，否则显示 EmptyState */}
         <div className="flex-1 min-w-0 flex flex-col overflow-hidden">
           {currentConversation ? (
-            <SingleAgentChat
+            <AgentChat
               key={currentConversation.id}
               conversationId={currentConversation.id}
               mode={chatMode}

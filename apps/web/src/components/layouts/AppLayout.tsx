@@ -6,6 +6,7 @@ import TopBar from './TopBar';
 import CommandPalette from '@/components/global/CommandPalette';
 import NotificationPanel from '@/components/global/NotificationPanel';
 import { AppProvider, useApp } from '@/contexts/AppContext';
+import { ChatRuntimeProvider } from '@/components/chat/chat-runtime-context';
 
 // 模块懒加载
 import ChatModule from '@/components/chat/ChatModule';
@@ -69,7 +70,9 @@ function AppLayoutInner() {
 export default function AppLayout() {
   return (
     <AppProvider>
-      <AppLayoutInner />
+      <ChatRuntimeProvider>
+        <AppLayoutInner />
+      </ChatRuntimeProvider>
     </AppProvider>
   );
 }

@@ -30,8 +30,8 @@
    - 相对路径默认解析到 `/tmp`，与现有文件预览/下载路径一致。
 
 2. 更新 Prompt：
-   - `prompt/sentinel_planner.md`：文档/报告类任务必须使用 `create_docx` 生成 `.docx`，禁止只用纯文本冒充。
-   - `prompt/worker.md`：撰写文档/报告类子任务必须使用 `create_docx`，并标注生成路径。
+   - `apps/desktop/prompt/sentinel_planner.md`：文档/报告类任务必须使用 `create_docx` 生成 `.docx`，禁止只用纯文本冒充。
+   - `apps/desktop/prompt/worker.md`：撰写文档/报告类子任务必须使用 `create_docx`，并标注生成路径。
 
 ### 移除黄色跑马灯动效
 

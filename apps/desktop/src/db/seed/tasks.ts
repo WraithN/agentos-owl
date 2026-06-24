@@ -1,7 +1,7 @@
 import type Database from "better-sqlite3";
 import * as queries from "../queries/index.js";
 import type { KanbanTask } from "../types.js";
-import { daysAgo } from "./utils.js";
+import { daysAgo } from "../../utils/time.js";
 
 export function seedTasks(db: Database.Database): void {
   const count = db.prepare("SELECT COUNT(*) FROM kanban_tasks").pluck().get() as number;

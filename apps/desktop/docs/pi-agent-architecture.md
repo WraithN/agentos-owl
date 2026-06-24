@@ -17,7 +17,7 @@ Renderer
 
 ### 1. `agent.ts` — 底层 Agent 构造能力
 
-**位置**: `src/agent/agent.ts`
+**位置**: `src/agent-runtime/agent.ts`
 
 核心职责：
 
@@ -30,7 +30,7 @@ Renderer
 
 ### 2. `PiAgentDriver.ts` — Owlery 驱动适配器
 
-**位置**: `src/agent/drivers/PiAgentDriver.ts`
+**位置**: `src/agent-runtime/drivers/PiAgentDriver.ts`
 
 `PiAgentDriver` 负责把 pi-agent-core 的事件流转换为 Owlery 统一的 `AgentDriverChunk`：
 
@@ -44,7 +44,7 @@ Renderer
 
 ### 3. `owleryRuntime.ts` — 默认运行时装配
 
-**位置**: `src/agent/owleryRuntime.ts`
+**位置**: `src/agent-runtime/owleryRuntime.ts`
 
 该模块创建全局 Owlery 实例，并为 `AgentFactory` 注入 driverFactory：
 
@@ -57,7 +57,7 @@ Owlery
 
 ## 工具集
 
-**位置**: `src/agent/tools.ts`
+**位置**: `src/agent-runtime/tools.ts`
 
 向底层 Agent 注入核心工具，使其具备自主操控文件系统和执行命令的能力：
 
@@ -94,7 +94,7 @@ Owlery
 ## 目录结构
 
 ```text
-src/agent/
+src/agent-runtime/
 ├── agent.ts                 # LLM 解析、Prompt 加载、Plain Agent 创建
 ├── owleryRuntime.ts         # Owlery 默认运行时装配
 ├── drivers/PiAgentDriver.ts # pi-agent-core 到 AgentDriverChunk 的适配

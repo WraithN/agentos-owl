@@ -66,6 +66,7 @@ CREATE TABLE IF NOT EXISTS conversations (
     last_time INTEGER NOT NULL,
     unread INTEGER NOT NULL DEFAULT 0,
     agent_ids_json TEXT NOT NULL DEFAULT '[]',
+    agent_names_json TEXT NOT NULL DEFAULT '{}',
     pinned INTEGER NOT NULL DEFAULT 0,
     created_at INTEGER NOT NULL,
     updated_at INTEGER NOT NULL

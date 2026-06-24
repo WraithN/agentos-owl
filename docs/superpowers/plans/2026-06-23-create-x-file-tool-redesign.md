@@ -34,8 +34,8 @@
 - `apps/desktop/package.json`
 - `apps/desktop/src/agent/tools.ts`
 - `apps/desktop/src/agent/owleryAgentFactory.ts`
-- `prompt/sentinel_planner.md`
-- `prompt/worker.md`
+- `apps/desktop/prompt/sentinel_planner.md`
+- `apps/desktop/prompt/worker.md`
 
 ---
 
@@ -1354,12 +1354,12 @@ git commit -m "feat(agent): redistribute tools across elder, sentinel and worker
 ## Task 12: 更新 Prompt 文件
 
 **Files:**
-- Modify: `prompt/sentinel_planner.md`
-- Modify: `prompt/worker.md`
+- Modify: `apps/desktop/prompt/sentinel_planner.md`
+- Modify: `apps/desktop/prompt/worker.md`
 
 **Goal:** 让 Agent 提示词与新工具名和路径保持一致。
 
-- [ ] **Step 1: 修改 prompt/sentinel_planner.md**
+- [ ] **Step 1: 修改 apps/desktop/prompt/sentinel_planner.md**
 
 将：
 
@@ -1385,7 +1385,7 @@ git commit -m "feat(agent): redistribute tools across elder, sentinel and worker
 - 文档、报告类任务必须让 `writer` 调用 `create_x_file` 工具生成对应格式文件（默认写到 `~/.config/owl-os/workspace/`），并在 `submit_to_elder` 的最终说明中给出文件名；禁止只用纯文本冒充文档交付物。
 ```
 
-- [ ] **Step 2: 修改 prompt/worker.md**
+- [ ] **Step 2: 修改 apps/desktop/prompt/worker.md**
 
 将：
 
@@ -1415,7 +1415,7 @@ git commit -m "feat(agent): redistribute tools across elder, sentinel and worker
 
 ```bash
 cd /home/nan/agentos-owl
-git add prompt/sentinel_planner.md prompt/worker.md
+git add apps/desktop/prompt/sentinel_planner.md apps/desktop/prompt/worker.md
 git commit -m "docs(prompt): update create_docx references to create_x_file and workspace path"
 ```
 
