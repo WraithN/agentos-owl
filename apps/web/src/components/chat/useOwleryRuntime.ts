@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { flushSync } from 'react-dom';
 import { generateId, useExternalStoreRuntime, type AppendMessage, type MessageStatus, type ThreadMessageLike } from '@assistant-ui/react';
 import { AgentWorkStatus } from '@owl-os/core';
 import type { AgentDriverChunk, AgentTaskView, TeammateStatus } from '@owl-os/core';
@@ -15,6 +16,7 @@ import {
 } from '@/services/electron';
 import type { AppMode, Conversation, Message, MessageType, TeammateMode } from '@/types';
 import { getToolEventId } from './tool-call-utils';
+import { extractGeneratedFilePathsFromText } from './file-result-utils';
 
 const TITLE_MAX_LENGTH = 20;
 const LAST_MESSAGE_MAX_LENGTH = 80;
@@ -92,6 +94,54 @@ function buildPersistedMessage(params: {
     timestamp: new Date(),
     meta: params.meta,
   };
+}
+
+/**
+ * 按 id 去重，保留最新出现的一条。
+ * assistant-ui 的 MessageRepository 在导入含重复 id 的消息列表时会抛出
+ * "performOp/link: A message with the same id already exists in the parent tree"，
+ * 因此进入 runtime 前需要兜底去重。
+ */
+function isEmptyRunningAssistant(message: ThreadMessageLike): boolean {
+  if (message.role !== 'assistant') return false;
+  if ((message.status as { type?: string } | undefined)?.type !== 'running') return false;
+  const content = message.content;
+  if (content === undefined || content === null) return true;
+  if (typeof content === 'string') return content.trim().length === 0;
+  if (!Array.isArray(content) || content.length === 0) return true;
+  const text = content
+    .filter((part) => (part as { type?: string }).type === 'text')
+    .map((part) => String((part as { text?: unknown }).text ?? ''))
+    .join('');
+  const hasNonText = content.some((part) => (part as { type?: string }).type !== 'text' && (part as { type?: string }).type !== 'reasoning');
+  return text.trim().length === 0 && !hasNonText;
+}
+
+function deduplicateMessages(messages: ThreadMessageLike[], activeAssistantId: string | null = null): ThreadMessageLike[] {
+  const seen = new Set<string>();
+  const result: ThreadMessageLike[] = [];
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const message = messages[i];
+    const id = message.id;
+    // 过滤 assistant-ui 自动插入的 optimistic assistant 占位消息。
+    // 我们自己预创建的 assistant 消息 id 会保存在 assistantIdRef.current 中，
+    // 因此只保留与该 id 匹配的 running 空 assistant，其余空 running assistant 视为 optimistic 消息丢弃。
+    if (activeAssistantId && id !== activeAssistantId && isEmptyRunningAssistant(message)) {
+      console.warn('[useOwleryRuntime] 过滤 assistant-ui optimistic assistant 消息:', id);
+      continue;
+    }
+    if (!id) {
+      result.unshift(message);
+      continue;
+    }
+    if (seen.has(id)) {
+      console.warn('[useOwleryRuntime] 发现重复消息 id，已丢弃旧副本:', id);
+      continue;
+    }
+    seen.add(id);
+    result.unshift(message);
+  }
+  return result;
 }
 
 function upsertTextPart(parts: ThreadContentPart[], text: string): ThreadContentPart[] {
@@ -241,6 +291,21 @@ export function useOwleryRuntime(
   })();
   const conversationTitleRef = useRef(conversationTitle);
   conversationTitleRef.current = conversationTitle;
+
+  // 当前任务生成的文件：若存在正在生成的 assistant 消息，从该消息提取；否则取最后一条已完成的 assistant 消息。
+  // 每次新用户提问都会重置 assistantIdRef，因此这里始终对应「当前任务」。
+  const generatedFiles = useMemo(() => {
+    const targetId = assistantIdRef.current;
+    const targetMessage = targetId
+      ? messages.find((message) => message.id === targetId)
+      : [...messages].reverse().find((message) => {
+          if (message.role !== 'assistant') return false;
+          const statusType = (message.status as { type?: string } | undefined)?.type;
+          return statusType === 'complete' || statusType === 'incomplete';
+        });
+    if (!targetMessage) return [];
+    return extractGeneratedFilePathsFromText(targetMessage);
+  }, [messages]);
 
   const applyChunk = useCallback((chunk: AgentDriverChunk) => {
     const ensureAssistant = () => {
@@ -532,9 +597,11 @@ export function useOwleryRuntime(
     const text = extractText(message).trim();
     if (!text) return;
     const userId = generateId();
-    setMessages((prev) => [...prev, { id: userId, role: 'user', content: text, createdAt: new Date() } as ThreadMessageLike]);
-    setIsRunning(true);
-    assistantIdRef.current = null;
+    const assistantId = generateId();
+    // 预创建一条空的 assistant 消息，让 assistant-ui 的 useExternalStoreRuntime
+    // 在 isRunning=true 时不再自动插入 optimistic assistant 消息，
+    // 避免后续 chunk 到达时同时存在 optimistic 消息与真实消息导致 AgentCard 重复渲染。
+    assistantIdRef.current = assistantId;
     assistantTextRef.current = '';
     assistantPartsRef.current = [];
     setAgentOutputs({});
@@ -543,6 +610,17 @@ export function useOwleryRuntime(
     tasksRef.current = [];
     setRounds([]);
     roundsRef.current = [];
+    // 使用 flushSync 确保 assistant 消息在 isRunning=true 之前进入 state，
+    // 让 assistant-ui 的 useExternalStoreRuntime 在检查 hasUpcomingMessage 时
+    // 看到消息列表以 assistant 结尾，从而不插入 optimistic assistant 消息。
+    flushSync(() => {
+      setMessages((prev) => [
+        ...prev,
+        { id: userId, role: 'user', content: text, createdAt: new Date() } as ThreadMessageLike,
+        { id: assistantId, role: 'assistant', content: [{ type: 'text', text: '' }], createdAt: new Date(), status: buildRunningStatus() } as ThreadMessageLike,
+      ]);
+    });
+    setIsRunning(true);
     try {
       await saveConversation(buildConversationUpdate(conversationId, conversationTitle === '新对话' ? text.slice(0, TITLE_MAX_LENGTH) : conversationTitle, mode, text));
       await saveMessage(buildPersistedMessage({ id: userId, conversationId, type: 'user', content: text }));
@@ -552,8 +630,21 @@ export function useOwleryRuntime(
       activeTransportRef.current = webSocketSent ? 'websocket' : 'ipc';
       if (!webSocketSent) await startOwleryChat(conversationId, text, { teammateMode, teamTemplateId });
     } catch (error) {
+      const errorText = error instanceof Error ? error.message : String(error);
+      const failedAssistantId = assistantIdRef.current;
       setIsRunning(false);
-      toast.error(`发送失败：${error instanceof Error ? error.message : String(error)}`);
+      if (failedAssistantId) {
+        // 启动失败且 assistant 消息仍为预创建的空消息时，标记为错误并保留错误提示
+        setMessages((prev) => prev.map((m) => m.id === failedAssistantId ? {
+          ...m,
+          content: [{ type: 'text', text: errorText } as ThreadContentPart],
+          status: buildErrorStatus(errorText),
+        } as ThreadMessageLike : m));
+        assistantIdRef.current = null;
+        assistantTextRef.current = '';
+        assistantPartsRef.current = [];
+      }
+      toast.error(`发送失败：${errorText}`);
     }
   }, [conversationId, conversationTitle, mode, teammateMode, teamTemplateId]);
 
@@ -561,8 +652,10 @@ export function useOwleryRuntime(
     toast.info('Owlery 重新生成能力即将接入');
   }, []);
 
+  const dedupedMessages = useMemo(() => deduplicateMessages(messages, assistantIdRef.current), [messages]);
+
   const runtime = useExternalStoreRuntime<ThreadMessageLike>({
-    messages,
+    messages: dedupedMessages,
     isRunning,
     onNew: handleNew,
     onCancel: async () => {
@@ -571,5 +664,5 @@ export function useOwleryRuntime(
     convertMessage: (message) => message,
   });
 
-  return { runtime, conversationTitle, messages, isRunning, regenerateFromMessage, agentOutputs, tasks, rounds };
+  return { runtime, conversationTitle, messages: dedupedMessages, isRunning, regenerateFromMessage, agentOutputs, tasks, rounds, generatedFiles };
 }

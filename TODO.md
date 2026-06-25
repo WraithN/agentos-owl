@@ -5,6 +5,23 @@
 
 ---
 
+## [2026-06-24] 会话展示修复与团队面板重构
+
+- [x] 修复 assistant-ui optimistic assistant 导致会话出现两条相同 assistant 消息 — Status: `COMPLETED`
+- [x] 修复同一角色出现多个 AgentCard，按 `title` 聚合为单张卡片 — Status: `COMPLETED`
+- [x] 修复简单消息暴露 reasoning/tool 过程 — Status: `COMPLETED`
+- [x] 修复主消息文件范围过宽，改为仅从文本部分提取 — Status: `COMPLETED`
+- [x] 创建右侧「执行过程」面板，合并任务流、智能体团队、生成文件 — Status: `COMPLETED`
+- [x] 右侧面板使用右侧垂直 Tabs，删除 Gantt 时间视图 — Status: `COMPLETED`
+- [x] 主会话框移除 WorkflowPanel，只保留最终结果与本轮文件 — Status: `COMPLETED`
+- [x] Header 机器人按钮保留状态摘要，并增加「查看团队过程」入口 — Status: `COMPLETED`
+- [x] 扩展 `ChatRuntimeContext` 共享完整执行状态 — Status: `COMPLETED`
+- [x] 新增 `execution.*` 多语言 key — Status: `COMPLETED`
+
+---
+
+---
+
 ## 里程碑一：6.23 ~ 7.23 — 运行时稳定 & 数据层打通
 
 目标：新 Agent 运行时成为唯一默认路径，会话/消息持久化全链路跑通，前端核心体验可用。

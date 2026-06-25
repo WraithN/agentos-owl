@@ -32,18 +32,31 @@ function extractTextFromToolResult(result: unknown): string {
   return String(result ?? '');
 }
 
-export function extractGeneratedFilePaths(message: { content?: unknown }): string[] {
+function extractGeneratedFilePathsFromParts(
+  message: { content?: unknown },
+  options: { includeToolResults: boolean } = { includeToolResults: true },
+): string[] {
   const parts = Array.isArray(message.content) ? message.content : [{ type: 'text', text: typeof message.content === 'string' ? message.content : '' }];
   const paths: string[] = [];
   for (const part of parts as Array<Record<string, unknown>>) {
     if (part.type === 'text' && typeof part.text === 'string') {
       paths.push(...extractFilePathsFromText(part.text));
     }
-    if (part.type === 'tool-call') {
+    if (options.includeToolResults && part.type === 'tool-call') {
       const resultText = extractTextFromToolResult(part.result ?? part.partialResult);
       paths.push(...extractFilePathsFromText(resultText));
     }
   }
   // 去重并保持顺序
   return [...new Set(paths)];
+}
+
+/** 从消息所有部分（文本 + 工具结果）中提取生成的文件路径 */
+export function extractGeneratedFilePaths(message: { content?: unknown }): string[] {
+  return extractGeneratedFilePathsFromParts(message, { includeToolResults: true });
+}
+
+/** 仅从消息文本部分提取生成的文件路径，用于主会话框展示本轮文件 */
+export function extractGeneratedFilePathsFromText(message: { content?: unknown }): string[] {
+  return extractGeneratedFilePathsFromParts(message, { includeToolResults: false });
 }

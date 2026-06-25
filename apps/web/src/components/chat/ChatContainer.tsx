@@ -1,5 +1,6 @@
 /* Chat 主容器 */
 import { useState, useCallback, useRef, useEffect } from 'react';
+import type { TabKey } from './ExecutionPanel';
 import { motion, AnimatePresence } from 'framer-motion';
 import { generateId } from '@assistant-ui/react';
 import { cn } from '@/lib/utils';
@@ -10,7 +11,7 @@ import EmptyState from './EmptyState';
 import ChatHeader from './ChatHeader';
 import AgentChat from './AgentChat';
 import ConversationList from './ConversationList';
-import TaskBoard from '@/components/squad/TaskBoard';
+import ExecutionPanel from './ExecutionPanel';
 import { useChatRuntime } from './chat-runtime-context';
 import ExecutionLog from '@/components/automation/ExecutionLog';
 import MonitorModule from '@/components/monitor/MonitorModule';
@@ -31,6 +32,7 @@ export default function ChatContainer({
   const [showUpgradeBar, setShowUpgradeBar] = useState(false);
   const [conversationListOpen, setConversationListOpen] = useState(false);
   const [taskBoardOpen, setTaskBoardOpen] = useState(false);
+  const [executionTab, setExecutionTab] = useState<TabKey>('tasks');
   const [monitorOpen, setMonitorOpen] = useState(false);
   const [dynamicTitle, setDynamicTitle] = useState(currentConversation?.title ?? "新对话");
 
@@ -133,6 +135,10 @@ export default function ChatContainer({
         onNew={handleNewConv}
         taskBoardOpen={taskBoardOpen}
         onToggleTaskBoard={() => setTaskBoardOpen(v => !v)}
+        onOpenTeamPanel={() => {
+          setExecutionTab('team');
+          setTaskBoardOpen(true);
+        }}
         monitorOpen={monitorOpen}
         onToggleMonitor={() => setMonitorOpen(v => !v)}
       />
@@ -204,7 +210,7 @@ export default function ChatContainer({
               className="absolute right-0 top-0 bottom-0 z-30 w-full md:w-[60%] min-w-[320px] overflow-hidden"
               style={{ background: 'var(--panel-bg-solid)', borderLeft: '1px solid var(--border-subtle)' }}
             >
-              <TaskBoard />
+              <ExecutionPanel sessionId={currentConversation?.id ?? ''} activeTab={executionTab} onTabChange={setExecutionTab} />
             </motion.div>
           )}
           {taskBoardOpen && isAuto && (

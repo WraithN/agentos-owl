@@ -272,9 +272,23 @@ export class AgentOrchestrator {
 
   private subscribeChannelEvents(): void {
     this.unsubscribeOutput = this.sessionChannel.subscribe("output", (payload) => {
-      const { agentInfo, content } = payload as { agentInfo: { agentId: AgentId }; content: AgentDriverChunk };
+      const { agentInfo, content } = payload as {
+        agentInfo: { agentId: AgentId; agentName: string; role: AgentRole; title: string };
+        content: AgentDriverChunk;
+      };
       this.currentRunner = this.agents.get(agentInfo.agentId);
+      // 原始 chunk 继续进入主消息流，保证 assistant-ui 的文本/推理/工具渲染
       this.port.postEvent({ type: "chunk", chunk: content });
+      // 同时以 agent_chunk 包装，供前端按智能体归类到 WorkflowPanel
+      const agentChunk: AgentDriverChunk = {
+        type: "agent_chunk",
+        agentId: agentInfo.agentId,
+        agentName: agentInfo.agentName,
+        agentTitle: agentInfo.title,
+        role: agentInfo.role,
+        chunk: content,
+      };
+      this.port.postEvent({ type: "chunk", chunk: agentChunk });
     });
 
     this.unsubscribeTaskEvent = this.sessionChannel.subscribe("task_event", (payload) => {

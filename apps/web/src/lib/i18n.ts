@@ -16,7 +16,9 @@ type TranslationKey =
   | 'role.boss' | 'role.planner' | 'role.supervisor' | 'role.coordinator' | 'role.cto'
   | 'role.developer' | 'role.tester' | 'role.designer' | 'role.writer' | 'role.researcher'
   | 'role.analyst' | 'role.marketer' | 'role.operator' | 'role.reviewer' | 'role.debugger'
-  | 'task.stage' | 'task.requestedBy' | 'task.assignee' | 'task.content';
+  | 'task.stage' | 'task.requestedBy' | 'task.assignee' | 'task.content'
+  | 'execution.title' | 'execution.taskFlow' | 'execution.team' | 'execution.files'
+  | 'execution.emptyTeam' | 'execution.emptyFiles' | 'execution.running' | 'execution.viewTeamProcess';
 
 type Translations = Record<TranslationKey, string>;
 
@@ -84,6 +86,14 @@ const TRANSLATIONS: Record<Language, Translations> = {
     'task.requestedBy':   '任务需求方',
     'task.assignee':      '执行者',
     'task.content':       '当前任务内容',
+    'execution.title':    '执行过程',
+    'execution.taskFlow': '任务流',
+    'execution.team':     '智能体',
+    'execution.files':    '生成文件',
+    'execution.emptyTeam':'暂无智能体团队执行数据',
+    'execution.emptyFiles':'当前任务尚未生成文件',
+    'execution.running':  '运行中',
+    'execution.viewTeamProcess': '查看团队过程',
   },
   en: {
     'nav.chat':           'Chat',
@@ -148,6 +158,14 @@ const TRANSLATIONS: Record<Language, Translations> = {
     'task.requestedBy':   'Requested by',
     'task.assignee':      'Assignee',
     'task.content':       'Content',
+    'execution.title':    'Execution',
+    'execution.taskFlow': 'Task Flow',
+    'execution.team':     'Agents',
+    'execution.files':    'Generated Files',
+    'execution.emptyTeam':'No agent team execution data',
+    'execution.emptyFiles':'No files generated yet',
+    'execution.running':  'Running',
+    'execution.viewTeamProcess': 'View Team Process',
   },
   ja: {
     'nav.chat':           'チャット',
@@ -212,6 +230,14 @@ const TRANSLATIONS: Record<Language, Translations> = {
     'task.requestedBy':   '依頼者',
     'task.assignee':      '担当者',
     'task.content':       'タスク内容',
+    'execution.title':    '実行プロセス',
+    'execution.taskFlow': 'タスクフロー',
+    'execution.team':     'エージェント',
+    'execution.files':    '生成ファイル',
+    'execution.emptyTeam':'エージェントチームの実行データがありません',
+    'execution.emptyFiles':'まだファイルが生成されていません',
+    'execution.running':  '実行中',
+    'execution.viewTeamProcess': 'チームプロセスを表示',
   },
   ko: {
     'nav.chat':           '대화',
@@ -276,6 +302,14 @@ const TRANSLATIONS: Record<Language, Translations> = {
     'task.requestedBy':   '요청자',
     'task.assignee':      '담당자',
     'task.content':       '작업 내용',
+    'execution.title':    '실행 프로세스',
+    'execution.taskFlow': '작업 흐름',
+    'execution.team':     '에이전트',
+    'execution.files':    '생성된 파일',
+    'execution.emptyTeam':'에이전트 팀 실행 데이터 없음',
+    'execution.emptyFiles':'아직 생성된 파일 없음',
+    'execution.running':  '실행 중',
+    'execution.viewTeamProcess': '팀 프로세스 보기',
   },
 };
 

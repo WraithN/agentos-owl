@@ -62,12 +62,14 @@ interface ChatHeaderProps {
   onNew: () => void;
   taskBoardOpen: boolean;
   onToggleTaskBoard: () => void;
+  onOpenTeamPanel?: () => void;
   monitorOpen: boolean;
   onToggleMonitor: () => void;
 }
 export default function ChatHeader({
   title, currentId, onSelect, onNew,
-  taskBoardOpen, onToggleTaskBoard, monitorOpen, onToggleMonitor,
+  taskBoardOpen, onToggleTaskBoard, onOpenTeamPanel,
+  monitorOpen, onToggleMonitor,
 }: ChatHeaderProps) {
   const t = useT();
   const [teammateStatus, setTeammateStatus] = useState<TeammateStatus | null>(null);
@@ -147,6 +149,15 @@ export default function ChatHeader({
                     teammateStatus.members.map((agent) => <AgentStatusRow key={agent.agentId} agent={agent} />)
                   )}
                 </StatusGroup>
+                {onOpenTeamPanel && (
+                  <button
+                    type="button"
+                    onClick={onOpenTeamPanel}
+                    className="w-full rounded-lg border border-dashed border-cyan-500/40 bg-cyan-500/5 py-2 text-xs font-medium text-cyan-400 hover:bg-cyan-500/10 transition-colors"
+                  >
+                    {t('execution.viewTeamProcess')}
+                  </button>
+                )}
               </div>
             )}
           </PopoverContent>
